@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
-import { applyBrand } from '../../lib/theme'
+import { applyBrand, applyThemeMode } from '../../lib/theme'
 import { getTenantSlug, platformUrl } from '../../lib/tenant'
-import { getTenant } from '../../services/admin'
+import { getTenant } from '../../services/tenant'
 import type { PublicTenant } from '../../types'
 
 type TenantContextValue = {
@@ -26,6 +26,7 @@ export function TenantProvider({ children }: PropsWithChildren) {
   const refresh = useCallback(async () => setTenant(await getTenant()), [setTenant])
 
   useEffect(() => {
+    applyThemeMode()
     if (!getTenantSlug()) {
       setState('missing')
       return

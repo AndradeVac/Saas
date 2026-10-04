@@ -7,10 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.order import OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 
 
+class SelectedOption(BaseModel):
+    group_id: str = Field(max_length=40)
+    option_id: str = Field(max_length=40)
+
+
 class OrderItemCreate(BaseModel):
     product_id: UUID
     quantity: int = Field(gt=0, le=50)
     notes: str | None = Field(default=None, max_length=300)
+    options: list[SelectedOption] = Field(default_factory=list, max_length=40)
 
 
 class OrderCreate(BaseModel):
@@ -18,7 +24,9 @@ class OrderCreate(BaseModel):
     payment_method: PaymentMethod
     service_type: ServiceType = ServiceType.DINE_IN
     table_label: str | None = Field(default=None, max_length=30)
+    delivery_address: str | None = Field(default=None, max_length=300)
     notes: str | None = Field(default=None, max_length=500)
+    coupon_code: str | None = Field(default=None, max_length=40)
     items: list[OrderItemCreate] = Field(min_length=1, max_length=60)
 
 
@@ -31,6 +39,7 @@ class OrderItemResponse(BaseModel):
     quantity: int
     unit_price: Decimal
     total_price: Decimal
+    options: list[dict]
     notes: str | None
     created_at: datetime
 
@@ -56,11 +65,16 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     service_type: ServiceType
     table_label: str | None
+    delivery_address: str | None
     payment_method: PaymentMethod
     payment_status: PaymentStatus
     paid_at: datetime | None
     notes: str | None
+    coupon_code: str | None
     subtotal: Decimal
+    discount: Decimal
+    service_fee: Decimal
+    delivery_fee: Decimal
     total: Decimal
     created_at: datetime
     updated_at: datetime
@@ -76,3 +90,9 @@ class OrderStatusUpdate(BaseModel):
 class OrderPaymentUpdate(BaseModel):
     payment_status: PaymentStatus
     payment_method: PaymentMethod | None = None
+
+
+class OrderEdit(BaseModel):
+    table_label: str | None = Field(default=None, max_length=30)
+    notes: str | None = Field(default=None, max_length=500)
+    delivery_address: str | None = Field(default=None, max_length=300)

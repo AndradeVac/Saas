@@ -36,7 +36,7 @@ class ProductRepository:
         statement = select(Product).where(Product.tenant_id == self.tenant_id)
         if only_active:
             statement = statement.where(Product.active.is_(True))
-        return list(self.db.scalars(statement.order_by(Product.name)).all())
+        return list(self.db.scalars(statement.order_by(Product.sort_order, Product.name)).all())
 
     def update(self, product: Product) -> Product:
         self.db.flush()

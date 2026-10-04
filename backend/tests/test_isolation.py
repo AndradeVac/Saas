@@ -55,14 +55,14 @@ def test_orders_and_numbering_are_per_tenant(make_tenant):
     b1 = second.public_order(second_product["id"]).json()
     assert (a1["order_number"], a2["order_number"], b1["order_number"]) == (1, 2, 1)
 
-    assert len(first.get("/orders").json()) == 2
-    assert len(second.get("/orders").json()) == 1
+    assert len(first.get("/orders").json()["items"]) == 2
+    assert len(second.get("/orders").json()["items"]) == 1
 
     # Tracking tokens only resolve inside their own tenant.
     assert first.public_get(f"/public/orders/{a1['public_token']}").status_code == 200
     assert second.public_get(f"/public/orders/{a1['public_token']}").status_code == 404
 
-    order_id = first.get("/orders").json()[0]["id"]
+    order_id = first.get("/orders").json()["items"][0]["id"]
     assert second.get(f"/orders/{order_id}").status_code == 404
     assert second.patch(f"/orders/{order_id}/status", {"status": "PREPARING"}).status_code == 404
 
@@ -72,8 +72,8 @@ def test_customers_users_and_audit_are_isolated(make_tenant):
     product = first.add_product()
     first.public_order(product["id"])
 
-    assert [c["name"] for c in second.get("/customers").json()] == []
+    assert second.get("/customers").json()["items"] == []
     assert len(second.get("/users").json()) == 1
-    audit_actions = {entry["action"] for entry in second.get("/audit").json()}
+    audit_actions = {entry["action"] for entry in second.get("/audit").json()["items"]}
     assert "PRODUCT_CREATED" not in audit_actions
     assert "ORDER_STATUS_CHANGED" not in audit_actions

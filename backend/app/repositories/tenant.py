@@ -16,6 +16,9 @@ class TenantRepository:
         self.db.refresh(tenant)
         return tenant
 
+    def get_by_id(self, tenant_id: UUID) -> Tenant | None:
+        return self.db.get(Tenant, tenant_id)
+
     def get_by_slug(self, slug: str) -> Tenant | None:
         return self.db.scalar(select(Tenant).where(Tenant.slug == slug))
 

@@ -9,8 +9,9 @@ from app.models.category import Category
 from app.models.tenant import BusinessType, Tenant, TenantStatus
 from app.models.user import User, UserRole
 from app.repositories.tenant import TenantRepository
-from app.schemas.tenant import SignupRequest, SlugAvailability, TenantSettingsUpdate
+from app.schemas.tenant import SignupRequest, SlugAvailability, TenantSettingsUpdate, validate_slug
 from app.services.audit import record_audit
+from app.services.media import MediaService
 from app.services.user import UserService
 
 # Starter menu sections created with a new account, so the owner can start adding products right away.
@@ -23,6 +24,13 @@ STARTER_CATEGORIES: dict[BusinessType, list[str]] = {
     BusinessType.OTHER: ["Cardápio", "Bebidas"],
 }
 
+_PLAIN_FIELDS = (
+    "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
+    "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
+)
+# Can be cleared by sending null explicitly.
+_NULLABLE_FIELDS = ("description", "phone", "address", "instagram", "pix_key", "logo_url", "cover_url")
+
 
 class TenantService:
     def __init__(self, db: Session):
@@ -30,8 +38,6 @@ class TenantService:
         self.db = db
 
     def check_slug(self, slug: str) -> SlugAvailability:
-        from app.schemas.tenant import validate_slug
-
         try:
             slug = validate_slug(slug)
         except ValueError as error:
@@ -76,16 +82,24 @@ class TenantService:
         return tenant
 
     def update_settings(self, tenant: Tenant, data: TenantSettingsUpdate, actor: User) -> Tenant:
-        for field in ("name", "business_type", "primary_color", "accepting_orders"):
-            value = getattr(data, field)
-            if value is not None:
-                setattr(tenant, field, value)
-        # These can be cleared by sending null explicitly.
-        for field in ("phone", "logo_url"):
+        media = MediaService(self.db, tenant.id)
+        replaced_images = []
+
+        for field in _PLAIN_FIELDS:
+            if field in data.model_fields_set and getattr(data, field) is not None:
+                setattr(tenant, field, getattr(data, field))
+        for field in _NULLABLE_FIELDS:
             if field in data.model_fields_set:
+                if field in ("logo_url", "cover_url") and getattr(tenant, field) != getattr(data, field):
+                    replaced_images.append(getattr(tenant, field))
                 setattr(tenant, field, getattr(data, field) or None)
 
-        record_audit(self.db, tenant.id, actor, "TENANT_SETTINGS_UPDATED", "TENANT", tenant.id)
+        if tenant.hours_mode == "SCHEDULE" and not tenant.opening_hours:
+            raise BusinessRuleError("Cadastre ao menos um horário de funcionamento ou use o modo manual.")
+
         self.repository.update(tenant)
+        for url in replaced_images:
+            media.release_if_orphan(url)
+        record_audit(self.db, tenant.id, actor, "TENANT_SETTINGS_UPDATED", "TENANT", tenant.id)
         self.db.commit()
         return tenant

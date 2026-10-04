@@ -1,8 +1,17 @@
-import { ArrowRight, BarChart3, QrCode, Store } from 'lucide-react'
+import { ArrowRight, BarChart3, Clock, QrCode, Store, Tag, Utensils } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { APP_NAME, tenantUrl } from '../../lib/tenant'
 import { slugify } from '../../lib/format'
+import { APP_NAME, tenantUrl } from '../../lib/tenant'
+
+const features = [
+  { icon: QrCode, title: 'QR Code por mesa', text: 'O cliente escaneia, escolhe e pede pelo celular. O pedido já chega com o número da mesa.' },
+  { icon: Utensils, title: 'Cardápio completo', text: 'Fotos, adicionais, tamanhos, destaques e produtos esgotados, tudo editável por você.' },
+  { icon: Clock, title: 'Horários e regras', text: 'Abre e fecha sozinho, define pedido mínimo, taxa de serviço, entrega e formas de pagamento.' },
+  { icon: Tag, title: 'Cupons de desconto', text: 'Crie cupons percentuais ou em reais, com validade, limite de uso e pedido mínimo.' },
+  { icon: Store, title: 'Seu endereço e sua marca', text: 'Cada negócio tem endereço próprio, logo, capa e cores, com login e senha da equipe.' },
+  { icon: BarChart3, title: 'Gestão e relatórios', text: 'Fila de pedidos em tempo real, clientes, equipe, vendas por horário e exportação em Excel.' },
+]
 
 export function LandingPage() {
   const [slug, setSlug] = useState('')
@@ -17,17 +26,15 @@ export function LandingPage() {
     <div className="landing">
       <header className="landing-header">
         <strong className="landing-logo">{APP_NAME}</strong>
-        <nav>
-          <Link className="btn ghost" to="/cadastro">Criar conta</Link>
-        </nav>
+        <Link className="btn" to="/cadastro">Criar conta</Link>
       </header>
 
       <main>
         <section className="hero">
-          <h1>Cardápio digital e pedidos para o seu restaurante, padaria ou cafeteria.</h1>
+          <h1>O cardápio digital do seu restaurante, padaria ou cafeteria.</h1>
           <p>
-            Seus clientes escaneiam o QR Code da mesa, pedem pelo celular e acompanham o preparo.
-            Você recebe tudo em um painel simples, com o endereço da sua marca.
+            Seus clientes pedem pelo celular, você recebe tudo em um painel simples e controla cada detalhe do seu negócio,
+            sem depender de ninguém.
           </p>
           <div className="hero-actions">
             <Link className="btn primary large" to="/cadastro">Testar grátis <ArrowRight size={18} /></Link>
@@ -35,9 +42,9 @@ export function LandingPage() {
         </section>
 
         <section className="features">
-          <article className="card"><QrCode size={26} /><h3>QR Code por mesa</h3><p>Gere os QR Codes e o pedido já chega com o número da mesa.</p></article>
-          <article className="card"><Store size={26} /><h3>Seu endereço</h3><p>Cada negócio tem seu próprio endereço, logo e cor, com login e senha da equipe.</p></article>
-          <article className="card"><BarChart3 size={26} /><h3>Gestão completa</h3><p>Fila de pedidos em tempo real, produtos, equipe e relatórios de vendas.</p></article>
+          {features.map(({ icon: Icon, title, text }) => (
+            <article className="card" key={title}><Icon size={26} /><h3>{title}</h3><p>{text}</p></article>
+          ))}
         </section>
 
         <section className="card access-card">

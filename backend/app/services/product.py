@@ -9,6 +9,11 @@ from app.repositories.category import CategoryRepository
 from app.repositories.product import ProductRepository
 from app.schemas.product import ProductCreate, ProductUpdate
 from app.services.audit import record_audit
+from app.services.media import MediaService
+
+
+def _dump_options(groups) -> list[dict]:
+    return [group.model_dump(mode="json") for group in groups]
 
 
 class ProductService:
@@ -16,6 +21,7 @@ class ProductService:
     def __init__(self, db: Session, tenant_id: UUID):
         self.repository = ProductRepository(db, tenant_id)
         self.category_repository = CategoryRepository(db, tenant_id)
+        self.media = MediaService(db, tenant_id)
         self.tenant_id = tenant_id
         self.db = db
 
@@ -32,6 +38,9 @@ class ProductService:
             image_url=data.image_url,
             price=data.price,
             featured=data.featured,
+            available=data.available,
+            sort_order=data.sort_order,
+            options=_dump_options(data.options),
         )
         self.repository.create(product)
         record_audit(self.db, self.tenant_id, actor, "PRODUCT_CREATED", "PRODUCT", product.id, product.name)
@@ -49,6 +58,7 @@ class ProductService:
 
     def update(self, product_id: UUID, data: ProductUpdate, actor: User | None = None) -> Product:
         product = self.get_by_id(product_id)
+        previous_image = product.image_url
 
         if data.category_id is not None:
             self._validate_category(data.category_id)
@@ -63,10 +73,18 @@ class ProductService:
             product.price = data.price
         if data.featured is not None:
             product.featured = data.featured
+        if data.available is not None:
+            product.available = data.available
         if data.active is not None:
             product.active = data.active
+        if data.sort_order is not None:
+            product.sort_order = data.sort_order
+        if data.options is not None:
+            product.options = _dump_options(data.options)
 
         self.repository.update(product)
+        if product.image_url != previous_image:
+            self.media.release_if_orphan(previous_image)
         record_audit(self.db, self.tenant_id, actor, "PRODUCT_UPDATED", "PRODUCT", product.id, product.name)
         self.db.commit()
         return product

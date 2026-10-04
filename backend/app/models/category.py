@@ -12,6 +12,7 @@ class Category(Base):
     __tablename__ = "categories"
     __table_args__ = (
         UniqueConstraint("tenant_id", "name", name="uq_categories_tenant_name"),
+        UniqueConstraint("tenant_id", "id", name="uq_categories_tenant_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

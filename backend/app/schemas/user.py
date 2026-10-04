@@ -13,6 +13,11 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.OPERATOR
 
 
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    role: UserRole | None = None
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,6 +37,10 @@ class UserStatusUpdate(BaseModel):
 
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class PasswordReset(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 

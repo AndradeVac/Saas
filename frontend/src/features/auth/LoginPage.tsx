@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
+import { mediaUrl } from '../../lib/media'
 import { apiErrorMessage } from '../../services/api'
 import { useTenant } from '../tenant/TenantProvider'
 import { useAuth } from './AuthProvider'
@@ -13,6 +14,15 @@ const schema = z.object({
   password: z.string().min(1, 'Informe a senha.'),
 })
 type FormValues = z.infer<typeof schema>
+
+export function Brand({ name, logo }: { name: string; logo: string | null }) {
+  return (
+    <div className="brand-mark">
+      {logo ? <img src={mediaUrl(logo)} alt="" /> : <span className="brand-initial">{name.charAt(0).toUpperCase()}</span>}
+      <strong>{name}</strong>
+    </div>
+  )
+}
 
 export function LoginPage() {
   const { tenant } = useTenant()
@@ -44,7 +54,7 @@ export function LoginPage() {
         <p className="muted">Acesso da equipe de {tenant.name}.</p>
         <label className="field">
           <span>E-mail</span>
-          <input type="email" autoComplete="email" {...register('username')} />
+          <input type="email" autoComplete="email" autoFocus {...register('username')} />
           {errors.username && <small className="field-error">{errors.username.message}</small>}
         </label>
         <label className="field">
@@ -57,19 +67,10 @@ export function LoginPage() {
           </div>
           {errors.password && <small className="field-error">{errors.password.message}</small>}
         </label>
-        {serverError && <div className="alert error">{serverError}</div>}
-        <button className="btn primary block" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button>
-        <Link className="muted center-link" to="/">← Voltar ao cardápio</Link>
+        {serverError && <div className="alert error" role="alert">{serverError}</div>}
+        <button className="btn primary block large" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button>
+        <Link className="center-link" to="/">← Voltar ao cardápio</Link>
       </form>
     </main>
-  )
-}
-
-export function Brand({ name, logo }: { name: string; logo: string | null }) {
-  return (
-    <div className="brand-mark">
-      {logo ? <img src={logo} alt="" /> : <span className="brand-initial">{name.charAt(0).toUpperCase()}</span>}
-      <strong>{name}</strong>
-    </div>
   )
 }

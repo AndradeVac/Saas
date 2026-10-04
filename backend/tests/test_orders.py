@@ -18,7 +18,7 @@ def test_public_order_full_lifecycle(make_tenant):
     assert tracking["table_label"] == "12"
     assert tracking["items"][0]["product_name"] == "Cappuccino"
 
-    order = tenant.get("/orders").json()[0]
+    order = tenant.get("/orders").json()["items"][0]
     assert order["customer_name"] == "Maria Cliente" and order["notes"] == "Sem açúcar"
 
     flow = ["PREPARING", "READY", "FINISHED"]
@@ -39,7 +39,7 @@ def test_price_comes_from_catalog_and_is_snapshotted(make_tenant):
     tenant.public_order(product["id"], quantity=2)
 
     tenant.patch(f"/products/{product['id']}", {"price": "99.00", "name": "Bolo renomeado"})
-    item = tenant.get("/orders").json()[0]["items"][0]
+    item = tenant.get("/orders").json()["items"][0]["items"][0]
     assert (item["product_name"], item["unit_price"], item["total_price"]) == ("Bolo", "10.00", "20.00")
 
 
@@ -47,7 +47,7 @@ def test_cancel_requires_reason(make_tenant):
     tenant = make_tenant()
     product = tenant.add_product()
     tenant.public_order(product["id"])
-    order_id = tenant.get("/orders").json()[0]["id"]
+    order_id = tenant.get("/orders").json()["items"][0]["id"]
 
     assert tenant.patch(f"/orders/{order_id}/status", {"status": "CANCELLED"}).status_code == 422
     done = tenant.patch(f"/orders/{order_id}/status", {"status": "CANCELLED", "reason": "Cliente desistiu"})
@@ -60,7 +60,7 @@ def test_staff_confirms_payment(make_tenant):
     tenant = make_tenant()
     product = tenant.add_product()
     tenant.public_order(product["id"])
-    order_id = tenant.get("/orders").json()[0]["id"]
+    order_id = tenant.get("/orders").json()["items"][0]["id"]
 
     paid = tenant.patch(f"/orders/{order_id}/payment", {"payment_status": "PAID", "payment_method": "PIX"}).json()
     assert paid["payment_status"] == "PAID" and paid["payment_method"] == "PIX" and paid["paid_at"]

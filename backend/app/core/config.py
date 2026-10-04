@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     public_scheme: str = "http"
     public_port: str = ":5173"
     trial_days: int = 14
+    # Connection pool per API process (Neon's pooler fans these into its own limits).
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    # Uploaded images are stored in the database: per-file input limit and per-tenant quota.
+    media_max_upload_mb: int = 6
+    media_quota_mb: int = 100
 
     model_config = SettingsConfigDict(
         env_file=_env_file,

@@ -8,12 +8,14 @@ from app.models.user import User
 from app.repositories.category import CategoryRepository
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.services.audit import record_audit
+from app.services.media import MediaService
 
 
 class CategoryService:
 
     def __init__(self, db: Session, tenant_id: UUID):
         self.repository = CategoryRepository(db, tenant_id)
+        self.media = MediaService(db, tenant_id)
         self.tenant_id = tenant_id
         self.db = db
 
@@ -48,6 +50,7 @@ class CategoryService:
         if category is None:
             raise NotFoundError("Categoria não encontrada.")
 
+        previous_image = category.image_url
         if data.name is not None:
             category.name = data.name
         if "image_url" in data.model_fields_set:
@@ -58,6 +61,8 @@ class CategoryService:
             category.active = data.active
 
         self.repository.update(category)
+        if category.image_url != previous_image:
+            self.media.release_if_orphan(previous_image)
         record_audit(self.db, self.tenant_id, actor, "CATEGORY_UPDATED", "CATEGORY", category.id, category.name)
         self.db.commit()
         return category

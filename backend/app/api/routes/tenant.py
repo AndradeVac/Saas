@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,8 +13,9 @@ router = APIRouter(prefix="/tenant", tags=["Tenant"])
 
 
 @router.get("", response_model=PublicTenant)
-def get_public_tenant(tenant: Tenant = Depends(get_tenant)):
+def get_public_tenant(response: Response, tenant: Tenant = Depends(get_tenant)):
     """Name, logo and colors of the business whose address is being visited."""
+    response.headers["Cache-Control"] = "no-store"
     return tenant
 
 

@@ -48,7 +48,7 @@ export function SignupPage() {
     setServerError('')
     try {
       const created = await signup(values)
-      window.location.href = `${tenantUrl(created.slug, '/login')}`
+      window.location.href = tenantUrl(created.slug, '/login')
     } catch (error) {
       setServerError(apiErrorMessage(error, 'Não foi possível criar a conta. Tente novamente.'))
     }
@@ -63,7 +63,7 @@ export function SignupPage() {
 
         <label className="field">
           <span>Nome do estabelecimento</span>
-          <input autoComplete="organization" {...register('business_name')} />
+          <input autoComplete="organization" autoFocus {...register('business_name')} />
           {errors.business_name && <small className="field-error">{errors.business_name.message}</small>}
         </label>
 
@@ -85,7 +85,7 @@ export function SignupPage() {
           {errors.slug && <small className="field-error">{errors.slug.message}</small>}
           {!errors.slug && slugState && (
             <small className={slugState.available ? 'field-ok' : 'field-error'}>
-              {slugState.available ? 'Endereço disponível' : slugState.reason}
+              {slugState.available ? '✓ Endereço disponível' : slugState.reason}
             </small>
           )}
         </label>
@@ -109,11 +109,11 @@ export function SignupPage() {
           {errors.password && <small className="field-error">{errors.password.message}</small>}
         </label>
 
-        {serverError && <div className="alert error">{serverError}</div>}
-        <button className="btn primary block" type="submit" disabled={isSubmitting || slugState?.available === false}>
+        {serverError && <div className="alert error" role="alert">{serverError}</div>}
+        <button className="btn primary block large" type="submit" disabled={isSubmitting || slugState?.available === false}>
           {isSubmitting ? 'Criando…' : 'Criar conta'}
         </button>
-        <Link className="muted center-link" to="/">← Voltar</Link>
+        <Link className="center-link" to="/">← Voltar</Link>
       </form>
     </main>
   )

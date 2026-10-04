@@ -71,7 +71,7 @@ def test_dashboard_counts_sales_and_excludes_cancelled(make_tenant):
     product = tenant.add_product("Café", "5.00")
     tenant.public_order(product["id"], quantity=2)
     tenant.public_order(product["id"], quantity=1, phone="11977770000")
-    cancelled_id = tenant.get("/orders").json()[0]["id"]
+    cancelled_id = tenant.get("/orders").json()["items"][0]["id"]
     tenant.patch(f"/orders/{cancelled_id}/status", {"status": "CANCELLED", "reason": "teste"})
 
     dashboard = tenant.get("/analytics/dashboard", params={"period": "all"}).json()

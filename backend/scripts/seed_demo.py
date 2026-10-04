@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.category import Category
+from app.models.coupon import Coupon, CouponKind
 from app.models.product import Product
 from app.models.tenant import BusinessType, Tenant
 from app.schemas.tenant import SignupRequest
@@ -49,6 +50,24 @@ MENU: dict[str, list[tuple[str, str, str, bool]]] = {
         ("Cappuccino", "Com espuma de leite e canela.", "9.00", False),
         ("Suco de laranja natural", "300 ml, sem açúcar.", "8.50", False),
         ("Água mineral", "500 ml.", "3.50", False),
+    ],
+}
+
+
+# Option groups for some products (size / extras), to exercise the product options flow.
+OPTIONS: dict[str, list[dict]] = {
+    "Cappuccino": [
+        {"id": "size", "name": "Tamanho", "required": True, "min": 1, "max": 1, "options": [
+            {"id": "p", "name": "Pequeno (200 ml)", "price": "0", "active": True},
+            {"id": "g", "name": "Grande (350 ml)", "price": "3.00", "active": True}]},
+        {"id": "extra", "name": "Adicionais", "required": False, "min": 0, "max": 2, "options": [
+            {"id": "choc", "name": "Chocolate", "price": "2.00", "active": True},
+            {"id": "chan", "name": "Chantilly", "price": "2.50", "active": True}]},
+    ],
+    "Misto quente": [
+        {"id": "pao", "name": "Tipo de pão", "required": True, "min": 1, "max": 1, "options": [
+            {"id": "f", "name": "Pão de forma", "price": "0", "active": True},
+            {"id": "i", "name": "Integral", "price": "1.00", "active": True}]},
     ],
 }
 
@@ -94,12 +113,16 @@ def main() -> int:
                     description=description,
                     price=Decimal(price),
                     featured=featured,
+                    options=OPTIONS.get(name, []),
                 ))
                 created += 1
+        if db.scalar(select(Coupon).where(Coupon.tenant_id == tenant.id, Coupon.code == "DEMO10")) is None:
+            db.add(Coupon(tenant_id=tenant.id, code="DEMO10", kind=CouponKind.PERCENT, value=Decimal("10")))
         db.commit()
 
     print(f"{created} produtos adicionados.")
     print(f"Cardápio: {settings.tenant_url(DEMO_SLUG, '/')}")
+    print("Cupom de teste: DEMO10 (10%)")
     print(f"Painel:   {settings.tenant_url(DEMO_SLUG, '/login')}  ({DEMO_EMAIL} / {DEMO_PASSWORD})")
     return 0
 

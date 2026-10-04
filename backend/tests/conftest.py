@@ -21,6 +21,14 @@ PASSWORD = "senha-segura-123"
 
 
 @pytest.fixture(autouse=True)
+def no_menu_cache(monkeypatch):
+    """The public menu is cached for a few seconds in production; tests edit and re-read it immediately."""
+    from app.api.routes import public
+
+    monkeypatch.setattr(public, "_MENU_TTL_SECONDS", 0)
+
+
+@pytest.fixture(autouse=True)
 def reset_rate_limits():
     for limiter in (login_rate_limit, signup_rate_limit, slug_check_rate_limit, public_order_rate_limit, public_lookup_rate_limit):
         limiter.reset()
@@ -98,11 +106,11 @@ class TenantSession:
         assert response.status_code == 201, response.text
         return response.json()
 
-    def public_order(self, product_id: str, quantity: int = 2, phone: str = "11999998888", **extra):
+    def public_order(self, product_id: str, quantity: int = 2, phone: str = "11999998888", items_options=None, **extra):
         return self.public_post("/public/orders", {
             "customer_name": "Maria Cliente",
             "customer_phone": phone,
-            "items": [{"product_id": product_id, "quantity": quantity}],
+            "items": [{"product_id": product_id, "quantity": quantity, "options": items_options or []}],
             **extra,
         })
 

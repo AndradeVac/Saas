@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -33,6 +34,7 @@ class OrderStatus(str, enum.Enum):
 class ServiceType(str, enum.Enum):
     DINE_IN = "DINE_IN"
     TAKEAWAY = "TAKEAWAY"
+    DELIVERY = "DELIVERY"
 
 
 class PaymentMethod(str, enum.Enum):
@@ -55,6 +57,8 @@ class Order(Base):
         Index("idx_orders_tenant_created_at", "tenant_id", "created_at"),
         Index("idx_orders_customer_id", "customer_id"),
         Index("idx_orders_tenant_status", "tenant_id", "status"),
+        # An order can only point at a customer of the same tenant.
+        ForeignKeyConstraint(["tenant_id", "customer_id"], ["customers.tenant_id", "customers.id"], name="fk_orders_tenant_customer"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -65,9 +69,7 @@ class Order(Base):
     order_number: Mapped[int] = mapped_column(Integer, nullable=False)
     # Unguessable id handed to the customer to follow the order without logging in.
     public_token: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, nullable=False, unique=True)
-    customer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id", name="fk_orders_customer"), nullable=False
-    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
         Enum(OrderStatus, native_enum=False, length=20), nullable=False, default=OrderStatus.RECEIVED
     )
@@ -75,6 +77,8 @@ class Order(Base):
         Enum(ServiceType, native_enum=False, length=20), nullable=False, default=ServiceType.DINE_IN
     )
     # Table / tab identifier typed by the customer or staff ("12", "Balcão"...).
+    delivery_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    coupon_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     table_label: Mapped[str | None] = mapped_column(String(30), nullable=True)
     payment_method: Mapped[PaymentMethod] = mapped_column(
         Enum(PaymentMethod, native_enum=False, length=20), nullable=False
@@ -85,6 +89,9 @@ class Order(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    delivery_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0, server_default="0")
+    service_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0, server_default="0")
+    discount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0, server_default="0")
     total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

@@ -23,6 +23,8 @@ class AuthenticationError(ValueError):
 _CONFLICT_MESSAGES = {
     "uq_categories_tenant_name": "Já existe uma categoria com esse nome.",
     "uq_users_tenant_email": "Já existe um usuário com esse e-mail.",
+    "uq_customers_tenant_phone_digits": "Já existe um cliente com esse telefone.",
+    "uq_coupons_tenant_code": "Já existe um cupom com esse código.",
     "tenants_slug_key": "Este endereço já está em uso. Escolha outro.",
 }
 

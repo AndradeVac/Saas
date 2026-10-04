@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AuthenticationError, BusinessRuleError, NotFoundError
 from app.models.user import User, UserRole
 from app.repositories.user import UserRepository
-from app.schemas.user import PasswordChange, UserCreate, UserStatusUpdate
+from app.schemas.user import PasswordChange, PasswordReset, UserCreate, UserStatusUpdate, UserUpdate
 from app.services.audit import record_audit
 
 
@@ -28,12 +28,12 @@ class UserService:
             role=data.role,
         )
         self.repository.create(user)
-        record_audit(self.db, self.tenant_id, actor, "USER_CREATED", "USER", user.id, f"role={user.role.value}")
+        record_audit(self.db, self.tenant_id, actor, "USER_CREATED", "USER", user.id, f"{user.email} role={user.role.value}")
         self.db.commit()
         return user
 
     def get_by_id(self, user_id: UUID) -> User:
-        user = self.repository.get_by_id(user_id)
+        user = self.repository.get_by_id(user_id, include_inactive=True)
         if user is None:
             raise NotFoundError("Usuário não encontrado.")
         return user
@@ -41,19 +41,37 @@ class UserService:
     def get_all(self) -> list[User]:
         return self.repository.get_all()
 
-    def update_status(self, user_id: UUID, data: UserStatusUpdate, actor: User) -> User:
-        user = self.repository.get_by_id(user_id, include_inactive=True)
-        if user is None:
-            raise NotFoundError("Usuário não encontrado.")
-        if not data.active and user.id == actor.id:
-            raise BusinessRuleError("Você não pode desativar a própria conta.")
-        if not data.active and user.role is UserRole.ADMIN and self.repository.count_active_admins() <= 1:
-            raise BusinessRuleError("O sistema precisa manter pelo menos um administrador ativo.")
-        user.active = data.active
-        record_audit(self.db, self.tenant_id, actor, "USER_STATUS_CHANGED", "USER", user.id, f"active={data.active}")
+    def update(self, user_id: UUID, data: UserUpdate, actor: User) -> User:
+        user = self.get_by_id(user_id)
+        if data.role is not None and data.role != user.role:
+            if user.role is UserRole.ADMIN and user.active and self.repository.count_active_admins() <= 1:
+                raise BusinessRuleError("O sistema precisa manter pelo menos um administrador ativo.")
+            user.role = data.role
+        if data.name is not None:
+            user.name = data.name.strip()
+        record_audit(self.db, self.tenant_id, actor, "USER_UPDATED", "USER", user.id, f"{user.email} role={user.role.value}")
         self.repository.update(user)
         self.db.commit()
         return user
+
+    def update_status(self, user_id: UUID, data: UserStatusUpdate, actor: User) -> User:
+        user = self.get_by_id(user_id)
+        if not data.active and user.id == actor.id:
+            raise BusinessRuleError("Você não pode desativar a própria conta.")
+        if not data.active and user.role is UserRole.ADMIN and user.active and self.repository.count_active_admins() <= 1:
+            raise BusinessRuleError("O sistema precisa manter pelo menos um administrador ativo.")
+        user.active = data.active
+        record_audit(self.db, self.tenant_id, actor, "USER_STATUS_CHANGED", "USER", user.id, f"{user.email} active={data.active}")
+        self.repository.update(user)
+        self.db.commit()
+        return user
+
+    def reset_password(self, user_id: UUID, data: PasswordReset, actor: User) -> None:
+        user = self.get_by_id(user_id)
+        user.password_hash = self.password_hash.hash(data.new_password)
+        record_audit(self.db, self.tenant_id, actor, "PASSWORD_RESET", "USER", user.id, user.email)
+        self.repository.update(user)
+        self.db.commit()
 
     def change_password(self, user: User, data: PasswordChange) -> None:
         if not self.verify_password(data.current_password, user.password_hash):
