@@ -1,0 +1,13 @@
+{
+  "name": "Mesa Digital",
+  "short_name": "Mesa Digital",
+  "description": "Cardápio digital, pedidos e gestão para restaurantes, padarias e cafeterias.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c2410c",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
