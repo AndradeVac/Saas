@@ -4,6 +4,20 @@ export const ROOT_DOMAIN = (import.meta.env.VITE_ROOT_DOMAIN ?? 'localhost').toL
 
 const DEV_KEY = 'mesa-dev-tenant'
 
+// The landing page shows a tenant menu inside an iframe; it must not change the parent tab's remembered tenant.
+const embedded = (() => {
+  try {
+    return window.self !== window.top
+  } catch {
+    return true
+  }
+})()
+
+const onTenantSubdomain = () => window.location.hostname.toLowerCase().endsWith(`.${ROOT_DOMAIN}`)
+
+/** Dev without subdomains (Safari does not resolve *.localhost): the tenant travels as ?tenant=<slug>. */
+const usesQueryTenant = () => import.meta.env.DEV && !onTenantSubdomain()
+
 export function getTenantSlug(): string | null {
   const host = window.location.hostname.toLowerCase()
   if (host.endsWith(`.${ROOT_DOMAIN}`)) {
@@ -16,10 +30,13 @@ export function getTenantSlug(): string | null {
       const params = new URLSearchParams(window.location.search)
       if (params.has('tenant')) {
         const value = params.get('tenant')
-        if (value) sessionStorage.setItem(DEV_KEY, value)
-        else sessionStorage.removeItem(DEV_KEY)
+        if (!embedded) {
+          if (value) sessionStorage.setItem(DEV_KEY, value)
+          else sessionStorage.removeItem(DEV_KEY)
+        }
+        return value || null
       }
-      return sessionStorage.getItem(DEV_KEY)
+      return embedded ? null : sessionStorage.getItem(DEV_KEY)
     } catch {
       return null
     }
@@ -32,5 +49,14 @@ function origin(host: string) {
   return `${protocol}//${host}${port ? `:${port}` : ''}`
 }
 
-export const tenantUrl = (slug: string, path = '/') => `${origin(`${slug}.${ROOT_DOMAIN}`)}${path}`
-export const platformUrl = (path = '/') => `${origin(ROOT_DOMAIN)}${path}`
+function withTenantParam(path: string, slug: string) {
+  const url = new URL(path, window.location.origin)
+  url.searchParams.set('tenant', slug)
+  return url.toString()
+}
+
+/** Address of a tenant page: its subdomain, or ?tenant=<slug> when developing without subdomains. */
+export const tenantUrl = (slug: string, path = '/') =>
+  usesQueryTenant() ? withTenantParam(path, slug) : `${origin(`${slug}.${ROOT_DOMAIN}`)}${path}`
+/** The platform site (landing, sign-up); `?tenant=` clears the remembered dev tenant. */
+export const platformUrl = (path = '/') => (usesQueryTenant() ? withTenantParam(path, '') : `${origin(ROOT_DOMAIN)}${path}`)

@@ -23,6 +23,7 @@ import { useAuth } from '../../features/auth/AuthProvider'
 import { Brand } from '../../features/auth/LoginPage'
 import { LiveOrdersProvider, useLiveOrders } from '../../features/orders/LiveOrders'
 import { useTenant } from '../../features/tenant/TenantProvider'
+import { tenantUrl } from '../../lib/tenant'
 import { getThemeMode, setThemeMode, type ThemeMode } from '../../lib/theme'
 import { PlanProvider, usePlan } from '../../features/plans/PlanProvider'
 import type { FeatureKey } from '../../services/plans'
@@ -128,7 +129,7 @@ export function AppShell() {
           </nav>
           <div className="sidebar-foot">
             {isAdmin && <PlanCard onNavigate={close} />}
-            <a className="nav-link-plain" href="/" target="_blank" rel="noreferrer"><ExternalLink size={16} /> Ver meu cardápio</a>
+            <a className="nav-link-plain" href={tenantUrl(tenant.slug, '/')} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Ver meu cardápio</a>
             <button className="nav-link-plain" onClick={toggleTheme} style={{ background: 'none', border: 0, textAlign: 'left' }}>
               {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? 'Tema claro' : 'Tema escuro'}
             </button>

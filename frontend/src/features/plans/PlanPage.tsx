@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatDate, formatMoney } from '../../lib/format'
 import { paidPlans, type FeatureKey, type PlanInfo } from '../../services/plans'
+import { useTenant } from '../tenant/TenantProvider'
 import { planHighlights, SubscribeButton, usePlan } from './PlanProvider'
 
 function Meter({ label, used, max }: { label: string; used: number; max: number | null }) {
@@ -28,6 +29,7 @@ const coreRows = ['Cardápio digital com fotos', 'QR Code por mesa', 'Pedidos em
 
 export function PlanPage() {
   const { status, catalog, refresh } = usePlan()
+  const { tenant } = useTenant()
   useEffect(() => { void refresh() }, [refresh])
 
   if (!status || !catalog) {
@@ -80,7 +82,7 @@ export function PlanPage() {
         })}
       </div>
       {!catalog.sales_whatsapp && (
-        <p className="muted center-link">Para assinar, fale com o suporte da plataforma e informe o endereço <strong>{window.location.hostname.split('.')[0]}</strong>.</p>
+        <p className="muted center-link">Para assinar, fale com o suporte da plataforma e informe o endereço <strong>{tenant.slug}</strong>.</p>
       )}
 
       <div className="card table-wrap compare">

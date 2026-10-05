@@ -2,7 +2,9 @@ import axios from 'axios'
 import { getTenantSlug } from '../lib/tenant'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? '/api'
-const TOKEN_KEY = 'mesa-digital-token'
+// One session per tenant: in development without subdomains every tenant shares the localhost origin,
+// so a single key would let logging into one account knock out another open tab.
+const tokenKey = () => `mesa-digital-token:${getTenantSlug() ?? ''}`
 export const SESSION_EXPIRED_EVENT = 'mesa-digital:session-expired'
 /** Fired with `{ detail: { message, feature } }` when the API answers 402 (plan limit); the panel opens the upgrade prompt. */
 export const PLAN_LIMIT_EVENT = 'mesa-digital:plan-limit'
@@ -14,11 +16,10 @@ export const api = axios.create({
   timeout: 20_000,
 })
 
-// Tokens live in localStorage, which is per-origin, so every tenant subdomain has its own session.
 export const tokenStorage = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  get: () => localStorage.getItem(tokenKey()),
+  set: (token: string) => localStorage.setItem(tokenKey(), token),
+  clear: () => localStorage.removeItem(tokenKey()),
 }
 
 export const isPlanLimitError = (error: unknown) => axios.isAxiosError(error) && error.response?.status === 402
