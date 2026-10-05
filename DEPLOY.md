@@ -17,16 +17,17 @@ Nos comandos abaixo, troque `SEU-DOMINIO.com` pelo seu domínio e `mesa-digital`
 
 ---
 
-## 1. Domínio (grátis no seu plano Hostinger)
+## 1. Domínio .com.br (Registro.br, cerca de R$ 40/ano)
 
-1. hPanel → **Domínios** → resgate o domínio grátis incluído no plano.
-2. Ainda não mexa no DNS: no passo 2 ele passa a ser gerenciado pela Cloudflare.
+1. Em <https://registro.br>, pesquise o nome, entre com o seu CPF/CNPJ (crie a conta se precisar) e registre.
+   Pague o boleto ou PIX; o domínio é ativado após a compensação.
+2. Não precisa configurar o DNS no Registro.br: no passo 2 ele passa a ser gerenciado pela Cloudflare.
 
 ## 2. Cloudflare
 
 1. Crie a conta em <https://dash.cloudflare.com> → **Add a domain** → informe o domínio → plano **Free**.
-2. A Cloudflare mostra **2 nameservers**. No hPanel: **Domínios → seu domínio → DNS / Nameservers →
-   Alterar nameservers** e cole os dois. A troca leva de minutos a algumas horas.
+2. A Cloudflare mostra **2 nameservers** (ex.: `ana.ns.cloudflare.com`). No Registro.br: **Painel → seu domínio
+   → DNS → Alterar servidores DNS** e cole os dois. A troca leva de minutos a algumas horas.
 3. Em **SSL/TLS → Overview**, escolha **Full (strict)**.
 4. Em **SSL/TLS → Edge Certificates**, ligue **Always Use HTTPS**.
 
