@@ -5,15 +5,15 @@ Arquitetura (custo inicial: só o Fly.io, cerca de US$ 4–6/mês):
 ```
 Cliente ──► Cloudflare (DNS, HTTPS, proteção) ──► Fly.io São Paulo (site + API, 1 app)
                  │                                        │
-                 └── R2: fotos.SEU-DOMINIO.com            └── Neon São Paulo (Postgres)
+                 └── R2: fotos.mesadig.com.br            └── Neon São Paulo (Postgres)
 ```
 
 - **Fly.io (região `gru`)**: um app só serve o site e a API (`/api`), sempre ligado.
 - **Neon**: o banco que você já usa, também em São Paulo.
-- **Cloudflare (grátis)**: DNS do domínio, certificado para `*.SEU-DOMINIO.com` e cache.
-- **Cloudflare R2 (grátis até 10 GB)**: as fotos, servidas direto de `fotos.SEU-DOMINIO.com`.
+- **Cloudflare (grátis)**: DNS do domínio, certificado para `*.mesadig.com.br` e cache.
+- **Cloudflare R2 (grátis até 10 GB)**: as fotos, servidas direto de `fotos.mesadig.com.br`.
 
-Nos comandos abaixo, troque `SEU-DOMINIO.com` pelo seu domínio e `mesa-digital` pelo nome do app no Fly.
+Domínio: **mesadig.com.br**. Se o nome `mesa-digital` já estiver em uso no Fly, troque-o nos comandos e no `fly.toml`.
 
 ---
 
@@ -47,7 +47,7 @@ fly auth login                                   # abre o navegador (o Fly pede 
 fly apps create mesa-digital                     # se o nome estiver em uso, escolha outro
 ```
 
-Edite o `fly.toml`: o nome do app (`app = ...`) e `SEU-DOMINIO.com` (3 lugares).
+O `fly.toml` já está configurado para `mesadig.com.br`.
 
 Segredos (ficam criptografados no Fly e nunca vão para o git):
 
@@ -71,9 +71,9 @@ fly open /api/health                             # deve mostrar {"status":"ok","
 fly ips allocate-v4 --shared                     # IPv4 compartilhado (grátis)
 fly ips allocate-v6
 fly ips list                                     # anote os dois IPs
-fly certs add SEU-DOMINIO.com
-fly certs add "*.SEU-DOMINIO.com"
-fly certs show "*.SEU-DOMINIO.com"               # mostra o registro _acme-challenge
+fly certs add mesadig.com.br
+fly certs add "*.mesadig.com.br"
+fly certs show "*.mesadig.com.br"               # mostra o registro _acme-challenge
 ```
 
 Na Cloudflare, em **DNS → Records**, crie os registros com a nuvem **cinza (DNS only)**:
@@ -86,7 +86,7 @@ Na Cloudflare, em **DNS → Records**, crie os registros com a nuvem **cinza (DN
 | AAAA | `*` | IPv6 do Fly |
 | CNAME | `_acme-challenge` | o valor mostrado por `fly certs show` |
 
-Espere `fly certs show SEU-DOMINIO.com` e `fly certs show "*.SEU-DOMINIO.com"` dizerem **Issued**. Depois mude
+Espere `fly certs show mesadig.com.br` e `fly certs show "*.mesadig.com.br"` dizerem **Issued**. Depois mude
 os registros `@` e `*` para a nuvem **laranja (Proxied)**. Deixe o `_acme-challenge` sempre cinza, para o Fly
 conseguir renovar o certificado.
 
@@ -94,7 +94,7 @@ conseguir renovar o certificado.
 
 1. Cloudflare → **R2 Object Storage**. O R2 pede um cartão cadastrado, mas até 10 GB não cobra nada.
 2. **Create bucket** com o nome `mesa-digital-fotos`.
-3. No bucket: **Settings → Custom Domains → Connect Domain** → `fotos.SEU-DOMINIO.com`.
+3. No bucket: **Settings → Custom Domains → Connect Domain** → `fotos.mesadig.com.br`.
 4. R2 → **Manage API tokens → Create API token**, com permissão **Object Read & Write** só para esse bucket.
    Anote o **Access Key ID**, o **Secret Access Key** e o **Account ID**.
 5. No Fly:
@@ -102,7 +102,7 @@ conseguir renovar o certificado.
 ```bash
 fly secrets set \
   R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
-  R2_BUCKET=mesa-digital-fotos MEDIA_PUBLIC_URL=https://fotos.SEU-DOMINIO.com
+  R2_BUCKET=mesa-digital-fotos MEDIA_PUBLIC_URL=https://fotos.mesadig.com.br
 ```
 
 Novas fotos passam a ir para o R2. As antigas continuam no banco e seguem funcionando.
@@ -122,7 +122,7 @@ Se for divulgar, troque as senhas pelo painel (Equipe → redefinir senha).
 
 ## 8. Monitoramento (grátis)
 
-- **UptimeRobot**: monitor HTTP em `https://SEU-DOMINIO.com/api/health`, com aviso por e-mail ou WhatsApp.
+- **UptimeRobot**: monitor HTTP em `https://mesadig.com.br/api/health`, com aviso por e-mail ou WhatsApp.
 - **Logs**: `fly logs`.
 
 ## Dia a dia

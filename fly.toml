@@ -1,11 +1,11 @@
 # Fly.io: API + site in São Paulo (gru), next to the Neon database (sa-east-1).
-# Antes do primeiro deploy, troque SEU-DOMINIO.com (3 lugares) e o nome do app. Passo a passo: DEPLOY.md
+# Domínio: mesadig.com.br. Se o nome do app estiver em uso no Fly, troque `app`. Passo a passo: DEPLOY.md
 app = "mesa-digital"
 primary_region = "gru"
 
 [build]
   [build.args]
-    VITE_ROOT_DOMAIN = "SEU-DOMINIO.com"
+    VITE_ROOT_DOMAIN = "mesadig.com.br"
 
 [deploy]
   # Runs once per deploy, before the new version takes traffic.
@@ -13,8 +13,8 @@ primary_region = "gru"
 
 [env]
   ENVIRONMENT = "production"
-  ROOT_DOMAIN = "SEU-DOMINIO.com"
-  FRONTEND_URL = "https://SEU-DOMINIO.com,https://*.SEU-DOMINIO.com"
+  ROOT_DOMAIN = "mesadig.com.br"
+  FRONTEND_URL = "https://mesadig.com.br,https://*.mesadig.com.br"
   PUBLIC_SCHEME = "https"
   PUBLIC_PORT = ""
   WEB_CONCURRENCY = "2"
