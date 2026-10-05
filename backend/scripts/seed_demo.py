@@ -31,7 +31,7 @@ from app.core.plans import PLANS
 from app.models.tenant import BusinessType, Tenant, TenantStatus
 from app.schemas.tenant import SignupRequest
 from app.models.user import User, UserRole
-from app.services.media import MediaService
+from app.services.media import MediaService, media_url
 from app.services.tenant import TenantService
 from app.services.user import UserService
 
@@ -111,7 +111,7 @@ def _download_photo(media: MediaService, photo_id: str, width: int = 900) -> str
     url = f"https://images.unsplash.com/photo-{photo_id}?w={width}&q=80&fit=crop&auto=format"
     try:
         with urllib.request.urlopen(url, timeout=20) as response:  # noqa: S310 - fixed https host
-            return f"/media/{media.save(response.read()).id}"
+            return media_url(media.save(response.read()))
     except Exception as error:  # offline or photo removed: keep going without it
         print(f"  sem foto ({photo_id}): {error}")
         return None

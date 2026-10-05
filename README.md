@@ -117,12 +117,12 @@ cd frontend && npm run lint && npm run build
 
 ## Produção
 
-- **API (Render):** `render.yaml`. Defina `DATABASE_URL`, `JWT_SECRET_KEY` (gerada), `FRONTEND_URL`
-  (ex.: `https://mesadigital.app,https://*.mesadigital.app`) e `ROOT_DOMAIN`.
-- **Frontend (Vercel):** root `frontend`, `VITE_API_URL=https://api.<domínio>`, `VITE_ROOT_DOMAIN=<domínio>`.
-  Configure o domínio raiz e o curinga `*.<domínio>` no projeto da Vercel (DNS wildcard).
+Passo a passo completo em **[DEPLOY.md](DEPLOY.md)**: Fly.io São Paulo (site + API num app só, `app.web`),
+Neon, Cloudflare (DNS, HTTPS para `*.<domínio>`) e fotos no Cloudflare R2.
+
+- `Dockerfile` monta o frontend e a API numa imagem; `fly.toml` roda as migrations a cada deploy.
 - Em produção a API recusa subir sem `JWT_SECRET_KEY` forte e com origens `localhost`; `seed_demo` não roda.
-- O limitador de requisições é por processo (em memória). Com muitos workers/instâncias, mova para Redis.
+- O limitador de requisições é por processo (em memória). Com muitas instâncias, mova para Redis.
 
 ## Roadmap
 

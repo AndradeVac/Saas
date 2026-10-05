@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     # Uploaded images are stored in the database: per-file input limit and per-tenant quota.
     media_max_upload_mb: int = 6
     media_quota_mb: int = 100
+    # Cloudflare R2 (S3-compatible) for images. All four R2_* plus MEDIA_PUBLIC_URL enable it; otherwise images
+    # stay in the database and are served by /media/<id> (fine locally and for small setups).
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket: str = ""
+    # Public address of the bucket, e.g. https://fotos.seudominio.com (custom domain) or https://pub-xxx.r2.dev
+    media_public_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=_env_file,
@@ -79,6 +87,10 @@ class Settings(BaseSettings):
             if "*" in origin
         ]
         return "^(" + "|".join(patterns) + ")$" if patterns else None
+
+    @property
+    def object_storage_enabled(self) -> bool:
+        return all((self.r2_account_id, self.r2_access_key_id, self.r2_secret_access_key, self.r2_bucket, self.media_public_url))
 
     def tenant_url(self, slug: str, path: str = "") -> str:
         return f"{self.public_scheme}://{slug}.{self.root_domain}{self.public_port}{path}"

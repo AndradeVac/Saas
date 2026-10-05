@@ -25,3 +25,6 @@ openpyxl==3.1.5
 reportlab==4.5.1
 tzdata
 pillow==12.3.0
+
+# Image storage (Cloudflare R2, S3-compatible); optional at runtime
+boto3==1.43.108
