@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
 from app.core.tenancy import get_tenant
 from app.models.order import OrderStatus, PaymentStatus, ServiceType
@@ -76,7 +77,7 @@ def list_orders(
     return Page(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(require_feature(EXPORTS))])
 def export_orders(
     status_in: list[OrderStatus] | None = Query(default=None, alias="status"),
     payment_status: PaymentStatus | None = None,

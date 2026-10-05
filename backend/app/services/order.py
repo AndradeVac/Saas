@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, NotFoundError
+from app.core.plans import can_take_orders, ensure_can_take_order
 from app.models.order import Order, OrderStatus, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
@@ -81,6 +82,10 @@ class OrderService:
         """Prices and stores an order. `public=True` (customer menu) also enforces the business rules the
         owner configured: open hours, enabled services and payment methods, minimum order."""
         tenant = self._tenant()
+        if public and not can_take_orders(self.db, tenant):
+            # The customer only needs to know ordering is off; the owner sees the reason in the panel.
+            raise BusinessRuleError("O estabelecimento não está aceitando pedidos no momento.")
+        ensure_can_take_order(self.db, tenant)
         customer = self.customer_repository.get_by_id(data.customer_id)
         if customer is None:
             raise NotFoundError("Cliente não encontrado.")

@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   ClipboardList,
+  Crown,
   ExternalLink,
   History,
+  Lock,
   LayoutDashboard,
   Menu,
   Moon,
@@ -22,9 +24,10 @@ import { Brand } from '../../features/auth/LoginPage'
 import { LiveOrdersProvider, useLiveOrders } from '../../features/orders/LiveOrders'
 import { useTenant } from '../../features/tenant/TenantProvider'
 import { getThemeMode, setThemeMode, type ThemeMode } from '../../lib/theme'
-import { getTenantSettings } from '../../services/tenant'
+import { PlanProvider, usePlan } from '../../features/plans/PlanProvider'
+import type { FeatureKey } from '../../services/plans'
 
-type Item = { label: string; to: string; icon: typeof Menu; end?: boolean; badge?: boolean }
+type Item = { label: string; to: string; icon: typeof Menu; end?: boolean; badge?: boolean; feature?: FeatureKey }
 
 const operation: Item[] = [
   { label: 'Visão geral', to: '/painel', icon: LayoutDashboard, end: true },
@@ -35,37 +38,55 @@ const operation: Item[] = [
 const management: Item[] = [
   { label: 'Produtos', to: '/painel/produtos', icon: Package },
   { label: 'Categorias', to: '/painel/categorias', icon: Tags },
-  { label: 'Cupons', to: '/painel/cupons', icon: Ticket },
+  { label: 'Cupons', to: '/painel/cupons', icon: Ticket, feature: 'coupons' },
   { label: 'Equipe', to: '/painel/equipe', icon: UserCog },
-  { label: 'Auditoria', to: '/painel/auditoria', icon: ShieldCheck },
+  { label: 'Auditoria', to: '/painel/auditoria', icon: ShieldCheck, feature: 'audit' },
   { label: 'Configurações', to: '/painel/configuracoes', icon: Settings },
+  { label: 'Meu plano', to: '/painel/plano', icon: Crown },
 ]
 
 function NavItems({ items, onNavigate }: { items: Item[]; onNavigate: () => void }) {
   const { newCount } = useLiveOrders()
+  const { has } = usePlan()
   return (
     <>
-      {items.map(({ label, to, icon: Icon, end, badge }) => (
+      {items.map(({ label, to, icon: Icon, end, badge, feature }) => (
         <NavLink key={to} to={to} end={end} onClick={onNavigate}>
           <Icon size={18} /> {label}
           {badge && newCount > 0 && <span className="nav-count" aria-label={`${newCount} pedidos novos`}>{newCount}</span>}
+          {feature && !has(feature) && <Lock size={13} className="nav-lock" aria-label="Disponível nos planos pagos" />}
         </NavLink>
       ))}
     </>
   )
 }
 
-function TrialBanner() {
-  const [days, setDays] = useState<number | null>(null)
-  useEffect(() => {
-    getTenantSettings()
-      .then((s) => setDays(s.status === 'TRIAL' && s.trial_ends_at ? Math.ceil((new Date(s.trial_ends_at).getTime() - Date.now()) / 86_400_000) : null))
-      .catch(() => setDays(null))
-  }, [])
-  if (days === null || days > 5) return null
+/** Sidebar card: trial countdown and usage, always one click away from subscribing. */
+function PlanCard({ onNavigate }: { onNavigate: () => void }) {
+  const { status } = usePlan()
+  if (!status || status.status !== 'TRIAL') return null
+  const total = status.plan.max_orders
+  const days = status.trial_days_left ?? 0
   return (
-    <div className="alert warn no-print" style={{ margin: '12px 16px 0' }}>
-      {days > 0 ? `Seu período de teste termina em ${days} ${days === 1 ? 'dia' : 'dias'}.` : 'Seu período de teste terminou.'} Fale com o suporte para ativar seu plano.
+    <NavLink to="/painel/plano" className="plan-chip" onClick={onNavigate}>
+      <span className="plan-chip-head"><Crown size={15} /> Degustação</span>
+      <span className="plan-chip-text">
+        {status.trial_expired ? 'Teste encerrado' : `${days} ${days === 1 ? 'dia restante' : 'dias restantes'}`}
+        {total !== null && ` · ${status.usage.orders}/${total} pedidos`}
+      </span>
+      <span className="btn primary small block">Assinar agora</span>
+    </NavLink>
+  )
+}
+
+/** Top-of-page warning when the plan stops the menu from taking orders. */
+function PlanBanner() {
+  const { status } = usePlan()
+  if (!status || status.can_take_orders) return null
+  return (
+    <div className="alert error no-print" style={{ margin: '12px 16px 0' }}>
+      <span>{status.trial_expired ? 'Seu período de teste terminou' : 'Você usou todos os pedidos do teste'}: o cardápio está no ar, mas não aceita novos pedidos.</span>
+      <NavLink className="btn small" to="/painel/plano">Ver planos</NavLink>
     </div>
   )
 }
@@ -89,6 +110,7 @@ export function AppShell() {
   }
 
   return (
+    <PlanProvider>
     <LiveOrdersProvider>
       <div className="app-shell">
         <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Menu do painel">
@@ -105,6 +127,7 @@ export function AppShell() {
             </>}
           </nav>
           <div className="sidebar-foot">
+            {isAdmin && <PlanCard onNavigate={close} />}
             <a className="nav-link-plain" href="/" target="_blank" rel="noreferrer"><ExternalLink size={16} /> Ver meu cardápio</a>
             <button className="nav-link-plain" onClick={toggleTheme} style={{ background: 'none', border: 0, textAlign: 'left' }}>
               {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? 'Tema claro' : 'Tema escuro'}
@@ -121,10 +144,11 @@ export function AppShell() {
             <button className="icon-btn" onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu size={20} /></button>
             <strong>{tenant.name}</strong>
           </header>
-          <TrialBanner />
+          <PlanBanner />
           <Outlet />
         </main>
       </div>
     </LiveOrdersProvider>
+    </PlanProvider>
   )
 }

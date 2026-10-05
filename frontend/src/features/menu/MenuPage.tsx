@@ -1,4 +1,4 @@
-import { Clock, ClipboardList, Instagram, MapPin, Phone, Search, ShoppingBag, X } from 'lucide-react'
+import { Clock, ClipboardList, Instagram, MapPin, MessageCircle, Phone, Plus, Search, ShoppingBag, UtensilsCrossed, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,16 +6,29 @@ import { EmptyState, Skeleton } from '../../components/ui/parts'
 import { DAYS, formatMoney, formatPhone, orderStatusLabels, serviceLabels } from '../../lib/format'
 import { mediaUrl } from '../../lib/media'
 import { readJson, writeJson } from '../../lib/storage'
-import { APP_NAME } from '../../lib/tenant'
+import { APP_NAME, platformUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { getMenu, trackOrder, type Menu, type MenuProduct, type Tracking } from '../../services/publicMenu'
 import type { DayKey, OrderStatus } from '../../types'
-import { cartCount, cartSubtotal, type CartLine } from './cart'
+import { buildLine, cartCount, cartSubtotal, type CartLine } from './cart'
 import { CartModal } from './CartModal'
 import { OrdersModal, TrackModal } from './OrderModals'
 import { ProductModal } from './ProductModal'
 
 type Modal = { kind: 'product'; product: MenuProduct } | { kind: 'cart' } | { kind: 'orders' } | { kind: 'track'; token: string; isNew: boolean } | null
+
+/** wa.me link for a Brazilian phone saved with or without the country code. */
+function whatsappLink(phone: string | null) {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (digits.length < 10) return null
+  return `https://wa.me/${digits.length <= 11 ? `55${digits}` : digits}`
+}
+
+function Thumb({ product }: { product: MenuProduct }) {
+  return product.image_url
+    ? <img src={mediaUrl(product.image_url)} alt="" loading="lazy" />
+    : <div className="product-placeholder" aria-hidden="true"><UtensilsCrossed size={26} /></div>
+}
 
 const JS_DAY_TO_KEY: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
@@ -80,7 +93,8 @@ export function MenuPage() {
     () => products.filter((p) => !term || `${p.name} ${p.description ?? ''}`.toLowerCase().includes(term)),
     [products, term],
   )
-  const featured = !term ? products.filter((p) => p.featured && p.available) : []
+  // Photos sell: featured items with a picture lead the carousel.
+  const featured = !term ? products.filter((p) => p.featured && p.available).sort((a, b) => Number(Boolean(b.image_url)) - Number(Boolean(a.image_url))) : []
   const quantities = useMemo(() => {
     const map = new Map<string, number>()
     lines.forEach((line) => map.set(line.productId, (map.get(line.productId) ?? 0) + line.quantity))
@@ -137,24 +151,34 @@ export function MenuPage() {
   const canOrder = tenant.is_open
   const count = cartCount(lines)
   const hasCart = count > 0 && modal === null
+  // One tap adds simple products; products with sizes/extras open the modal so the customer sees the add-ons.
+  const quickAdd = (product: MenuProduct) => {
+    if (product.options.length > 0) setModal({ kind: 'product', product })
+    else addLine(buildLine(product, {}, 1))
+  }
   const productCard = (product: MenuProduct) => {
     const quantity = quantities.get(product.id) ?? 0
     return (
-      <button className="product-card" key={product.id} onClick={() => setModal({ kind: 'product', product })}>
-        <div className="product-info">
-          <h3>{product.name}</h3>
-          {product.description && <p>{product.description}</p>}
-          <span className="product-price">
-            {product.options.length > 0 && Number(product.price) > 0 && <small>a partir de </small>}
-            {formatMoney(product.price)}
-          </span>
-        </div>
-        <div className="product-thumb">
-          {product.image_url ? <img src={mediaUrl(product.image_url)} alt="" loading="lazy" /> : <div className="product-placeholder">{product.name.charAt(0)}</div>}
-          {quantity > 0 && <span className="product-qty">{quantity}</span>}
-          {!product.available && <span className="product-flag">Esgotado</span>}
-        </div>
-      </button>
+      <div className={`product-card-wrap ${product.available ? '' : 'sold-out'}`} key={product.id}>
+        <button className="product-card" onClick={() => setModal({ kind: 'product', product })}>
+          <div className="product-info">
+            <h3>{product.name}</h3>
+            {product.description && <p>{product.description}</p>}
+            <span className="product-price">
+              {product.options.length > 0 && Number(product.price) > 0 && <small>a partir de </small>}
+              {formatMoney(product.price)}
+            </span>
+          </div>
+          <div className="product-thumb">
+            <Thumb product={product} />
+            {quantity > 0 && <span className="product-qty">{quantity}</span>}
+            {!product.available && <span className="product-flag">Esgotado</span>}
+          </div>
+        </button>
+        {canOrder && product.available && (
+          <button className="quick-add" onClick={() => quickAdd(product)} aria-label={`Adicionar ${product.name}`}><Plus size={18} /></button>
+        )}
+      </div>
     )
   }
 
@@ -163,6 +187,9 @@ export function MenuPage() {
       <div className="menu-hero">
         {tenant.cover_url && <img src={mediaUrl(tenant.cover_url)} alt="" />}
         <div className="menu-topbar">
+          {whatsappLink(tenant.phone) && (
+            <a className="icon-btn" href={whatsappLink(tenant.phone)!} target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp"><MessageCircle size={19} /></a>
+          )}
           <button className="icon-btn" onClick={() => setModal({ kind: 'orders' })} aria-label="Meus pedidos"><ClipboardList size={19} /></button>
         </div>
       </div>
@@ -220,8 +247,14 @@ export function MenuPage() {
             <div className="featured-row">
               {featured.map((p) => (
                 <button className="featured-card" key={p.id} onClick={() => setModal({ kind: 'product', product: p })}>
-                  {p.image_url ? <img src={mediaUrl(p.image_url)} alt="" loading="lazy" /> : <div className="product-placeholder">{p.name.charAt(0)}</div>}
-                  <div><strong>{p.name}</strong><span className="product-price">{formatMoney(p.price)}</span></div>
+                  <Thumb product={p} />
+                  <div>
+                    <strong>{p.name}</strong>
+                    <span className="product-price">
+                      {p.options.length > 0 && Number(p.price) > 0 && <small>a partir de </small>}
+                      {formatMoney(p.price)}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -239,7 +272,11 @@ export function MenuPage() {
           )
         })}
         {products.length > 0 && visible.length === 0 && <EmptyState icon={<Search size={24} />} title="Nada encontrado" hint={`Não achamos “${search}” no cardápio.`} />}
-        <p className="menu-footer">Cardápio digital por {APP_NAME}</p>
+        {tenant.show_platform_badge && (
+          <a className="menu-footer" href={platformUrl('/')} target="_blank" rel="noreferrer">
+            Cardápio digital por <strong>{APP_NAME}</strong> · Crie o seu grátis
+          </a>
+        )}
       </div>
 
       {latest && !hasCart && (

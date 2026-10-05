@@ -19,6 +19,14 @@ class AuthenticationError(ValueError):
     pass
 
 
+class PlanLimitError(ValueError):
+    """The tenant's plan does not allow this; the frontend turns `code` into an upgrade prompt."""
+
+    def __init__(self, message: str, feature: str):
+        super().__init__(message)
+        self.feature = feature
+
+
 # Unique constraint name -> message shown to the user.
 _CONFLICT_MESSAGES = {
     "uq_categories_tenant_name": "Já existe uma categoria com esse nome.",
@@ -42,6 +50,13 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(BusinessRuleError)
     async def business_rule_handler(request: Request, exc: BusinessRuleError):
         return _error(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
+
+    @app.exception_handler(PlanLimitError)
+    async def plan_limit_handler(request: Request, exc: PlanLimitError):
+        return JSONResponse(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            content={"detail": str(exc), "code": "PLAN_LIMIT", "feature": exc.feature},
+        )
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request: Request, exc: NotFoundError):

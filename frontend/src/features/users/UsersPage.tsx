@@ -8,6 +8,7 @@ import { apiErrorMessage } from '../../services/api'
 import { createUser, getUsers, resetUserPassword, setUserActive, updateUser, type TeamUser } from '../../services/people'
 import type { UserRole } from '../../types'
 import { useAuth } from '../auth/AuthProvider'
+import { usePlan } from '../plans/PlanProvider'
 
 type Dialog =
   | { kind: 'create'; name: string; email: string; password: string; role: UserRole }
@@ -76,6 +77,7 @@ export function UsersPage() {
     }
   }
 
+  const plan = usePlan()
   const title = dialog?.kind === 'create' ? 'Novo usuário' : dialog?.kind === 'edit' ? 'Editar usuário' : `Nova senha de ${dialog?.user.name}`
 
   return (
@@ -83,7 +85,10 @@ export function UsersPage() {
       <PageHeader
         title="Equipe"
         subtitle="Quem acessa o painel. Operadores cuidam dos pedidos; administradores controlam tudo."
-        actions={<button className="btn primary" onClick={() => { setFormError(''); setDialog({ kind: 'create', name: '', email: '', password: '', role: 'OPERATOR' }) }}><Plus size={16} /> Novo usuário</button>}
+        actions={<button className="btn primary" onClick={() => {
+          if (plan.atLimit('users')) return plan.openUpgrade(plan.status?.plan.max_users === 1 ? 'Na degustação só o dono acessa o painel. Assine para cadastrar sua equipe.' : `Seu plano permite até ${plan.status?.plan.max_users} pessoas na equipe.`)
+          setFormError(''); setDialog({ kind: 'create', name: '', email: '', password: '', role: 'OPERATOR' })
+        }}><Plus size={16} /> Novo usuário</button>}
       />
       <ErrorBanner message={error} onRetry={() => void load()} />
       <div className="card" style={{ padding: '4px 20px' }}>

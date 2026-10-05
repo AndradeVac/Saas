@@ -5,11 +5,12 @@ import { toast } from 'sonner'
 import { ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
 import { readJson, writeJson } from '../../lib/storage'
-import { apiErrorMessage } from '../../services/api'
+import { apiErrorMessage, isPlanLimitError } from '../../services/api'
 import { downloadDashboard, getDashboard, type Dashboard, type Period } from '../../services/analytics'
 import { getProducts } from '../../services/catalog'
 import { getTenantSettings } from '../../services/tenant'
 import { Bars, ColumnChart, LineChart } from './Charts'
+import { usePlan } from '../plans/PlanProvider'
 
 const labels: Record<string, string> = { ...orderStatusLabels, ...paymentMethodLabels, ...serviceLabels, DINE_IN: 'Na mesa', TAKEAWAY: 'Retirada', DELIVERY: 'Entrega' }
 
@@ -19,7 +20,7 @@ function Onboarding({ steps, onDismiss }: { steps: Step[]; onDismiss: () => void
   const done = steps.filter((s) => s.done).length
   return (
     <div className="card">
-      <div className="row between">
+      <div className="row between nowrap">
         <div><h3>Primeiros passos</h3><p className="card-sub" style={{ margin: 0 }}>{done} de {steps.length} concluídos. Deixe seu cardápio pronto para receber pedidos.</p></div>
         <button className="icon-btn" onClick={onDismiss} aria-label="Dispensar"><X size={18} /></button>
       </div>
@@ -66,7 +67,10 @@ export function DashboardPage() {
     }).catch(() => setSteps(null))
   }, [])
 
-  const exportFile = (format: 'xlsx' | 'pdf') => downloadDashboard(period, format).catch(() => toast.error('Não foi possível exportar.'))
+  const { guard } = usePlan()
+  const exportFile = (format: 'xlsx' | 'pdf') => guard('exports', () => {
+    downloadDashboard(period, format).catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') })
+  })
 
   const change = Number(data?.revenue_change_percent ?? 0)
   const showOnboarding = steps && !dismissed && steps.some((s) => !s.done)
@@ -85,8 +89,8 @@ export function DashboardPage() {
             </select>
             <input type="date" value={start} max={end || undefined} onChange={(e) => setStart(e.target.value)} aria-label="Data inicial" />
             <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} aria-label="Data final" />
-            <button className="btn" onClick={() => void exportFile('xlsx')}><Download size={15} /> Excel</button>
-            <button className="btn" onClick={() => void exportFile('pdf')}><Download size={15} /> PDF</button>
+            <button className="btn" onClick={() => exportFile('xlsx')}><Download size={15} /> Excel</button>
+            <button className="btn" onClick={() => exportFile('pdf')}><Download size={15} /> PDF</button>
           </div>
         }
       />

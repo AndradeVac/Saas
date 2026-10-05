@@ -6,14 +6,16 @@ import { Pagination } from '../../components/ui/Pagination'
 import { EmptyState, ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { useDebounced } from '../../hooks/useDebounced'
 import { formatDate, formatMoney, formatPhone, maskPhone } from '../../lib/format'
-import { apiErrorMessage } from '../../services/api'
+import { apiErrorMessage, isPlanLimitError } from '../../services/api'
 import { downloadCsv } from '../../services/orders'
 import { createCustomer, getCustomers, updateCustomer, type Customer } from '../../services/people'
+import { usePlan } from '../plans/PlanProvider'
 
 const PAGE_SIZE = 25
 type Draft = { id?: string; name: string; phone: string; notes: string; active: boolean }
 
 export function CustomersPage() {
+  const { guard } = usePlan()
   const [data, setData] = useState<{ items: Customer[]; total: number } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -62,7 +64,7 @@ export function CustomersPage() {
         title="Clientes"
         subtitle="Quem já pediu na sua casa, quanto gastou e quando voltou."
         actions={<>
-          <button className="btn" onClick={() => void downloadCsv('/customers/export', undefined, 'clientes.csv').catch(() => toast.error('Não foi possível exportar.'))}><Download size={16} /> Exportar</button>
+          <button className="btn" onClick={() => guard('exports', () => { downloadCsv('/customers/export', undefined, 'clientes.csv').catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') }) })}><Download size={16} /> Exportar</button>
           <button className="btn primary" onClick={() => { setFormError(''); setDraft({ name: '', phone: '', notes: '', active: true }) }}><Plus size={16} /> Novo cliente</button>
         </>}
       />

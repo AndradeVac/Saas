@@ -38,6 +38,7 @@ export type PublicTenant = {
   delivery_fee: string
   min_order_value: string
   service_fee_percent: string
+  show_platform_badge: boolean
 }
 
 export type TenantSettings = PublicTenant & {

@@ -1,6 +1,5 @@
 import { lazy, Suspense, type ComponentType } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AppShell } from '../components/layout/AppShell'
 import { ConfirmProvider } from '../components/ui/Confirm'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { LoadingScreen, ProtectedRoute, RoleRoute } from '../features/auth/ProtectedRoute'
@@ -12,6 +11,9 @@ function page<T extends Record<string, unknown>>(load: () => Promise<T>, name: k
   return lazy(() => load().then((module) => ({ default: module[name] as ComponentType })))
 }
 
+// The panel shell (and the plan gate) stay out of the main bundle the customer menu downloads.
+const AppShell = page(() => import('../components/layout/AppShell'), 'AppShell')
+const FeatureGate = lazy(() => import('../features/plans/PlanProvider').then((module) => ({ default: module.FeatureGate })))
 const LandingPage = page(() => import('../features/platform/LandingPage'), 'LandingPage')
 const SignupPage = page(() => import('../features/platform/SignupPage'), 'SignupPage')
 const LoginPage = page(() => import('../features/auth/LoginPage'), 'LoginPage')
@@ -27,6 +29,7 @@ const CouponsPage = page(() => import('../features/coupons/CouponsPage'), 'Coupo
 const CustomersPage = page(() => import('../features/customers/CustomersPage'), 'CustomersPage')
 const UsersPage = page(() => import('../features/users/UsersPage'), 'UsersPage')
 const AuditPage = page(() => import('../features/audit/AuditPage'), 'AuditPage')
+const PlanPage = page(() => import('../features/plans/PlanPage'), 'PlanPage')
 const SettingsPage = page(() => import('../features/settings/SettingsPage'), 'SettingsPage')
 
 function PlatformRoutes() {
@@ -58,9 +61,10 @@ function TenantRoutes() {
                   <Route index element={<DashboardPage />} />
                   <Route path="produtos" element={<ProductsPage />} />
                   <Route path="categorias" element={<CategoriesPage />} />
-                  <Route path="cupons" element={<CouponsPage />} />
+                  <Route path="cupons" element={<FeatureGate feature="coupons" title="Cupons de desconto"><CouponsPage /></FeatureGate>} />
                   <Route path="equipe" element={<UsersPage />} />
-                  <Route path="auditoria" element={<AuditPage />} />
+                  <Route path="auditoria" element={<FeatureGate feature="audit" title="Auditoria da equipe"><AuditPage /></FeatureGate>} />
+                  <Route path="plano" element={<PlanPage />} />
                   <Route path="configuracoes" element={<SettingsPage />} />
                 </Route>
               </Route>

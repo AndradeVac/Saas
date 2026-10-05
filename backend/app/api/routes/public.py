@@ -28,7 +28,7 @@ from app.schemas.public import (
     PublicOrderTracking,
     PublicProduct,
 )
-from app.schemas.tenant import PublicTenant
+from app.core.plans import public_tenant
 from app.services.coupon import CouponService
 from app.services.order import OrderService
 
@@ -84,7 +84,7 @@ def get_menu(response: Response, tenant: Tenant = Depends(get_tenant), db: Sessi
         if product.category_id in visible_ids
     ]
     menu = PublicMenu(
-        tenant=PublicTenant.model_validate(tenant),
+        tenant=public_tenant(db, tenant),
         categories=[PublicCategory(id=c.id, name=c.name, image_url=c.image_url) for c in categories],
         products=[
             PublicProduct(

@@ -5,7 +5,9 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, NotFoundError
+from app.core.plans import COUPONS, has_feature
 from app.models.coupon import Coupon, CouponKind
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.coupon import CouponRepository
 from app.schemas.coupon import CouponCreate, CouponUpdate
@@ -31,7 +33,8 @@ class CouponService:
     # -- customer side --------------------------------------------------------------------
     def validate(self, code: str, subtotal: Decimal) -> tuple[Coupon, Decimal]:
         """Checks a code against the current order subtotal. Does not consume a use."""
-        coupon = self.repository.get_by_code("".join(code.split()).upper())
+        tenant = self.db.get(Tenant, self.tenant_id)
+        coupon = self.repository.get_by_code("".join(code.split()).upper()) if has_feature(tenant, COUPONS) else None
         if coupon is None or not coupon.active:
             raise BusinessRuleError("Cupom inválido.")
         if coupon.expires_at is not None and coupon.expires_at <= datetime.now(timezone.utc):

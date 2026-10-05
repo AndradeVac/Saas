@@ -29,6 +29,26 @@ e painel com login e senha da equipe.
 Cliente final (`/`): capa e informações do negócio, horários, busca, categorias com rolagem, destaques, produtos com
 opções/observações, carrinho, cupom, mesa/entrega, acompanhamento do pedido em tempo real e histórico no aparelho.
 
+## Planos e degustação
+
+Definidos em um só lugar: `backend/app/core/plans.py` (preços, limites e recursos). A API aplica os limites
+(resposta **402** com `code: PLAN_LIMIT`); o painel só espelha, mostrando cadeados, medidores de uso e o convite para assinar.
+
+| | Degustação (teste) | Essencial | Profissional |
+|---|---|---|---|
+| Preço | grátis por `TRIAL_DAYS` | R$ 79,90/mês | R$ 149,90/mês |
+| Produtos ativos | 10 | 80 | ilimitados |
+| Equipe | só o dono | 3 | ilimitada |
+| Pedidos | 30 no teste | ilimitados | ilimitados |
+| Cupons, exportações | — | ✓ | ✓ |
+| Auditoria, cardápio sem a marca da plataforma | — | — | ✓ |
+
+- O teste é um "sabor": o fluxo principal (cardápio com fotos, QR Code, pedidos) funciona, mas o volume é limitado e as
+  ferramentas premium aparecem bloqueadas, com a explicação do que liberam.
+- Teste vencido ou pedidos do teste esgotados: o cardápio continua no ar e o painel editável, mas não entram novos pedidos.
+- Botões "Assinar" abrem o WhatsApp de vendas definido em `SALES_WHATSAPP`; a ativação é feita com
+  `python -m scripts.manage_tenant activate <slug> --plan essencial|pro`.
+
 ## Multi-tenant e escala
 
 - Banco único; toda tabela de dados tem `tenant_id` e todo repositório filtra por ele. Chaves estrangeiras compostas
@@ -54,7 +74,7 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 copy .env.example .env.development      # preencha DATABASE_URL e JWT_SECRET_KEY
 alembic upgrade head
-python -m scripts.seed_demo             # conta demo: http://demo.localhost:5173
+python -m scripts.seed_demo             # 3 contas demo com fotos, uma por plano (veja abaixo)
 uvicorn app.main:app --reload --port 8010
 ```
 
@@ -76,6 +96,17 @@ python -m scripts.manage_tenant suspend minha-padaria      # bloqueia o acesso d
 python -m scripts.manage_tenant activate minha-padaria --plan pro
 python -m scripts.manage_tenant extend-trial minha-padaria --days 7
 ```
+
+### Contas demo (uma por plano)
+
+| Plano | Painel | Login |
+|---|---|---|
+| Teste (Degustação) | http://demo.localhost:5173/login | teste@demo.com / teste1234 |
+| Essencial | http://demo-essencial.localhost:5173/login | essencial@demo.com / essencial123 |
+| Profissional | http://demo-pro.localhost:5173/login | pro@demo.com / profissional123 |
+
+Cardápio de cada uma: mesmo endereço sem `/login`. No Safari, use `http://localhost:5173/login?tenant=demo-pro`.
+São credenciais descartáveis de desenvolvimento; o script não roda em produção.
 
 ## Testes
 

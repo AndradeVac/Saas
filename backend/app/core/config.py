@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     public_scheme: str = "http"
     public_port: str = ":5173"
     trial_days: int = 14
+    # WhatsApp (with country code) the "Assinar" buttons open, e.g. 5511999990000. Empty hides the shortcut.
+    sales_whatsapp: str = ""
     # Connection pool per API process (Neon's pooler fans these into its own limits).
     db_pool_size: int = 10
     db_max_overflow: int = 20

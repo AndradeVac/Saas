@@ -85,6 +85,8 @@ class PublicTenant(BaseModel):
     delivery_fee: Decimal
     min_order_value: Decimal
     service_fee_percent: Decimal
+    # "Cardápio digital por Mesa Digital" footer; hidden on plans with white label.
+    show_platform_badge: bool = True
 
 
 class TenantSettingsResponse(PublicTenant):

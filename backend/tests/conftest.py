@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.core.database import SessionLocal
 from app.core.rate_limit import (
@@ -15,7 +15,7 @@ from app.core.rate_limit import (
     slug_check_rate_limit,
 )
 from app.main import app
-from app.models.tenant import Tenant
+from app.models.tenant import Tenant, TenantStatus
 
 PASSWORD = "senha-segura-123"
 
@@ -115,9 +115,20 @@ class TenantSession:
         })
 
 
+def set_plan(slug: str, plan: str, status: TenantStatus = TenantStatus.ACTIVE, trial_ends_at=None) -> None:
+    with SessionLocal() as db:
+        tenant = db.scalar(select(Tenant).where(Tenant.slug == slug))
+        tenant.plan, tenant.status = plan, status
+        if trial_ends_at is not None:
+            tenant.trial_ends_at = trial_ends_at
+        db.commit()
+
+
 @pytest.fixture
 def make_tenant(client, created_slugs):
-    def factory(prefix: str = "t", business_type: str = "BAKERY") -> TenantSession:
+    def factory(prefix: str = "t", business_type: str = "BAKERY", plan: str | None = "pro") -> TenantSession:
+        """Creates a tenant through sign-up. It starts on a paid `plan` so feature tests are not capped by the
+        trial; pass plan=None to keep it in trial."""
         slug = f"{prefix}-{uuid.uuid4().hex[:10]}"
         email = f"admin@{slug}.com"
         response = client.post("/platform/signup", json={
@@ -130,6 +141,8 @@ def make_tenant(client, created_slugs):
         })
         assert response.status_code == 201, response.text
         created_slugs.append(slug)
+        if plan is not None:
+            set_plan(slug, plan)
         session = TenantSession(client, slug, email)
         assert session.login().status_code == 200
         return session

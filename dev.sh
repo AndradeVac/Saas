@@ -45,7 +45,10 @@ trap '[ -n "$uvicorn_pid" ] && kill "$uvicorn_pid" 2>/dev/null' EXIT
 uvicorn_pid=$!
 
 echo
-echo "Abra no Chrome/Firefox: http://demo.localhost:5173/login  (admin@demo.com / demo12345)"
+echo "Contas demo (Chrome/Firefox), uma por plano:"
+echo "  Teste:        http://demo.localhost:5173/login            teste@demo.com / teste1234"
+echo "  Essencial:    http://demo-essencial.localhost:5173/login  essencial@demo.com / essencial123"
+echo "  Profissional: http://demo-pro.localhost:5173/login        pro@demo.com / profissional123"
 echo "Safari não resolve *.localhost: adicione '127.0.0.1 demo.localhost' ao /etc/hosts."
 echo
 npm run dev

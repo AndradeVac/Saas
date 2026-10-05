@@ -59,7 +59,7 @@ def upgrade() -> None:
             SELECT id, tenant_id,
                    CASE WHEN d ~ '^55[0-9]{10,11}$' THEN substr(d, 3) ELSE d END AS digits,
                    created_at
-            FROM (SELECT id, tenant_id, created_at, regexp_replace(coalesce(phone, ''), '\D', '', 'g') AS d FROM customers) raw
+            FROM (SELECT id, tenant_id, created_at, regexp_replace(coalesce(phone, ''), '\\D', '', 'g') AS d FROM customers) raw
         ), ranked AS (
             SELECT id, digits,
                    row_number() OVER (PARTITION BY tenant_id, digits ORDER BY created_at, id) AS position
