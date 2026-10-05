@@ -43,6 +43,10 @@ opções/observações, carrinho, cupom, mesa/entrega, acompanhamento do pedido 
 
 ## Rodando localmente
 
+Atalho (macOS/Linux): `./dev.sh` (pergunta a `DATABASE_URL`, faz setup, migra, popula e sobe API + frontend).
+
+Manual:
+
 ```bash
 cd backend
 python -m venv .venv
