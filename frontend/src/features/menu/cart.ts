@@ -57,3 +57,27 @@ export function buildLine(product: MenuProduct, selection: Selection, quantity: 
 
 export const cartCount = (lines: CartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0)
 export const cartSubtotal = (lines: CartLine[]) => lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
+
+type PastItem = { product_id: string; quantity: number; options: Array<{ group: string; name: string }>; notes: string | null }
+
+/** Rebuilds cart lines from an order already placed ("repetir a rodada"). Past orders keep option *names*,
+ *  so they are matched back to today's ids; items no longer on the menu (or with changed options) are skipped. */
+export function repeatLines(products: MenuProduct[], items: PastItem[]): { lines: CartLine[]; skipped: number } {
+  const lines: CartLine[] = []
+  let skipped = 0
+  for (const item of items) {
+    const product = products.find((p) => p.id === item.product_id && p.available)
+    if (!product) { skipped += 1; continue }
+    const selection: Selection = {}
+    let matched = true
+    for (const picked of item.options) {
+      const group = product.options.find((g) => g.name === picked.group)
+      const option = group?.options.find((o) => o.name === picked.name)
+      if (!group || !option) { matched = false; break }
+      selection[group.id] = [...(selection[group.id] ?? []), option.id]
+    }
+    if (!matched || Object.keys(selectionErrors(product.options, selection)).length > 0) { skipped += 1; continue }
+    lines.push(buildLine(product, selection, item.quantity, item.notes ?? undefined))
+  }
+  return { lines, skipped }
+}

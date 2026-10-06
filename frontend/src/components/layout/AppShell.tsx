@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   ClipboardList,
+  Armchair,
   Crown,
   ExternalLink,
   History,
@@ -26,13 +27,15 @@ import { useTenant } from '../../features/tenant/TenantProvider'
 import { tenantUrl } from '../../lib/tenant'
 import { getThemeMode, setThemeMode, type ThemeMode } from '../../lib/theme'
 import { PlanProvider, usePlan } from '../../features/plans/PlanProvider'
+import { TablesLiveProvider, useTablesLive } from '../../features/tables/TablesLive'
 import type { FeatureKey } from '../../services/plans'
 
-type Item = { label: string; to: string; icon: typeof Menu; end?: boolean; badge?: boolean; feature?: FeatureKey }
+type Item = { label: string; to: string; icon: typeof Menu; end?: boolean; badge?: 'orders' | 'tables'; feature?: FeatureKey }
 
 const operation: Item[] = [
   { label: 'Visão geral', to: '/painel', icon: LayoutDashboard, end: true },
-  { label: 'Pedidos', to: '/painel/pedidos', icon: ClipboardList, end: true, badge: true },
+  { label: 'Pedidos', to: '/painel/pedidos', icon: ClipboardList, end: true, badge: 'orders' },
+  { label: 'Mesas', to: '/painel/mesas', icon: Armchair, badge: 'tables' },
   { label: 'Histórico', to: '/painel/historico', icon: History },
   { label: 'Clientes', to: '/painel/clientes', icon: UsersRound },
 ]
@@ -48,13 +51,15 @@ const management: Item[] = [
 
 function NavItems({ items, onNavigate }: { items: Item[]; onNavigate: () => void }) {
   const { newCount } = useLiveOrders()
+  const { attention } = useTablesLive()
   const { has } = usePlan()
   return (
     <>
       {items.map(({ label, to, icon: Icon, end, badge, feature }) => (
         <NavLink key={to} to={to} end={end} onClick={onNavigate}>
           <Icon size={18} /> {label}
-          {badge && newCount > 0 && <span className="nav-count" aria-label={`${newCount} pedidos novos`}>{newCount}</span>}
+          {badge === 'orders' && newCount > 0 && <span className="nav-count" aria-label={`${newCount} pedidos novos`}>{newCount}</span>}
+          {badge === 'tables' && attention > 0 && <span className="nav-count pulse" aria-label={`${attention} mesas chamando`}>{attention}</span>}
           {feature && !has(feature) && <Lock size={13} className="nav-lock" aria-label="Disponível nos planos pagos" />}
         </NavLink>
       ))}
@@ -113,6 +118,7 @@ export function AppShell() {
   return (
     <PlanProvider>
     <LiveOrdersProvider>
+    <TablesLiveProvider>
       <div className="app-shell">
         <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Menu do painel">
           <div className="sidebar-head">
@@ -149,6 +155,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+    </TablesLiveProvider>
     </LiveOrdersProvider>
     </PlanProvider>
   )

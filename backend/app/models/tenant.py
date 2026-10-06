@@ -4,7 +4,7 @@ from datetime import datetime
 
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Numeric, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Integer, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -72,6 +72,13 @@ class Tenant(Base):
     service_fee_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0, server_default="0")
     # When off, the public menu is visible but customers cannot place orders.
     accepting_orders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # Dine-in orders go to the table's open bill (comanda) and are paid at the end, instead of per order.
+    tabs_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # When off, staff confirms each new table before its first order reaches the kitchen.
+    tabs_auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Automation: a table with nothing new for this long is flagged ("offer another round").
+    tab_idle_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    tab_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     # Last order number handed out; incremented atomically so numbers are sequential per tenant.
     order_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

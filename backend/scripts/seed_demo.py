@@ -152,6 +152,8 @@ def seed_account(db, slug: str, name: str, plan: str, email: str, password: str,
         tenant.address = "Rua das Flores, 100 - Centro"
     if plan != "trial":
         tenant.status, tenant.plan = TenantStatus.ACTIVE, plan
+    # The demos show the comanda por mesa (QR Code on the table, pay at the end).
+    tenant.tabs_enabled = True
 
     # The owner (first administrator) always ends up with this account's demo login.
     owner = db.scalar(

@@ -29,7 +29,9 @@ from app.schemas.public import (
     PublicProduct,
 )
 from app.core.plans import public_tenant
+from app.schemas.tab import PublicTab, TabCloseRequest
 from app.services.coupon import CouponService
+from app.services.tab import TabService
 from app.services.order import OrderService
 
 router = APIRouter(prefix="/public", tags=["Public customer"])
@@ -144,7 +146,30 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
         total=str(order.total),
         public_token=order.public_token,
         payment_status=order.payment_status.value,
+        tab_token=order.tab.public_token if order.tab_id else None,
     )
+
+
+@router.get("/tables/{table_label}/tab", response_model=PublicTab, dependencies=[Depends(public_lookup_rate_limit)])
+def table_tab(table_label: str, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """The bill already open at this table, so a second phone scanning the QR Code joins it."""
+    tab = TabService(db, tenant.id).active_for_table(" ".join(table_label.split())[:30])
+    if tab is None:
+        raise NotFoundError("Nenhuma comanda aberta nesta mesa.")
+    return TabService(db, tenant.id).to_public(tab)
+
+
+@router.get("/tabs/{token}", response_model=PublicTab, dependencies=[Depends(public_lookup_rate_limit)])
+def public_tab(token: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    service = TabService(db, tenant.id)
+    return service.to_public(service.get_by_token(token))
+
+
+@router.post("/tabs/{token}/close-request", response_model=PublicTab, dependencies=[Depends(public_order_rate_limit)])
+def request_tab_close(token: UUID, data: TabCloseRequest, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """The customer asks for the bill: the table lights up on the staff's Mesas screen."""
+    service = TabService(db, tenant.id)
+    return service.to_public(service.request_close(token, tenant, data.payment_method, data.split_count))
 
 
 @router.get(

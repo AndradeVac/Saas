@@ -17,6 +17,7 @@ e painel com login e senha da equipe.
 |---|---|
 | **Visão geral** | Faturamento, pedidos, ticket médio, gráficos por dia/horário/categoria, exportação Excel/PDF e checklist de primeiros passos |
 | **Pedidos** | Fila ao vivo (atualiza sozinha, com aviso sonoro e contador na aba), avanço de status, pagamento no caixa, cancelamento com motivo, edição, impressão de comanda |
+| **Mesas (comanda)** | Uma conta aberta por mesa, sem fichas nem papel: o cliente pede pelo QR Code quantas vezes quiser e paga no final. Aprovação da mesa nova, mapa com alertas automáticos (mesa nova, pediu a conta, parada há X min, pedido atrasado), fechamento com forma de pagamento e mesa liberada sozinha |
 | **Histórico** | Busca por nº/cliente/telefone/mesa, filtros de status/pagamento/atendimento/período, paginação e exportação CSV |
 | **Produtos** | Foto (upload), preço, descrição, destaque, esgotado, ocultar, ordem, e **grupos de opções** (tamanho, adicionais…) com preço |
 | **Categorias** | Criar, renomear, ordenar, ocultar |
@@ -25,6 +26,10 @@ e painel com login e senha da equipe.
 | **Equipe** | Criar usuários, perfis (Administrador/Operador), redefinir senha, desativar |
 | **Configurações** | Dados e marca (logo, capa, cor), abertura manual ou **por horário**, tipos de atendimento (mesa/retirada/entrega), formas de pagamento, chave PIX, pedido mínimo, taxa de entrega e de serviço, QR Codes por mesa, senha |
 | **Auditoria** | Quem fez o quê, com filtro e paginação |
+
+Na mesa (comanda ligada): o celular entra na conta da mesa pelo QR Code, acompanha a conta ao vivo, pede mais,
+**repete a última rodada** com um toque, recebe o convite "Mais uma rodada?" após um tempo sem pedir e fecha a conta
+escolhendo a forma de pagamento e dividindo entre as pessoas.
 
 Cliente final (`/`): capa e informações do negócio, horários, busca, categorias com rolagem, destaques, produtos com
 opções/observações, carrinho, cupom, mesa/entrega, acompanhamento do pedido em tempo real e histórico no aparelho.

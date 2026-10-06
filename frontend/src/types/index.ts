@@ -1,5 +1,5 @@
 export type OrderStatus = 'RECEIVED' | 'PREPARING' | 'READY' | 'FINISHED' | 'CANCELLED'
-export type PaymentMethod = 'PIX' | 'CARD' | 'CASH'
+export type PaymentMethod = 'PIX' | 'CARD' | 'CASH' | 'TAB'
 export type PaymentStatus = 'PENDING' | 'PAID'
 export type ServiceType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'
 export type BusinessType = 'RESTAURANT' | 'BAKERY' | 'CAFE' | 'SNACK_BAR' | 'PIZZERIA' | 'OTHER'
@@ -39,10 +39,14 @@ export type PublicTenant = {
   min_order_value: string
   service_fee_percent: string
   show_platform_badge: boolean
+  /** Comanda por mesa: dine-in orders go to the table's open bill, paid at the end. */
+  tabs_enabled: boolean
+  tab_idle_minutes: number
 }
 
 export type TenantSettings = PublicTenant & {
   id: string
+  tabs_auto_approve: boolean
   timezone: string
   status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED'
   plan: string

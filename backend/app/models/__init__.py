@@ -7,6 +7,7 @@ from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, S
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.product import Product
+from app.models.tab import Tab, TabStatus
 from app.models.tenant import BusinessType, Tenant, TenantStatus
 from app.models.user import User, UserRole
 
@@ -26,6 +27,8 @@ __all__ = [
     "PaymentStatus",
     "Product",
     "ServiceType",
+    "Tab",
+    "TabStatus",
     "Tenant",
     "TenantStatus",
     "User",

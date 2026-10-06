@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.core.plans import can_take_orders, ensure_can_take_order
-from app.models.order import Order, OrderStatus, PaymentStatus, ServiceType
+from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.product import Product
@@ -19,6 +19,7 @@ from app.repositories.tenant import TenantRepository
 from app.schemas.order import OrderCreate, OrderEdit, OrderItemCreate, OrderPaymentUpdate, OrderStatusUpdate
 from app.services.audit import record_audit
 from app.services.coupon import CouponService
+from app.services.tab import TabService
 
 _CENTS = Decimal("0.01")
 
@@ -90,19 +91,26 @@ class OrderService:
         if customer is None:
             raise NotFoundError("Cliente não encontrado.")
 
+        # Comanda: with tabs on, a dine-in order joins its table's open bill and is paid when the bill closes.
+        on_tab = tenant.tabs_enabled and data.service_type is ServiceType.DINE_IN
+        if on_tab and not data.table_label:
+            raise BusinessRuleError("Informe o número da mesa.")
+        if data.payment_method is PaymentMethod.TAB and not on_tab:
+            raise BusinessRuleError("Escolha a forma de pagamento.")
+
         if public:
             if not tenant.is_open:
                 raise BusinessRuleError("O estabelecimento não está aceitando pedidos no momento.")
             if data.service_type.value not in tenant.enabled_services:
                 raise BusinessRuleError("Este tipo de atendimento não está disponível.")
-            if data.payment_method.value not in tenant.accepted_payments:
+            if not on_tab and data.payment_method.value not in tenant.accepted_payments:
                 raise BusinessRuleError("Esta forma de pagamento não está disponível.")
         if data.service_type is ServiceType.DELIVERY and not data.delivery_address:
             raise BusinessRuleError("Informe o endereço de entrega.")
 
         order = Order(
             customer_id=customer.id,
-            payment_method=data.payment_method,
+            payment_method=PaymentMethod.TAB if on_tab else data.payment_method,
             service_type=data.service_type,
             table_label=data.table_label if data.service_type is ServiceType.DINE_IN else None,
             delivery_address=data.delivery_address if data.service_type is ServiceType.DELIVERY else None,
@@ -136,7 +144,8 @@ class OrderService:
                 )
             )
 
-        if public and subtotal < tenant.min_order_value:
+        # The minimum order is about the visit, not each round of a table's bill.
+        if public and not on_tab and subtotal < tenant.min_order_value:
             raise BusinessRuleError(f"O pedido mínimo é de R$ {tenant.min_order_value:.2f}.".replace(".", ",", 1))
 
         discount = Decimal("0.00")
@@ -159,6 +168,9 @@ class OrderService:
         order.status_history.append(OrderStatusHistory(status=OrderStatus.RECEIVED, changed_by_user_id=actor.id if actor else None))
 
         try:
+            if on_tab:
+                tab = TabService(self.db, self.tenant_id).attach(tenant, data.table_label, customer.name, by_staff=not public)
+                order.tab_id = tab.id
             order.order_number = self.tenant_repository.next_order_number(self.tenant_id)
             self.repository.create(order)
             self.db.commit()
@@ -202,6 +214,8 @@ class OrderService:
         order = self.get_by_id(order_id)
         if order.status is OrderStatus.CANCELLED:
             raise BusinessRuleError("Pedidos cancelados não podem receber pagamento.")
+        if order.tab_id:
+            raise BusinessRuleError("Este pedido é pago junto com a comanda da mesa. Feche a conta em Mesas.")
 
         if data.payment_method is not None:
             order.payment_method = data.payment_method
@@ -219,6 +233,8 @@ class OrderService:
         order = self.get_by_id(order_id)
         if order.status in (OrderStatus.FINISHED, OrderStatus.CANCELLED):
             raise BusinessRuleError("Pedidos encerrados não podem ser editados.")
+        if order.tab_id and "table_label" in data.model_fields_set and data.table_label != order.table_label:
+            raise BusinessRuleError("Este pedido está na comanda da mesa; a mesa não pode ser trocada por aqui.")
         for field in data.model_fields_set:
             setattr(order, field, getattr(data, field) or None)
         record_audit(self.db, self.tenant_id, actor, "ORDER_EDITED", "ORDER", order.id, f"#{order.order_number}")

@@ -54,7 +54,7 @@ export type PublicOrderPayload = {
 }
 
 export async function createPublicOrder(payload: PublicOrderPayload) {
-  const { data } = await api.post<{ order_number: number; status: string; total: string; public_token: string }>('/public/orders', payload)
+  const { data } = await api.post<{ order_number: number; status: string; total: string; public_token: string; tab_token: string | null }>('/public/orders', payload)
   return data
 }
 

@@ -45,7 +45,9 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   CANCELLED: 'Cancelado',
 }
 
-export const paymentMethodLabels: Record<PaymentMethod, string> = { PIX: 'PIX', CARD: 'Cartão', CASH: 'Dinheiro' }
+export const paymentMethodLabels: Record<PaymentMethod, string> = { PIX: 'PIX', CARD: 'Cartão', CASH: 'Dinheiro', TAB: 'Na comanda' }
+/** What a customer can actually pay with (TAB only marks orders waiting for the table's bill). */
+export const realPaymentMethods: PaymentMethod[] = ['PIX', 'CARD', 'CASH']
 export const serviceLabels: Record<ServiceType, string> = { DINE_IN: 'Comer aqui', TAKEAWAY: 'Para levar', DELIVERY: 'Entrega' }
 export const serviceShortLabels: Record<ServiceType, string> = { DINE_IN: 'Mesa', TAKEAWAY: 'Retirada', DELIVERY: 'Entrega' }
 

@@ -80,6 +80,8 @@ class PublicOrderResponse(BaseModel):
     total: str
     public_token: UUID
     payment_status: str
+    # Set when the order joined the table's open bill (comanda); every phone at the table follows it.
+    tab_token: UUID | None = None
 
 
 class PublicHistoryItem(BaseModel):

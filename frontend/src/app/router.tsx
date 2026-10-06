@@ -20,6 +20,7 @@ const LoginPage = page(() => import('../features/auth/LoginPage'), 'LoginPage')
 const MenuPage = page(() => import('../features/menu/MenuPage'), 'MenuPage')
 const DashboardPage = page(() => import('../features/dashboard/DashboardPage'), 'DashboardPage')
 const OrdersPage = page(() => import('../features/orders/OrdersPage'), 'OrdersPage')
+const TablesPage = page(() => import('../features/tables/TablesPage'), 'TablesPage')
 const HistoryPage = page(() => import('../features/orders/HistoryPage'), 'HistoryPage')
 const NewOrderPage = page(() => import('../features/orders/NewOrderPage'), 'NewOrderPage')
 const OrderDetailPage = page(() => import('../features/orders/OrderDetailPage'), 'OrderDetailPage')
@@ -55,6 +56,7 @@ function TenantRoutes() {
                 <Route path="pedidos" element={<OrdersPage />} />
                 <Route path="pedidos/novo" element={<NewOrderPage />} />
                 <Route path="pedidos/:id" element={<OrderDetailPage />} />
+                <Route path="mesas" element={<TablesPage />} />
                 <Route path="historico" element={<HistoryPage />} />
                 <Route path="clientes" element={<CustomersPage />} />
                 <Route element={<RoleRoute roles={['ADMIN']} />}>

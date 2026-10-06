@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.phone import phone_digits
 from app.models.customer import Customer
 from app.models.order import Order, OrderStatus, PaymentStatus, ServiceType
+from app.models.tab import Tab, TabStatus
 
 _ORDER_LOAD_OPTIONS = (
     selectinload(Order.items),
@@ -49,9 +50,12 @@ class OrderRepository:
         statement = (
             select(Order)
             .options(*_ORDER_LOAD_OPTIONS)
+            .outerjoin(Tab, Tab.id == Order.tab_id)
             .where(
                 Order.tenant_id == self.tenant_id,
                 or_(Order.status.in_(ACTIVE_STATUSES), Order.updated_at >= day_start),
+                # A new table waiting for staff approval does not reach the kitchen yet.
+                or_(Order.tab_id.is_(None), Tab.status != TabStatus.PENDING),
             )
             .order_by(Order.created_at.desc())
             .limit(limit)

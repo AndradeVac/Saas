@@ -24,9 +24,12 @@ STARTER_CATEGORIES: dict[BusinessType, list[str]] = {
     BusinessType.OTHER: ["Cardápio", "Bebidas"],
 }
 
+TAB_BUSINESSES = {BusinessType.RESTAURANT, BusinessType.SNACK_BAR, BusinessType.PIZZERIA, BusinessType.CAFE}
+
 _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
+    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes",
 )
 # Can be cleared by sending null explicitly.
 _NULLABLE_FIELDS = ("description", "phone", "address", "instagram", "pix_key", "logo_url", "cover_url")
@@ -58,6 +61,8 @@ class TenantService:
             status=TenantStatus.TRIAL,
             plan="trial",
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=settings.trial_days),
+            # Table service businesses start with the open bill per table (comanda); counters keep paying per order.
+            tabs_enabled=data.business_type in TAB_BUSINESSES,
         )
         try:
             self.repository.create(tenant)

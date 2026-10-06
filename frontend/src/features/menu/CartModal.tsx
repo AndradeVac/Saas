@@ -15,7 +15,7 @@ type Props = {
   setLines: Dispatch<SetStateAction<CartLine[]>>
   tableFromQr: string
   onClose: () => void
-  onOrdered: (token: string) => void
+  onOrdered: (order: { token: string; tabToken: string | null; number: number }) => void
 }
 
 export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrdered }: Props) {
@@ -42,7 +42,9 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
   const serviceFee = service === 'DINE_IN' ? ((subtotal - discount) * Number(tenant.service_fee_percent)) / 100 : 0
   const deliveryFee = service === 'DELIVERY' ? Number(tenant.delivery_fee) : 0
   const total = subtotal - discount + serviceFee + deliveryFee
-  const minOrder = Number(tenant.min_order_value)
+  // Comanda: dine-in orders go to the table's bill; payment and the minimum order are settled at the end.
+  const onTab = tenant.tabs_enabled && service === 'DINE_IN'
+  const minOrder = onTab ? 0 : Number(tenant.min_order_value)
   const belowMinimum = subtotal < minOrder
 
   // The discount depends on the subtotal: re-check the applied coupon whenever the cart changes.
@@ -92,7 +94,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
         service_type: service,
         table_label: service === 'DINE_IN' ? table : undefined,
         delivery_address: service === 'DELIVERY' ? address : undefined,
-        payment_method: payment,
+        payment_method: onTab ? 'TAB' : payment,
         notes: notes || undefined,
         coupon_code: coupon?.code,
         items: lines.map((line) => ({
@@ -103,7 +105,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
         })),
       })
       writeJson(customerKey, { name, phone })
-      onOrdered(order.public_token)
+      onOrdered({ token: order.public_token, tabToken: order.tab_token, number: order.order_number })
     } catch (err) {
       const message = apiErrorMessage(err, 'Não foi possível enviar o pedido. Tente novamente.')
       setError(message)
@@ -121,7 +123,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
         <div className="stack" style={{ width: '100%' }}>
           <div className="total-row" style={{ padding: 0 }}><span>Total</span><strong>{formatMoney(total)}</strong></div>
           <button className="btn primary large block" disabled={sending || lines.length === 0} onClick={() => void submit()}>
-            {sending ? 'Enviando…' : 'Enviar pedido'}
+            {sending ? 'Enviando…' : onTab && table.trim() ? `Enviar para a mesa ${table.trim()}` : 'Enviar pedido'}
           </button>
         </div>
       }
@@ -153,7 +155,13 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
           </button>
         ))}
       </div>
-      {service === 'DINE_IN' && <label className="field" style={{ marginTop: 12 }}><span>Mesa</span><input value={table} onChange={(e) => setTable(e.target.value)} maxLength={30} /></label>}
+      {service === 'DINE_IN' && (
+        <label className="field" style={{ marginTop: 12 }}>
+          <span>Mesa</span>
+          {/* The QR Code already says which table: on a tab, it cannot be changed to someone else's. */}
+          <input value={table} onChange={(e) => setTable(e.target.value)} maxLength={30} readOnly={onTab && Boolean(tableFromQr)} />
+        </label>
+      )}
       {service === 'DELIVERY' && (
         <label className="field" style={{ marginTop: 12 }}>
           <span>Endereço de entrega</span>
@@ -167,6 +175,11 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
         <label className="field"><span>Telefone com DDD</span><input value={phone} onChange={(e) => setPhone(maskPhone(e.target.value))} autoComplete="tel" inputMode="tel" placeholder="(11) 99999-9999" /></label>
       </div>
 
+      {onTab ? (
+        <div className="alert info tab-hint">
+          <span><strong>Comanda aberta:</strong> peça quantas vezes quiser. Você paga tudo de uma vez quando fechar a conta.</span>
+        </div>
+      ) : (<>
       <h4>Pagamento (no caixa)</h4>
       <div className="pay-grid">
         {payments.map((method) => (
@@ -179,6 +192,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
           <button className="btn small" onClick={() => { void navigator.clipboard?.writeText(tenant.pix_key ?? ''); toast.success('Chave PIX copiada') }}><Copy size={14} /> Copiar</button>
         </div>
       )}
+      </>)}
 
       <h4>Cupom de desconto</h4>
       {coupon ? (
