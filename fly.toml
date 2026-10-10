@@ -18,8 +18,9 @@ primary_region = "gru"
   PUBLIC_SCHEME = "https"
   PUBLIC_PORT = ""
   WEB_CONCURRENCY = "2"
-  DB_POOL_SIZE = "5"
-  DB_MAX_OVERFLOW = "5"
+  # Supabase session pooler (free): ~15 connections per user; 2 workers x (3 + 3) stays under it.
+  DB_POOL_SIZE = "3"
+  DB_MAX_OVERFLOW = "3"
 
 [http_service]
   internal_port = 8080

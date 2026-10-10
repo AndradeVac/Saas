@@ -31,13 +31,21 @@ Domínio: **mesadig.com.br**. Se o nome `mesa-digital` já estiver em uso no Fly
 3. Em **SSL/TLS → Overview**, escolha **Full (strict)**.
 4. Em **SSL/TLS → Edge Certificates**, ligue **Always Use HTTPS**.
 
-## 3. Banco (Neon)
+## 3. Banco
 
-O banco atual vira o de **produção**. Para desenvolver sem mexer nele:
+| Ambiente | Banco |
+|---|---|
+| **Produção** | Supabase `mesa-digital-prod` (São Paulo), schema `mesa`, usuário `mesa_app` |
+| **Desenvolvimento** (seu computador e testes) | Neon, via `backend/.env.development` |
 
-1. No Neon: **Branches → Create branch** com o nome `dev`.
-2. Copie a connection string do branch `dev` e use-a em `backend/.env.development`.
-   Os testes automáticos criam e apagam contas, então devem rodar no `dev`, nunca na produção.
+- O app entra no Supabase com um usuário próprio (`mesa_app`), não com o administrador `postgres`. O `search_path`
+  dele aponta para o schema `mesa`, que **não** é exposto pela API automática do Supabase (Data API): as roles
+  `anon`, `authenticated` e `service_role` não têm acesso a ele.
+- Conexão pelo **Session pooler** (porta 5432):
+  `postgresql://mesa_app.<project-ref>:<senha>@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require`.
+  A senha fica só no Fly (`fly secrets`) e no arquivo local `backend/.env.production.secret` (ignorado pelo git).
+- O pooler gratuito aceita ~15 conexões por usuário; por isso o `fly.toml` usa `DB_POOL_SIZE=3` e `DB_MAX_OVERFLOW=3`.
+- Os testes automáticos criam e apagam contas: rode-os sempre no banco de desenvolvimento, nunca na produção.
 
 ## 4. Fly.io
 
@@ -53,7 +61,7 @@ Segredos (ficam criptografados no Fly e nunca vão para o git):
 
 ```bash
 fly secrets set \
-  DATABASE_URL='postgresql://...neon.tech/neondb?sslmode=require' \
+  DATABASE_URL='postgresql://mesa_app.<project-ref>:<senha>@aws-1-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require' \
   JWT_SECRET_KEY="$(openssl rand -base64 48)" \
   SALES_WHATSAPP=55DDDSEUNUMERO
 ```
