@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 import urllib.request
+from pathlib import Path
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -39,7 +40,7 @@ DEMO_SLUG = "demo"
 # One account per plan, so every experience can be tried side by side: (slug, name, plan, e-mail, password).
 # Throwaway development credentials; running the script again resets the owner's login to these.
 ACCOUNTS = [
-    (DEMO_SLUG, "Padaria Demo", "trial", "teste@demo.com", "teste1234"),
+    (DEMO_SLUG, "Padaria Inoviosion", "trial", "teste@demo.com", "teste1234"),
     ("demo-essencial", "Padaria Essencial", "essencial", "essencial@demo.com", "essencial123"),
     ("demo-pro", "Padaria Pro", "pro", "pro@demo.com", "profissional123"),
 ]
@@ -89,8 +90,11 @@ OPTIONS: dict[str, list[dict]] = {
 }
 
 
-# product name -> Unsplash photo id. Products without a faithful photo keep the placeholder on purpose.
+# product name -> Unsplash photo id, or "local:<file>" for a photo shipped in scripts/demo_photos/
+# (coxinha and pão de queijo: CC0 photos from rawpixel and Wikimedia Commons, see demo_photos/LICENSES.md).
 PHOTOS: dict[str, str] = {
+    "Coxinha de frango": "local:coxinha.webp",
+    "Pão de queijo": "local:pao-de-queijo.webp",
     "Pão francês (un.)": "1608198093002-ad4e005484ec",
     "Baguete artesanal": "1586444248902-2f64eddc13df",
     "Pão de forma integral": "1549931319-a545dcf3bc73",
@@ -105,11 +109,16 @@ PHOTOS: dict[str, str] = {
     "Água mineral": "1548839140-29a749e1cf4d",
 }
 COVER_PHOTO = "1568254183919-78a4f43a2877"
+# Account-specific logos (the monogram only fits the trial demo's brand).
+LOGOS: dict[str, str] = {DEMO_SLUG: "logo-inoviosion.png"}
+PHOTO_DIR = Path(__file__).resolve().parent / "demo_photos"
 
 
 def _download_photo(media: MediaService, photo_id: str, width: int = 900) -> str | None:
-    url = f"https://images.unsplash.com/photo-{photo_id}?w={width}&q=80&fit=crop&auto=format"
     try:
+        if photo_id.startswith("local:"):
+            return media_url(media.save((PHOTO_DIR / photo_id.removeprefix("local:")).read_bytes()))
+        url = f"https://images.unsplash.com/photo-{photo_id}?w={width}&q=80&fit=crop&auto=format"
         with urllib.request.urlopen(url, timeout=20) as response:  # noqa: S310 - fixed https host
             return media_url(media.save(response.read()))
     except Exception as error:  # offline or photo removed: keep going without it
@@ -131,6 +140,10 @@ def add_photos(db, tenant: Tenant, refresh: bool) -> int:
     if (not tenant.cover_url or refresh) and (url := _download_photo(media, COVER_PHOTO, width=1600)):
         previous, tenant.cover_url = tenant.cover_url, url
         media.release_if_orphan(previous)
+    logo = LOGOS.get(tenant.slug)
+    if logo and (not tenant.logo_url or refresh) and (url := _download_photo(media, f"local:{logo}")):
+        previous, tenant.logo_url = tenant.logo_url, url
+        media.release_if_orphan(previous)
     if not tenant.description or tenant.description == "Pães quentinhos todo dia.":
         tenant.description = "Pães de fermentação natural, doces caseiros e café especial. Peça pelo celular e retire no balcão."
     return added
@@ -150,6 +163,7 @@ def seed_account(db, slug: str, name: str, plan: str, email: str, password: str,
             password=password,
         ))
         tenant.address = "Rua das Flores, 100 - Centro"
+    tenant.name = name  # renaming an account here renames it on the next run
     if plan != "trial":
         tenant.status, tenant.plan = TenantStatus.ACTIVE, plan
     # The demos show the comanda por mesa (QR Code on the table, pay at the end).
