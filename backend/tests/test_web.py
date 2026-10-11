@@ -26,6 +26,7 @@ def test_spa_routes_assets_and_api(site):
         assert response.status_code == 200 and "<title>app</title>" in response.text
         assert response.headers["cache-control"] == "no-cache"
     assert site.get("/robots.txt").text == "User-agent: *"
+    assert site.head("/").status_code == 200 and site.head("/painel").status_code == 200
     asset = site.get("/assets/app-123.js")
     assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
     missing = site.get("/assets/old-999.js")

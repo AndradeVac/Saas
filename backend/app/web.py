@@ -38,7 +38,8 @@ if (FRONTEND_DIR / "index.html").exists():
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
-    @web.get("/{path:path}", include_in_schema=False)
+    # HEAD too: uptime monitors and link previews probe pages with it.
+    @web.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def spa(path: str) -> Response:
         """Files from the build (favicon, robots.txt…) or the app shell for client-side routes."""
         candidate = (FRONTEND_DIR / path).resolve()
