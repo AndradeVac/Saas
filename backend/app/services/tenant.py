@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import BusinessRuleError
+from app.core.legal import TERMS_VERSION
 from app.core.tenancy import RESERVED_SLUGS
 from app.models.category import Category
 from app.models.tenant import BusinessType, Tenant, TenantStatus
@@ -63,6 +64,8 @@ class TenantService:
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=settings.trial_days),
             # Table service businesses start with the open bill per table (comanda); counters keep paying per order.
             tabs_enabled=data.business_type in TAB_BUSINESSES,
+            terms_accepted_at=datetime.now(timezone.utc),
+            terms_version=TERMS_VERSION,
         )
         try:
             self.repository.create(tenant)

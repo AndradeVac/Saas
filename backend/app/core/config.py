@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     trial_days: int = 14
     # WhatsApp (with country code) the "Assinar" buttons open, e.g. 5511999990000. Empty hides the shortcut.
     sales_whatsapp: str = ""
+    # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.
+    resend_api_key: str = ""
+    email_from: str = "Mesa Digital <nao-responda@mesadig.com.br>"
     # Connection pool per API process (Neon's pooler fans these into its own limits).
     db_pool_size: int = 10
     db_max_overflow: int = 20

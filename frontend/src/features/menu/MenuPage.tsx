@@ -351,6 +351,8 @@ export function MenuPage() {
           )
         })}
         {products.length > 0 && visible.length === 0 && <EmptyState icon={<Search size={24} />} title="Nada encontrado" hint={`Não achamos “${search}” no cardápio.`} />}
+        {/* Customers' data: the privacy policy is reachable from every menu, even white-label ones. */}
+        <p className="menu-legal"><a href={platformUrl('/privacidade')} target="_blank" rel="noreferrer">Privacidade</a></p>
         {tenant.show_platform_badge && (
           <a className="menu-footer" href={platformUrl('/')} target="_blank" rel="noreferrer">
             Cardápio digital por <strong>{APP_NAME}</strong> · Crie o seu grátis

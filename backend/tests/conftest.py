@@ -10,6 +10,7 @@ from app.core.database import SessionLocal
 from app.core.rate_limit import (
     login_rate_limit,
     public_lookup_rate_limit,
+    password_reset_rate_limit,
     public_order_rate_limit,
     signup_rate_limit,
     slug_check_rate_limit,
@@ -30,7 +31,7 @@ def no_menu_cache(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reset_rate_limits():
-    for limiter in (login_rate_limit, signup_rate_limit, slug_check_rate_limit, public_order_rate_limit, public_lookup_rate_limit):
+    for limiter in (login_rate_limit, signup_rate_limit, slug_check_rate_limit, public_order_rate_limit, public_lookup_rate_limit, password_reset_rate_limit):
         limiter.reset()
     yield
 
@@ -138,6 +139,7 @@ def make_tenant(client, created_slugs):
             "admin_name": "Dono do Negócio",
             "email": email,
             "password": PASSWORD,
+            "accept_terms": True,
         })
         assert response.status_code == 201, response.text
         created_slugs.append(slug)

@@ -17,3 +17,11 @@ export const logout = () => tokenStorage.clear()
 export async function changePassword(current_password: string, new_password: string) {
   await api.post('/auth/password', { current_password, new_password })
 }
+
+export async function requestPasswordReset(email: string) {
+  await api.post('/auth/forgot-password', { email })
+}
+
+export async function resetPassword(token: string, new_password: string) {
+  await api.post('/auth/reset-password', { token, new_password })
+}

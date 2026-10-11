@@ -42,6 +42,7 @@ class RateLimiter:
 
 login_rate_limit = RateLimiter(max_requests=10, window_seconds=60)
 signup_rate_limit = RateLimiter(max_requests=5, window_seconds=600)
+password_reset_rate_limit = RateLimiter(max_requests=5, window_seconds=900)
 slug_check_rate_limit = RateLimiter(max_requests=30, window_seconds=60)
 public_order_rate_limit = RateLimiter(max_requests=20, window_seconds=60)
 public_lookup_rate_limit = RateLimiter(max_requests=60, window_seconds=60)

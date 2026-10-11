@@ -15,8 +15,12 @@ function page<T extends Record<string, unknown>>(load: () => Promise<T>, name: k
 const AppShell = page(() => import('../components/layout/AppShell'), 'AppShell')
 const FeatureGate = lazy(() => import('../features/plans/PlanProvider').then((module) => ({ default: module.FeatureGate })))
 const LandingPage = page(() => import('../features/platform/LandingPage'), 'LandingPage')
+const TermsPage = page(() => import('../features/platform/LegalPages'), 'TermsPage')
+const PrivacyPage = page(() => import('../features/platform/LegalPages'), 'PrivacyPage')
 const SignupPage = page(() => import('../features/platform/SignupPage'), 'SignupPage')
 const LoginPage = page(() => import('../features/auth/LoginPage'), 'LoginPage')
+const ForgotPasswordPage = page(() => import('../features/auth/PasswordResetPages'), 'ForgotPasswordPage')
+const ResetPasswordPage = page(() => import('../features/auth/PasswordResetPages'), 'ResetPasswordPage')
 const MenuPage = page(() => import('../features/menu/MenuPage'), 'MenuPage')
 const DashboardPage = page(() => import('../features/dashboard/DashboardPage'), 'DashboardPage')
 const OrdersPage = page(() => import('../features/orders/OrdersPage'), 'OrdersPage')
@@ -38,6 +42,8 @@ function PlatformRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/cadastro" element={<SignupPage />} />
+      <Route path="/termos" element={<TermsPage />} />
+      <Route path="/privacidade" element={<PrivacyPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -51,6 +57,8 @@ function TenantRoutes() {
           <Routes>
             <Route path="/" element={<MenuPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+            <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/painel" element={<ProtectedRoute />}>
               <Route element={<AppShell />}>
                 <Route path="pedidos" element={<OrdersPage />} />

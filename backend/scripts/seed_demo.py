@@ -3,6 +3,7 @@
 Usage (from backend/):
     python -m scripts.seed_demo                    # creates what is missing
     python -m scripts.seed_demo --refresh-photos   # also replaces the demo photos
+    python -m scripts.seed_demo --random-passwords # strong one-off passwords (use it for a public database)
 
 Creates one account per plan, all with the same menu; each has its own login (see ACCOUNTS below):
     http://demo.localhost:5173            free trial (Degustação)
@@ -16,6 +17,7 @@ Without internet the menu is created without photos.
 """
 from __future__ import annotations
 
+import secrets
 import sys
 import urllib.request
 from pathlib import Path
@@ -161,6 +163,7 @@ def seed_account(db, slug: str, name: str, plan: str, email: str, password: str,
             admin_name="Administrador Demo",
             email=email,
             password=password,
+            accept_terms=True,
         ))
         tenant.address = "Rua das Flores, 100 - Centro"
     tenant.name = name  # renaming an account here renames it on the next run
@@ -216,8 +219,12 @@ def main() -> int:
         sys.exit("seed_demo não roda em produção.")
 
     refresh = "--refresh-photos" in sys.argv
+    # The fixed passwords above are documented in the README: fine on localhost, never on a reachable database.
+    random_passwords = "--random-passwords" in sys.argv
     with SessionLocal() as db:
         for slug, name, plan, email, password in ACCOUNTS:
+            if random_passwords:
+                password = secrets.token_urlsafe(12)
             tenant, created, photos = seed_account(db, slug, name, plan, email, password, refresh)
             label = PLANS[plan].name
             print(f"\n[{label}] {tenant.name}: {created} produtos novos, {photos} fotos")

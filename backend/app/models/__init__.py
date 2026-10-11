@@ -6,6 +6,7 @@ from app.models.media import Media
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
+from app.models.password_reset import PasswordResetToken
 from app.models.product import Product
 from app.models.tab import Tab, TabStatus
 from app.models.tenant import BusinessType, Tenant, TenantStatus
@@ -25,6 +26,7 @@ __all__ = [
     "OrderStatusHistory",
     "PaymentMethod",
     "PaymentStatus",
+    "PasswordResetToken",
     "Product",
     "ServiceType",
     "Tab",

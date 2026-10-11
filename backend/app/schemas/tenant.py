@@ -34,6 +34,16 @@ class SignupRequest(BaseModel):
     admin_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    # The owner must accept the Terms of Use and the Privacy Policy to create the account.
+    # validate_default: leaving the field out must fail too, not only sending false.
+    accept_terms: bool = Field(default=False, validate_default=True)
+
+    @field_validator("accept_terms")
+    @classmethod
+    def _must_accept(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.")
+        return value
 
     @field_validator("slug")
     @classmethod

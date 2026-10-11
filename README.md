@@ -111,7 +111,8 @@ python -m scripts.manage_tenant extend-trial minha-padaria --days 7
 | Profissional | http://demo-pro.localhost:5173/login | pro@demo.com / profissional123 |
 
 Cardápio de cada uma: mesmo endereço sem `/login`. No Safari, use `http://localhost:5173/login?tenant=demo-pro`.
-São credenciais descartáveis de desenvolvimento; o script não roda em produção.
+São credenciais de desenvolvimento, válidas só no seu computador. Em produção as contas demo usam senhas
+aleatórias (`seed_demo --random-passwords`), guardadas fora do git em `backend/.env.production.secret`.
 
 ## Testes
 

@@ -168,7 +168,9 @@ export function LandingPage() {
         </form>
       </section>
 
-      <footer className="landing-footer">© {new Date().getFullYear()} {APP_NAME}</footer>
+      <footer className="landing-footer">
+        © {new Date().getFullYear()} {APP_NAME} · <Link to="/termos">Termos de Uso</Link> · <Link to="/privacidade">Política de Privacidade</Link>
+      </footer>
     </div>
   )
 }

@@ -115,6 +115,22 @@ fly secrets set \
 
 Novas fotos passam a ir para o R2. As antigas continuam no banco e seguem funcionando.
 
+## 6b. E-mails do sistema (recuperação de senha)
+
+O "Esqueci minha senha" envia o link por e-mail pelo **Resend** (grátis até 3.000 e-mails/mês).
+
+1. Crie a conta em <https://resend.com> → **Domains → Add Domain** → `mesadig.com.br`.
+2. O Resend mostra alguns registros DNS (SPF, DKIM e, opcionalmente, DMARC). Crie-os na Cloudflare
+   (**DNS → Records**), sempre com a nuvem **cinza (DNS only)**, e clique em **Verify** no Resend.
+3. **API Keys → Create API Key**, com permissão *Sending access*, e configure no Fly:
+
+```bash
+fly secrets set RESEND_API_KEY=re_... EMAIL_FROM='Mesa Digital <nao-responda@mesadig.com.br>'
+```
+
+Sem a chave, o sistema continua funcionando, mas o e-mail não é enviado; o administrador da equipe pode
+redefinir senhas pelo painel (Equipe).
+
 ## 7. Contas demo em produção (opcional)
 
 O exemplo de cardápio da página de vendas mostra a conta `demo`. Para criá-la no banco de produção, rode da sua
@@ -122,11 +138,11 @@ máquina (o script não roda com `ENVIRONMENT=production`):
 
 ```bash
 cd backend
-DATABASE_URL='<url do banco de produção>' python -m scripts.seed_demo
+DATABASE_URL='<url do banco de produção>' python -m scripts.seed_demo --random-passwords
 ```
 
-As senhas das contas demo estão no README. Em produção, qualquer pessoa que as conheça entra nelas.
-Se for divulgar, troque as senhas pelo painel (Equipe → redefinir senha).
+Use `--random-passwords`: as senhas do README valem só no seu computador, e em produção qualquer pessoa que as
+conhecesse entraria nas contas demo. As senhas geradas aparecem uma vez na saída do comando; guarde-as.
 
 ## 8. Monitoramento (grátis)
 

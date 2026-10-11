@@ -78,6 +78,9 @@ class Tenant(Base):
     tabs_auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Automation: a table with nothing new for this long is flagged ("offer another round").
     tab_idle_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     tab_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     # Last order number handed out; incremented atomically so numbers are sequential per tenant.
     order_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
