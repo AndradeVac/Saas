@@ -6,9 +6,10 @@ import { Pagination } from '../../components/ui/Pagination'
 import { EmptyState, ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { useDebounced } from '../../hooks/useDebounced'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceShortLabels } from '../../lib/format'
-import { apiErrorMessage } from '../../services/api'
+import { apiErrorMessage, isPlanLimitError } from '../../services/api'
 import { exportOrders, getOrders, type Order, type OrderFilters } from '../../services/orders'
 import type { OrderStatus, PaymentStatus, ServiceType } from '../../types'
+import { usePlan } from '../plans/PlanProvider'
 
 const PAGE_SIZE = 25
 const today = () => new Date().toISOString().slice(0, 10)
@@ -50,13 +51,10 @@ export function HistoryPage() {
   }, [key, page])
   useEffect(load, [load])
 
-  async function download() {
-    try {
-      await exportOrders(JSON.parse(key))
-    } catch (err) {
-      toast.error(apiErrorMessage(err, 'Não foi possível exportar.'))
-    }
-  }
+  const { guard } = usePlan()
+  const download = () => guard('exports', () => {
+    exportOrders(JSON.parse(key)).catch((err) => { if (!isPlanLimitError(err)) toast.error(apiErrorMessage(err, 'Não foi possível exportar.')) })
+  })
 
   const clear = () => { setQ(''); setStatus(''); setPayment(''); setService(''); setFrom(''); setTo('') }
   const hasFilters = Boolean(q || status || payment || service || from || to)
@@ -66,7 +64,7 @@ export function HistoryPage() {
       <PageHeader
         title="Histórico de pedidos"
         subtitle="Busque qualquer pedido, filtre por período e exporte para o Excel."
-        actions={<button className="btn" onClick={() => void download()}><Download size={16} /> Exportar CSV</button>}
+        actions={<button className="btn" onClick={download}><Download size={16} /> Exportar CSV</button>}
       />
 
       <div className="toolbar">

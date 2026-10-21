@@ -4,6 +4,8 @@ from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthenticationError, BusinessRuleError, NotFoundError
+from app.core.plans import ensure_can_add_user
+from app.models.tenant import Tenant
 from app.models.user import User, UserRole
 from app.repositories.user import UserRepository
 from app.schemas.user import PasswordChange, PasswordReset, UserCreate, UserStatusUpdate, UserUpdate
@@ -21,6 +23,7 @@ class UserService:
         self.db = db
 
     def create(self, data: UserCreate, actor: User | None = None) -> User:
+        ensure_can_add_user(self.db, self.db.get(Tenant, self.tenant_id))
         user = User(
             name=data.name.strip(),
             email=data.email.strip().lower(),

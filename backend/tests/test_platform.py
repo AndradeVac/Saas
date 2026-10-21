@@ -26,7 +26,7 @@ def test_signup_rejects_taken_reserved_and_malformed_slugs(make_tenant, client):
     taken = make_tenant()
     payload = {
         "business_name": "Outro", "slug": taken.slug, "admin_name": "Fulano",
-        "email": "x@y.com", "password": PASSWORD,
+        "email": "x@y.com", "password": PASSWORD, "accept_terms": True,
     }
     assert client.post("/platform/signup", json=payload).status_code == 422
 
@@ -49,10 +49,28 @@ def test_same_email_can_exist_in_two_tenants(make_tenant, client, created_slugs)
     slug = f"outro-{uuid.uuid4().hex[:8]}"
     response = client.post("/platform/signup", json={
         "business_name": "Segundo", "slug": slug, "admin_name": "Mesma Pessoa",
-        "email": first.email, "password": PASSWORD,
+        "email": first.email, "password": PASSWORD, "accept_terms": True,
     })
     created_slugs.append(slug)
     assert response.status_code == 201
+
+
+def test_signup_requires_accepting_the_terms_and_records_it(client, created_slugs):
+    from app.core.database import SessionLocal
+    from app.core.legal import TERMS_VERSION
+    from app.models.tenant import Tenant
+    from sqlalchemy import select
+
+    slug = f"termos-{uuid.uuid4().hex[:8]}"
+    payload = {"business_name": "Com Termos", "slug": slug, "admin_name": "Dona", "email": "dona@termos.com", "password": PASSWORD}
+    refused = client.post("/platform/signup", json=payload)
+    assert refused.status_code == 422 and "Termos de Uso" in str(refused.json())
+    signup_rate_limit.reset()
+    assert client.post("/platform/signup", json={**payload, "accept_terms": True}).status_code == 201
+    created_slugs.append(slug)
+    with SessionLocal() as db:
+        tenant = db.scalar(select(Tenant).where(Tenant.slug == slug))
+        assert tenant.terms_version == TERMS_VERSION and tenant.terms_accepted_at is not None
 
 
 def test_unknown_tenant_is_404(client):

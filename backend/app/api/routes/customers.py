@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
 from app.models.user import User
 from app.schemas.common import Page
@@ -35,7 +36,7 @@ def list_customers(
     return Page(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(require_feature(EXPORTS))])
 def export_customers(db: Session = Depends(get_db), actor: User = Depends(staff_only)):
     items, _ = CustomerService(db, actor.tenant_id).search(None, True, 1, 5000, "name")
     buffer = io.StringIO()

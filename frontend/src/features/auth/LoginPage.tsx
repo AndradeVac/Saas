@@ -66,6 +66,7 @@ export function LoginPage() {
             </button>
           </div>
           {errors.password && <small className="field-error">{errors.password.message}</small>}
+          <Link className="forgot-link" to="/esqueci-senha">Esqueci minha senha</Link>
         </label>
         {serverError && <div className="alert error" role="alert">{serverError}</div>}
         <button className="btn primary block large" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Entrando…' : 'Entrar'}</button>

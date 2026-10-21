@@ -65,6 +65,7 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     service_type: ServiceType
     table_label: str | None
+    tab_id: UUID | None = None
     delivery_address: str | None
     payment_method: PaymentMethod
     payment_status: PaymentStatus

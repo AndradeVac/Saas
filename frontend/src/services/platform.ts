@@ -9,6 +9,7 @@ export type SignupPayload = {
   admin_name: string
   email: string
   password: string
+  accept_terms: boolean
 }
 
 export async function signup(payload: SignupPayload) {

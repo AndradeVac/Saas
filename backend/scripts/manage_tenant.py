@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 
 from app.core.database import SessionLocal
+from app.core.plans import DEFAULT_PAID_PLAN, PLANS
 from app.models.order import Order
 from app.models.tenant import Tenant, TenantStatus
 
@@ -27,7 +28,7 @@ def main() -> int:
         command = sub.add_parser(name)
         command.add_argument("slug")
         if name == "activate":
-            command.add_argument("--plan", default="pro")
+            command.add_argument("--plan", default=DEFAULT_PAID_PLAN, choices=[k for k in PLANS if k != "trial"])
         if name == "extend-trial":
             command.add_argument("--days", type=int, default=7)
     args = parser.parse_args()

@@ -16,6 +16,7 @@ const schema = z.object({
   admin_name: z.string().min(2, 'Informe seu nome.'),
   email: z.email('Informe um e-mail válido.'),
   password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.'),
+  accept_terms: z.boolean().refine((v) => v, 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -25,7 +26,7 @@ export function SignupPage() {
   const [slugTouched, setSlugTouched] = useState(false)
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { business_type: 'RESTAURANT' },
+    defaultValues: { business_type: 'RESTAURANT', accept_terms: false },
   })
   const name = watch('business_name')
   const slug = watch('slug')
@@ -109,6 +110,11 @@ export function SignupPage() {
           {errors.password && <small className="field-error">{errors.password.message}</small>}
         </label>
 
+        <label className="terms-check">
+          <input type="checkbox" {...register('accept_terms')} />
+          <span>Li e aceito os <Link to="/termos" target="_blank">Termos de Uso</Link> e a <Link to="/privacidade" target="_blank">Política de Privacidade</Link>.</span>
+        </label>
+        {errors.accept_terms && <small className="field-error" style={{ display: 'block', marginTop: -8, marginBottom: 12 }}>{errors.accept_terms.message}</small>}
         {serverError && <div className="alert error" role="alert">{serverError}</div>}
         <button className="btn primary block large" type="submit" disabled={isSubmitting || slugState?.available === false}>
           {isSubmitting ? 'Criando…' : 'Criar conta'}

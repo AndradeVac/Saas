@@ -17,6 +17,7 @@ e painel com login e senha da equipe.
 |---|---|
 | **Visão geral** | Faturamento, pedidos, ticket médio, gráficos por dia/horário/categoria, exportação Excel/PDF e checklist de primeiros passos |
 | **Pedidos** | Fila ao vivo (atualiza sozinha, com aviso sonoro e contador na aba), avanço de status, pagamento no caixa, cancelamento com motivo, edição, impressão de comanda |
+| **Mesas (comanda)** | Uma conta aberta por mesa, sem fichas nem papel: o cliente pede pelo QR Code quantas vezes quiser e paga no final. Aprovação da mesa nova, mapa com alertas automáticos (mesa nova, pediu a conta, parada há X min, pedido atrasado), fechamento com forma de pagamento e mesa liberada sozinha |
 | **Histórico** | Busca por nº/cliente/telefone/mesa, filtros de status/pagamento/atendimento/período, paginação e exportação CSV |
 | **Produtos** | Foto (upload), preço, descrição, destaque, esgotado, ocultar, ordem, e **grupos de opções** (tamanho, adicionais…) com preço |
 | **Categorias** | Criar, renomear, ordenar, ocultar |
@@ -26,8 +27,32 @@ e painel com login e senha da equipe.
 | **Configurações** | Dados e marca (logo, capa, cor), abertura manual ou **por horário**, tipos de atendimento (mesa/retirada/entrega), formas de pagamento, chave PIX, pedido mínimo, taxa de entrega e de serviço, QR Codes por mesa, senha |
 | **Auditoria** | Quem fez o quê, com filtro e paginação |
 
+Na mesa (comanda ligada): o celular entra na conta da mesa pelo QR Code, acompanha a conta ao vivo, pede mais,
+**repete a última rodada** com um toque, recebe o convite "Mais uma rodada?" após um tempo sem pedir e fecha a conta
+escolhendo a forma de pagamento e dividindo entre as pessoas.
+
 Cliente final (`/`): capa e informações do negócio, horários, busca, categorias com rolagem, destaques, produtos com
 opções/observações, carrinho, cupom, mesa/entrega, acompanhamento do pedido em tempo real e histórico no aparelho.
+
+## Planos e degustação
+
+Definidos em um só lugar: `backend/app/core/plans.py` (preços, limites e recursos). A API aplica os limites
+(resposta **402** com `code: PLAN_LIMIT`); o painel só espelha, mostrando cadeados, medidores de uso e o convite para assinar.
+
+| | Degustação (teste) | Essencial | Profissional |
+|---|---|---|---|
+| Preço | grátis por `TRIAL_DAYS` | R$ 79,90/mês | R$ 149,90/mês |
+| Produtos ativos | 10 | 80 | ilimitados |
+| Equipe | só o dono | 3 | ilimitada |
+| Pedidos | 30 no teste | ilimitados | ilimitados |
+| Cupons, exportações | — | ✓ | ✓ |
+| Auditoria, cardápio sem a marca da plataforma | — | — | ✓ |
+
+- O teste é um "sabor": o fluxo principal (cardápio com fotos, QR Code, pedidos) funciona, mas o volume é limitado e as
+  ferramentas premium aparecem bloqueadas, com a explicação do que liberam.
+- Teste vencido ou pedidos do teste esgotados: o cardápio continua no ar e o painel editável, mas não entram novos pedidos.
+- Botões "Assinar" abrem o WhatsApp de vendas definido em `SALES_WHATSAPP`; a ativação é feita com
+  `python -m scripts.manage_tenant activate <slug> --plan essencial|pro`.
 
 ## Multi-tenant e escala
 
@@ -43,6 +68,10 @@ opções/observações, carrinho, cupom, mesa/entrega, acompanhamento do pedido 
 
 ## Rodando localmente
 
+Atalho (macOS/Linux): `./dev.sh` (pergunta a `DATABASE_URL`, faz setup, migra, popula e sobe API + frontend).
+
+Manual:
+
 ```bash
 cd backend
 python -m venv .venv
@@ -50,7 +79,7 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 copy .env.example .env.development      # preencha DATABASE_URL e JWT_SECRET_KEY
 alembic upgrade head
-python -m scripts.seed_demo             # conta demo: http://demo.localhost:5173
+python -m scripts.seed_demo             # 3 contas demo com fotos, uma por plano (veja abaixo)
 uvicorn app.main:app --reload --port 8010
 ```
 
@@ -73,6 +102,18 @@ python -m scripts.manage_tenant activate minha-padaria --plan pro
 python -m scripts.manage_tenant extend-trial minha-padaria --days 7
 ```
 
+### Contas demo (uma por plano)
+
+| Plano | Painel | Login |
+|---|---|---|
+| Teste (Degustação) | http://demo.localhost:5173/login | teste@demo.com / teste1234 |
+| Essencial | http://demo-essencial.localhost:5173/login | essencial@demo.com / essencial123 |
+| Profissional | http://demo-pro.localhost:5173/login | pro@demo.com / profissional123 |
+
+Cardápio de cada uma: mesmo endereço sem `/login`. No Safari, use `http://localhost:5173/login?tenant=demo-pro`.
+São credenciais de desenvolvimento, válidas só no seu computador. Em produção as contas demo usam senhas
+aleatórias (`seed_demo --random-passwords`), guardadas fora do git em `backend/.env.production.secret`.
+
 ## Testes
 
 ```bash
@@ -82,12 +123,12 @@ cd frontend && npm run lint && npm run build
 
 ## Produção
 
-- **API (Render):** `render.yaml`. Defina `DATABASE_URL`, `JWT_SECRET_KEY` (gerada), `FRONTEND_URL`
-  (ex.: `https://mesadigital.app,https://*.mesadigital.app`) e `ROOT_DOMAIN`.
-- **Frontend (Vercel):** root `frontend`, `VITE_API_URL=https://api.<domínio>`, `VITE_ROOT_DOMAIN=<domínio>`.
-  Configure o domínio raiz e o curinga `*.<domínio>` no projeto da Vercel (DNS wildcard).
+Passo a passo completo em **[DEPLOY.md](DEPLOY.md)**: Fly.io São Paulo (site + API num app só, `app.web`),
+Neon, Cloudflare (DNS, HTTPS para `*.<domínio>`) e fotos no Cloudflare R2.
+
+- `Dockerfile` monta o frontend e a API numa imagem; `fly.toml` roda as migrations a cada deploy.
 - Em produção a API recusa subir sem `JWT_SECRET_KEY` forte e com origens `localhost`; `seed_demo` não roda.
-- O limitador de requisições é por processo (em memória). Com muitos workers/instâncias, mova para Redis.
+- O limitador de requisições é por processo (em memória). Com muitas instâncias, mova para Redis.
 
 ## Roadmap
 

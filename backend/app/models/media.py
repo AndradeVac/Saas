@@ -9,7 +9,8 @@ from app.core.database import Base
 
 
 class Media(Base):
-    """Uploaded image (already resized/compressed), stored in the database and served by /media/<id>."""
+    """Uploaded image (already resized/compressed): bytes in `data` (served by /media/<id>) or, with object
+    storage, a file at `storage_key` in the bucket."""
 
     __tablename__ = "media"
 
@@ -19,5 +20,6 @@ class Media(Base):
     )
     content_type: Mapped[str] = mapped_column(String(40), nullable=False)
     size: Mapped[int] = mapped_column(Integer, nullable=False)
-    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False, deferred=True)
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    storage_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.plans import EXPORTS, require_feature
 from app.core.security import admin_only
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
@@ -27,7 +28,7 @@ def get_dashboard_analytics(
     return AnalyticsService(db, tenant).dashboard(period, start, end)
 
 
-@router.get("/dashboard/export")
+@router.get("/dashboard/export", dependencies=[Depends(require_feature(EXPORTS))])
 def export_dashboard(
     period: str = Query(default="month", pattern="^(month|quarter|all)$"),
     file_format: str = Query(default="xlsx", alias="format", pattern="^(xlsx|pdf)$"),

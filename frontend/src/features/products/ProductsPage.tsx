@@ -16,6 +16,7 @@ import {
 } from '../../services/catalog'
 import type { OptionGroup } from '../../types'
 import { OptionsEditor } from './OptionsEditor'
+import { usePlan } from '../plans/PlanProvider'
 
 type Draft = {
   id?: string
@@ -48,10 +49,12 @@ export function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden' | 'soldout'>('all')
 
+  const plan = usePlan()
+  const { refresh: refreshPlan } = plan
   const load = useCallback(() => Promise.all([getProducts(), getCategories()])
-    .then(([p, c]) => { setProducts(p); setCategories(c); setError('') })
+    .then(([p, c]) => { setProducts(p); setCategories(c); setError(''); void refreshPlan() })
     .catch(() => setError('Não foi possível carregar o cardápio.'))
-    .finally(() => setLoading(false)), [])
+    .finally(() => setLoading(false)), [refreshPlan])
   useEffect(() => { void load() }, [load])
 
   const activeCategories = categories.filter((c) => c.active)
@@ -75,6 +78,9 @@ export function ProductsPage() {
   )
 
   function openNew() {
+    if (plan.atLimit('products')) {
+      return plan.openUpgrade(`Seu plano permite até ${plan.status?.plan.max_products} produtos ativos. Oculte um produto ou assine para cadastrar mais.`)
+    }
     setTab('details'); setFormError('')
     setDraft(blank(activeCategories[0]?.id ?? ''))
   }
@@ -153,7 +159,9 @@ export function ProductsPage() {
     <section className="page">
       <PageHeader
         title="Produtos"
-        subtitle="Tudo o que aparece no cardápio dos seus clientes."
+        subtitle={plan.status?.plan.max_products != null
+          ? `${plan.status.usage.products} de ${plan.status.plan.max_products} produtos ativos no plano ${plan.status.plan.name}.`
+          : 'Tudo o que aparece no cardápio dos seus clientes.'}
         actions={<button className="btn primary" disabled={activeCategories.length === 0} onClick={openNew}><Plus size={16} /> Novo produto</button>}
       />
       <ErrorBanner message={error} onRetry={() => void load()} />

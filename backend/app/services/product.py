@@ -3,7 +3,9 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
+from app.core.plans import ensure_can_add_product
 from app.models.product import Product
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.category import CategoryRepository
 from app.repositories.product import ProductRepository
@@ -29,8 +31,12 @@ class ProductService:
         if self.category_repository.get_by_id(category_id) is None:
             raise NotFoundError("Categoria não encontrada ou inativa.")
 
+    def _tenant(self) -> Tenant:
+        return self.db.get(Tenant, self.tenant_id)
+
     def create(self, data: ProductCreate, actor: User | None = None) -> Product:
         self._validate_category(data.category_id)
+        ensure_can_add_product(self.db, self._tenant())
         product = Product(
             category_id=data.category_id,
             name=data.name,
@@ -76,6 +82,8 @@ class ProductService:
         if data.available is not None:
             product.available = data.available
         if data.active is not None:
+            if data.active and not product.active:
+                ensure_can_add_product(self.db, self._tenant())
             product.active = data.active
         if data.sort_order is not None:
             product.sort_order = data.sort_order

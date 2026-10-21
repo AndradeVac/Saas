@@ -1,9 +1,9 @@
 import { ArrowLeft, Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { useDebounced } from '../../hooks/useDebounced'
-import { formatMoney, formatPhone, maskPhone, paymentMethodLabels, serviceLabels } from '../../lib/format'
+import { formatMoney, formatPhone, maskPhone, paymentMethodLabels, realPaymentMethods, serviceLabels } from '../../lib/format'
 import { mediaUrl } from '../../lib/media'
 import { apiErrorMessage } from '../../services/api'
 import { getCategories, getProducts, type Category, type Product } from '../../services/catalog'
@@ -42,12 +42,14 @@ export function NewOrderPage() {
   const [newPhone, setNewPhone] = useState('')
 
   const [service, setService] = useState<ServiceType>('DINE_IN')
-  const [table, setTable] = useState('')
+  const [params] = useSearchParams()
+  const [table, setTable] = useState(params.get('mesa') ?? '')
   const [address, setAddress] = useState('')
   const [payment, setPayment] = useState<PaymentMethod>('CASH')
   const [coupon, setCoupon] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const onTab = tenant.tabs_enabled && service === 'DINE_IN'
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export function NewOrderPage() {
       }
       const order = await createOrder({
         customer_id: customerId,
-        payment_method: payment,
+        payment_method: onTab ? 'TAB' : payment,
         service_type: service,
         table_label: service === 'DINE_IN' && table ? table : undefined,
         delivery_address: service === 'DELIVERY' ? address : undefined,
@@ -186,11 +188,15 @@ export function NewOrderPage() {
                 {(Object.keys(serviceLabels) as ServiceType[]).map((s) => <option key={s} value={s}>{serviceLabels[s]}</option>)}
               </select>
             </label>
-            <label className="field"><span>Pagamento</span>
-              <select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)}>
-                {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map((m) => <option key={m} value={m}>{paymentMethodLabels[m]}</option>)}
-              </select>
-            </label>
+            {onTab ? (
+              <label className="field"><span>Pagamento</span><input value="Na comanda da mesa (paga ao fechar)" readOnly /></label>
+            ) : (
+              <label className="field"><span>Pagamento</span>
+                <select value={payment} onChange={(e) => setPayment(e.target.value as PaymentMethod)}>
+                  {realPaymentMethods.map((m) => <option key={m} value={m}>{paymentMethodLabels[m]}</option>)}
+                </select>
+              </label>
+            )}
           </div>
           {service === 'DINE_IN' && <label className="field"><span>Mesa / comanda</span><input value={table} onChange={(e) => setTable(e.target.value)} maxLength={30} /></label>}
           {service === 'DELIVERY' && <label className="field"><span>Endereço de entrega</span><textarea rows={2} value={address} onChange={(e) => setAddress(e.target.value)} /></label>}

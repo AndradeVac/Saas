@@ -6,12 +6,12 @@ import { ImageUpload } from '../../components/ui/ImageUpload'
 import { MoneyInput } from '../../components/ui/MoneyInput'
 import { ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { Toggle } from '../../components/ui/Toggle'
-import { DAYS, businessTypeLabels, formatDate, maskPhone, paymentMethodLabels, serviceLabels } from '../../lib/format'
+import { DAYS, businessTypeLabels, formatDate, maskPhone, paymentMethodLabels, realPaymentMethods, serviceLabels } from '../../lib/format'
 import { tenantUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { changePassword } from '../../services/auth'
 import { getMediaUsage, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
-import type { BusinessType, DayKey, OpeningHours, PaymentMethod, ServiceType, TenantSettings } from '../../types'
+import type { BusinessType, DayKey, OpeningHours, ServiceType, TenantSettings } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 
 type Tab = 'business' | 'look' | 'hours' | 'orders' | 'tables' | 'account'
@@ -31,6 +31,7 @@ const editable = (s: TenantSettings) => ({
   accepting_orders: s.accepting_orders, hours_mode: s.hours_mode, opening_hours: s.opening_hours,
   enabled_services: s.enabled_services, accepted_payments: s.accepted_payments,
   delivery_fee: s.delivery_fee, min_order_value: s.min_order_value, service_fee_percent: s.service_fee_percent,
+  tabs_enabled: s.tabs_enabled, tabs_auto_approve: s.tabs_auto_approve, tab_idle_minutes: s.tab_idle_minutes,
 })
 
 function toggleIn<T>(list: T[], item: T, on: boolean) {
@@ -167,6 +168,31 @@ export function SettingsPage() {
       {tab === 'orders' && (
         <>
           <div className="card">
+            <h3>Comanda por mesa</h3>
+            <p className="card-sub">Substitui fichas e comandas de papel: o cliente pede pelo QR Code da mesa quantas vezes quiser e paga tudo no final.</p>
+            <Toggle
+              label="Comanda aberta nas mesas (pague ao final)"
+              hint="Pedidos na mesa vão para a conta da mesa. Retirada e entrega continuam pagando no pedido."
+              checked={form.tabs_enabled}
+              onChange={(on) => set('tabs_enabled', on)}
+            />
+            {form.tabs_enabled && (
+              <>
+                <Toggle
+                  label="Confirmar automaticamente mesas novas"
+                  hint="Desligado (recomendado): o garçom confirma o primeiro pedido de cada mesa, para evitar pedidos de quem não está no salão."
+                  checked={form.tabs_auto_approve}
+                  onChange={(on) => set('tabs_auto_approve', on)}
+                />
+                <label className="field" style={{ marginTop: 12, maxWidth: 320 }}>
+                  <span>Sugerir “mais uma rodada” após (minutos)</span>
+                  <input type="number" min={5} max={180} value={form.tab_idle_minutes} onChange={(e) => set('tab_idle_minutes', Number(e.target.value) || 20)} />
+                  <small className="muted">O cliente recebe o convite no celular e a mesa fica destacada para o garçom.</small>
+                </label>
+              </>
+            )}
+          </div>
+          <div className="card">
             <h3>Tipos de atendimento</h3>
             <p className="card-sub">O cliente só vê as opções que você ativar.</p>
             {(Object.keys(serviceLabels) as ServiceType[]).map((s) => (
@@ -183,7 +209,7 @@ export function SettingsPage() {
           <div className="card">
             <h3>Formas de pagamento</h3>
             <p className="card-sub">O pagamento é feito no caixa; aqui você define o que aceita.</p>
-            {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map((m) => (
+            {realPaymentMethods.map((m) => (
               <Toggle
                 key={m}
                 label={paymentMethodLabels[m]}

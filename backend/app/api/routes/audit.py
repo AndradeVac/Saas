@@ -3,13 +3,14 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.plans import AUDIT, require_feature
 from app.core.security import admin_only
 from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.schemas.audit import AuditLogResponse
 from app.schemas.common import Page
 
-router = APIRouter(prefix="/audit", tags=["Audit"])
+router = APIRouter(prefix="/audit", tags=["Audit"], dependencies=[Depends(require_feature(AUDIT))])
 
 
 @router.get("", response_model=Page[AuditLogResponse])

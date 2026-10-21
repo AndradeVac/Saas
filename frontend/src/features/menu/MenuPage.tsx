@@ -1,4 +1,4 @@
-import { Clock, ClipboardList, Instagram, MapPin, Phone, Search, ShoppingBag, X } from 'lucide-react'
+import { Clock, ClipboardList, Instagram, MapPin, MessageCircle, Phone, Plus, Receipt, Repeat2, Search, ShoppingBag, UtensilsCrossed, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,16 +6,34 @@ import { EmptyState, Skeleton } from '../../components/ui/parts'
 import { DAYS, formatMoney, formatPhone, orderStatusLabels, serviceLabels } from '../../lib/format'
 import { mediaUrl } from '../../lib/media'
 import { readJson, writeJson } from '../../lib/storage'
-import { APP_NAME } from '../../lib/tenant'
+import { APP_NAME, platformUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { getMenu, trackOrder, type Menu, type MenuProduct, type Tracking } from '../../services/publicMenu'
 import type { DayKey, OrderStatus } from '../../types'
-import { cartCount, cartSubtotal, type CartLine } from './cart'
+import { buildLine, cartCount, cartSubtotal, repeatLines, type CartLine } from './cart'
 import { CartModal } from './CartModal'
 import { OrdersModal, TrackModal } from './OrderModals'
 import { ProductModal } from './ProductModal'
+import { TabModal } from './TabModal'
+import { findTableTab, getPublicTab, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
 
-type Modal = { kind: 'product'; product: MenuProduct } | { kind: 'cart' } | { kind: 'orders' } | { kind: 'track'; token: string; isNew: boolean } | null
+type Modal = { kind: 'product'; product: MenuProduct } | { kind: 'cart' } | { kind: 'orders' } | { kind: 'track'; token: string; isNew: boolean } | { kind: 'tab'; highlight?: number } | null
+
+const ACTIVE_TAB = ['PENDING', 'OPEN', 'CLOSING']
+const COOKING = ['RECEIVED', 'PREPARING']
+
+/** wa.me link for a Brazilian phone saved with or without the country code. */
+function whatsappLink(phone: string | null) {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  if (digits.length < 10) return null
+  return `https://wa.me/${digits.length <= 11 ? `55${digits}` : digits}`
+}
+
+function Thumb({ product }: { product: MenuProduct }) {
+  return product.image_url
+    ? <img src={mediaUrl(product.image_url)} alt="" loading="lazy" />
+    : <div className="product-placeholder" aria-hidden="true"><UtensilsCrossed size={26} /></div>
+}
 
 const JS_DAY_TO_KEY: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
@@ -46,6 +64,9 @@ export function MenuPage() {
   const [latest, setLatest] = useState<{ token: string; data: Tracking } | null>(null)
   const sections = useRef(new Map<string, HTMLElement>())
   const tableFromQr = params.get('mesa') ?? ''
+  const [tab, setTab] = useState<PublicTab | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [dismissedRound, setDismissedRound] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setError('')
@@ -55,6 +76,39 @@ export function MenuPage() {
 
   const slug = menu?.tenant.slug
   useEffect(() => { if (slug) setTokens(readJson<string[]>(`mesa:${slug}:tokens`, [])) }, [slug])
+
+  // Comanda: find the bill already open at this table (another phone may have opened it) or the one this phone follows.
+  const tabsEnabled = Boolean(menu?.tenant.tabs_enabled)
+  const tabKey = slug ? `mesa:${slug}:tab` : ''
+  const forgetTab = useCallback(() => { setTab(null); if (tabKey) writeJson(tabKey, null) }, [tabKey])
+  useEffect(() => {
+    if (!tabsEnabled || !tabKey) return
+    const saved = readJson<{ token: string; table: string } | null>(tabKey, null)
+    const lookup = tableFromQr ? findTableTab(tableFromQr) : saved ? getPublicTab(saved.token) : null
+    lookup
+      ?.then((found) => {
+        if (ACTIVE_TAB.includes(found.status)) { setTab(found); writeJson(tabKey, { token: found.public_token, table: found.table_label }) }
+        else forgetTab()
+      })
+      .catch(() => forgetTab())
+  }, [tabsEnabled, tabKey, tableFromQr, forgetTab])
+
+  // Live bill: keeps every phone at the table in sync and notices when the staff closes it.
+  const tabToken = tab?.public_token
+  useEffect(() => {
+    if (!tabToken) return
+    const timer = window.setInterval(() => {
+      setNow(Date.now())
+      getPublicTab(tabToken)
+        .then((fresh) => {
+          if (ACTIVE_TAB.includes(fresh.status)) return setTab(fresh)
+          forgetTab()
+          toast.success(fresh.status === 'CLOSED' ? 'Conta fechada. Obrigado pela visita!' : 'A comanda da mesa foi encerrada.', { duration: 5000 })
+        })
+        .catch(() => undefined)
+    }, 8000)
+    return () => window.clearInterval(timer)
+  }, [tabToken, forgetTab])
 
   // Banner for the most recent order that is still in progress.
   useEffect(() => {
@@ -80,7 +134,8 @@ export function MenuPage() {
     () => products.filter((p) => !term || `${p.name} ${p.description ?? ''}`.toLowerCase().includes(term)),
     [products, term],
   )
-  const featured = !term ? products.filter((p) => p.featured && p.available) : []
+  // Photos sell: featured items with a picture lead the carousel.
+  const featured = !term ? products.filter((p) => p.featured && p.available).sort((a, b) => Number(Boolean(b.image_url)) - Number(Boolean(a.image_url))) : []
   const quantities = useMemo(() => {
     const map = new Map<string, number>()
     lines.forEach((line) => map.set(line.productId, (map.get(line.productId) ?? 0) + line.quantity))
@@ -112,13 +167,42 @@ export function MenuPage() {
     toast.success(`${line.name} adicionado`, { duration: 1500 })
   }
 
-  function onOrdered(token: string) {
+  async function onOrdered({ token, tabToken: newTab, number }: { token: string; tabToken: string | null; number: number }) {
     if (!slug) return
+    if (newTab) {
+      setLines([])
+      try {
+        const fresh = await getPublicTab(newTab)
+        setTab(fresh)
+        writeJson(tabKey, { token: fresh.public_token, table: fresh.table_label })
+      } catch {
+        // The order is placed either way; the bill shows up on the next refresh.
+      }
+      setModal({ kind: 'tab', highlight: number })
+      return
+    }
     const next = [token, ...tokens.filter((t) => t !== token)].slice(0, 10)
     setTokens(next)
     writeJson(`mesa:${slug}:tokens`, next)
     setLines([])
     setModal({ kind: 'track', token, isNew: true })
+  }
+
+  /** "Repetir a rodada": the same items again, straight into the cart. */
+  function repeat(order: TabOrder) {
+    const { lines: again, skipped } = repeatLines(products, order.items)
+    if (again.length === 0) return toast.error('Esses itens não estão mais disponíveis.')
+    setLines((current) => {
+      const merged = [...current]
+      for (const line of again) {
+        const existing = merged.find((l) => l.key === line.key)
+        if (existing) existing.quantity = Math.min(20, existing.quantity + line.quantity)
+        else merged.push(line)
+      }
+      return merged
+    })
+    if (skipped) toast.message(`${skipped} item(ns) não estão mais disponíveis e ficaram de fora.`)
+    setModal({ kind: 'cart' })
   }
 
   function scrollTo(categoryId: string) {
@@ -137,32 +221,54 @@ export function MenuPage() {
   const canOrder = tenant.is_open
   const count = cartCount(lines)
   const hasCart = count > 0 && modal === null
+  const tabOrders = tab?.orders.filter((o) => o.status !== 'CANCELLED') ?? []
+  const lastRound = tabOrders[tabOrders.length - 1]
+  // Automation: after a while without ordering (and nothing still cooking), suggest another round.
+  const idleFor = tab?.last_order_at ? (now - new Date(tab.last_order_at).getTime()) / 60_000 : 0
+  const offerRound = Boolean(
+    tab && tab.status === 'OPEN' && lastRound && !hasCart && modal === null && canOrder
+    && idleFor >= tenant.tab_idle_minutes && !tabOrders.some((o) => COOKING.includes(o.status))
+    && dismissedRound !== tab.last_order_at,
+  )
+  // One tap adds simple products; products with sizes/extras open the modal so the customer sees the add-ons.
+  const quickAdd = (product: MenuProduct) => {
+    if (product.options.length > 0) setModal({ kind: 'product', product })
+    else addLine(buildLine(product, {}, 1))
+  }
   const productCard = (product: MenuProduct) => {
     const quantity = quantities.get(product.id) ?? 0
     return (
-      <button className="product-card" key={product.id} onClick={() => setModal({ kind: 'product', product })}>
-        <div className="product-info">
-          <h3>{product.name}</h3>
-          {product.description && <p>{product.description}</p>}
-          <span className="product-price">
-            {product.options.length > 0 && Number(product.price) > 0 && <small>a partir de </small>}
-            {formatMoney(product.price)}
-          </span>
-        </div>
-        <div className="product-thumb">
-          {product.image_url ? <img src={mediaUrl(product.image_url)} alt="" loading="lazy" /> : <div className="product-placeholder">{product.name.charAt(0)}</div>}
-          {quantity > 0 && <span className="product-qty">{quantity}</span>}
-          {!product.available && <span className="product-flag">Esgotado</span>}
-        </div>
-      </button>
+      <div className={`product-card-wrap ${product.available ? '' : 'sold-out'}`} key={product.id}>
+        <button className="product-card" onClick={() => setModal({ kind: 'product', product })}>
+          <div className="product-info">
+            <h3>{product.name}</h3>
+            {product.description && <p>{product.description}</p>}
+            <span className="product-price">
+              {product.options.length > 0 && Number(product.price) > 0 && <small>a partir de </small>}
+              {formatMoney(product.price)}
+            </span>
+          </div>
+          <div className="product-thumb">
+            <Thumb product={product} />
+            {quantity > 0 && <span className="product-qty">{quantity}</span>}
+            {!product.available && <span className="product-flag">Esgotado</span>}
+          </div>
+        </button>
+        {canOrder && product.available && (
+          <button className="quick-add" onClick={() => quickAdd(product)} aria-label={`Adicionar ${product.name}`}><Plus size={18} /></button>
+        )}
+      </div>
     )
   }
 
   return (
-    <div className={`menu-page ${hasCart || latest ? 'has-cart' : ''}`}>
+    <div className={`menu-page ${hasCart || latest || tab ? 'has-cart' : ''}`}>
       <div className="menu-hero">
         {tenant.cover_url && <img src={mediaUrl(tenant.cover_url)} alt="" />}
         <div className="menu-topbar">
+          {whatsappLink(tenant.phone) && (
+            <a className="icon-btn" href={whatsappLink(tenant.phone)!} target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp"><MessageCircle size={19} /></a>
+          )}
           <button className="icon-btn" onClick={() => setModal({ kind: 'orders' })} aria-label="Meus pedidos"><ClipboardList size={19} /></button>
         </div>
       </div>
@@ -220,8 +326,14 @@ export function MenuPage() {
             <div className="featured-row">
               {featured.map((p) => (
                 <button className="featured-card" key={p.id} onClick={() => setModal({ kind: 'product', product: p })}>
-                  {p.image_url ? <img src={mediaUrl(p.image_url)} alt="" loading="lazy" /> : <div className="product-placeholder">{p.name.charAt(0)}</div>}
-                  <div><strong>{p.name}</strong><span className="product-price">{formatMoney(p.price)}</span></div>
+                  <Thumb product={p} />
+                  <div>
+                    <strong>{p.name}</strong>
+                    <span className="product-price">
+                      {p.options.length > 0 && Number(p.price) > 0 && <small>a partir de </small>}
+                      {formatMoney(p.price)}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -239,10 +351,30 @@ export function MenuPage() {
           )
         })}
         {products.length > 0 && visible.length === 0 && <EmptyState icon={<Search size={24} />} title="Nada encontrado" hint={`Não achamos “${search}” no cardápio.`} />}
-        <p className="menu-footer">Cardápio digital por {APP_NAME}</p>
+        {/* Customers' data: the privacy policy is reachable from every menu, even white-label ones. */}
+        <p className="menu-legal"><a href={platformUrl('/privacidade')} target="_blank" rel="noreferrer">Privacidade</a></p>
+        {tenant.show_platform_badge && (
+          <a className="menu-footer" href={platformUrl('/')} target="_blank" rel="noreferrer">
+            Cardápio digital por <strong>{APP_NAME}</strong> · Crie o seu grátis
+          </a>
+        )}
       </div>
 
-      {latest && !hasCart && (
+      {offerRound && tab && lastRound && (
+        <div className="round-offer" role="status">
+          <span className="round-emoji" aria-hidden="true">🍻</span>
+          <div><strong>Mais uma rodada?</strong><small>Repita o último pedido da mesa com um toque.</small></div>
+          <button className="btn primary small" onClick={() => repeat(lastRound)}><Repeat2 size={15} /> Repetir</button>
+          <button className="icon-btn" onClick={() => setDismissedRound(tab.last_order_at)} aria-label="Agora não"><X size={16} /></button>
+        </div>
+      )}
+      {tab && !hasCart && (
+        <button className={`tab-bar tab-${tab.status.toLowerCase()}`} onClick={() => setModal({ kind: 'tab' })}>
+          <span className="tab-bar-label"><Receipt size={18} /> Mesa {tab.table_label} · {tabStatusLabels[tab.status]}</span>
+          <strong>{formatMoney(tab.totals.total)}</strong>
+        </button>
+      )}
+      {latest && !hasCart && !tab && (
         <button className="active-order-bar" onClick={() => setModal({ kind: 'track', token: latest.token, isNew: false })}>
           <span>Pedido #{latest.data.order_number}</span>
           <span className={`badge status-${latest.data.status.toLowerCase()}`}>{orderStatusLabels[latest.data.status as OrderStatus]}</span>
@@ -261,6 +393,17 @@ export function MenuPage() {
         <CartModal tenant={tenant} lines={lines} setLines={setLines} tableFromQr={tableFromQr} onClose={() => setModal(null)} onOrdered={onOrdered} />
       )}
       {modal?.kind === 'orders' && <OrdersModal tokens={tokens} onClose={() => setModal(null)} onOpen={(token) => setModal({ kind: 'track', token, isNew: false })} />}
+      {modal?.kind === 'tab' && tab && (
+        <TabModal
+          tab={tab}
+          tenant={tenant}
+          highlight={modal.highlight}
+          onClose={() => setModal(null)}
+          onOrderMore={() => setModal(null)}
+          onRepeat={repeat}
+          onUpdated={setTab}
+        />
+      )}
       {modal?.kind === 'track' && <TrackModal token={modal.token} tenant={tenant} isNew={modal.isNew} onClose={() => setModal(null)} />}
     </div>
   )

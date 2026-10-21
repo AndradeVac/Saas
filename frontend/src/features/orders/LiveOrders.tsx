@@ -20,7 +20,7 @@ type LiveValue = {
 
 const LiveContext = createContext<LiveValue | null>(null)
 
-function beep() {
+export function beep() {
   try {
     const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     const audio = new Context()

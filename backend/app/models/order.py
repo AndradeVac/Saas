@@ -41,6 +41,8 @@ class PaymentMethod(str, enum.Enum):
     PIX = "PIX"
     CARD = "CARD"
     CASH = "CASH"
+    # Dine-in order on an open bill (comanda): the real method is set when the bill is closed.
+    TAB = "TAB"
 
 
 class PaymentStatus(str, enum.Enum):
@@ -59,6 +61,8 @@ class Order(Base):
         Index("idx_orders_tenant_status", "tenant_id", "status"),
         # An order can only point at a customer of the same tenant.
         ForeignKeyConstraint(["tenant_id", "customer_id"], ["customers.tenant_id", "customers.id"], name="fk_orders_tenant_customer"),
+        ForeignKeyConstraint(["tenant_id", "tab_id"], ["tabs.tenant_id", "tabs.id"], name="fk_orders_tenant_tab"),
+        Index("idx_orders_tab_id", "tab_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -80,6 +84,7 @@ class Order(Base):
     delivery_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     coupon_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     table_label: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    tab_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     payment_method: Mapped[PaymentMethod] = mapped_column(
         Enum(PaymentMethod, native_enum=False, length=20), nullable=False
     )
@@ -99,6 +104,8 @@ class Order(Base):
     )
 
     customer: Mapped["Customer"] = relationship("Customer", back_populates="orders")
+    # Joined on tab_id alone: tenant_id is already owned by the customer relationship.
+    tab: Mapped["Tab | None"] = relationship("Tab", primaryjoin="foreign(Order.tab_id) == Tab.id", back_populates="orders")
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order")
     status_history: Mapped[list["OrderStatusHistory"]] = relationship(
         "OrderStatusHistory", back_populates="order", order_by="OrderStatusHistory.created_at"

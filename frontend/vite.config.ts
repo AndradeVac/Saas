@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 5173,
+      // All interfaces (IPv4 + IPv6): `127.0.0.1 <slug>.localhost` in /etc/hosts works (Safari), and phones on the
+      // same Wi-Fi can open http://<this machine's IP>:5173/?tenant=<slug>.
+      host: true,
       // Reachable as http://<slug>.localhost:5173 (browsers resolve *.localhost to this machine).
       proxy: {
         '/api': {

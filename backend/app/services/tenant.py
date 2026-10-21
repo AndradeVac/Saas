@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import BusinessRuleError
+from app.core.legal import TERMS_VERSION
 from app.core.tenancy import RESERVED_SLUGS
 from app.models.category import Category
 from app.models.tenant import BusinessType, Tenant, TenantStatus
@@ -24,9 +25,12 @@ STARTER_CATEGORIES: dict[BusinessType, list[str]] = {
     BusinessType.OTHER: ["Cardápio", "Bebidas"],
 }
 
+TAB_BUSINESSES = {BusinessType.RESTAURANT, BusinessType.SNACK_BAR, BusinessType.PIZZERIA, BusinessType.CAFE}
+
 _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
+    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes",
 )
 # Can be cleared by sending null explicitly.
 _NULLABLE_FIELDS = ("description", "phone", "address", "instagram", "pix_key", "logo_url", "cover_url")
@@ -58,6 +62,10 @@ class TenantService:
             status=TenantStatus.TRIAL,
             plan="trial",
             trial_ends_at=datetime.now(timezone.utc) + timedelta(days=settings.trial_days),
+            # Table service businesses start with the open bill per table (comanda); counters keep paying per order.
+            tabs_enabled=data.business_type in TAB_BUSINESSES,
+            terms_accepted_at=datetime.now(timezone.utc),
+            terms_version=TERMS_VERSION,
         )
         try:
             self.repository.create(tenant)

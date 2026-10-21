@@ -34,6 +34,16 @@ class SignupRequest(BaseModel):
     admin_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    # The owner must accept the Terms of Use and the Privacy Policy to create the account.
+    # validate_default: leaving the field out must fail too, not only sending false.
+    accept_terms: bool = Field(default=False, validate_default=True)
+
+    @field_validator("accept_terms")
+    @classmethod
+    def _must_accept(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.")
+        return value
 
     @field_validator("slug")
     @classmethod
@@ -85,10 +95,16 @@ class PublicTenant(BaseModel):
     delivery_fee: Decimal
     min_order_value: Decimal
     service_fee_percent: Decimal
+    # Comanda: dine-in orders go to the table's open bill, paid at the end.
+    tabs_enabled: bool = False
+    tab_idle_minutes: int = 20
+    # "Cardápio digital por Mesa Digital" footer; hidden on plans with white label.
+    show_platform_badge: bool = True
 
 
 class TenantSettingsResponse(PublicTenant):
     id: UUID
+    tabs_auto_approve: bool
     timezone: str
     status: TenantStatus
     plan: str
@@ -116,11 +132,21 @@ class TenantSettingsUpdate(BaseModel):
     min_order_value: Decimal | None = Field(default=None, ge=0, le=100000, max_digits=10, decimal_places=2)
     service_fee_percent: Decimal | None = Field(default=None, ge=0, le=30, max_digits=5, decimal_places=2)
     timezone: str | None = Field(default=None, max_length=60)
+    tabs_enabled: bool | None = None
+    tabs_auto_approve: bool | None = None
+    tab_idle_minutes: int | None = Field(default=None, ge=5, le=180)
 
     @field_validator("logo_url", "cover_url")
     @classmethod
     def _validate_images(cls, value: str | None) -> str | None:
         return safe_image_url(value)
+
+    @field_validator("accepted_payments")
+    @classmethod
+    def _real_payments(cls, value: list[PaymentMethod] | None) -> list[PaymentMethod] | None:
+        if value is not None and PaymentMethod.TAB in value:
+            raise ValueError("“Na comanda” não é uma forma de pagamento; ative a comanda nas mesas.")
+        return value
 
     @field_validator("primary_color")
     @classmethod

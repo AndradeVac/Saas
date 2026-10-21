@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.plans import plan_catalog
 from app.core.rate_limit import signup_rate_limit, slug_check_rate_limit
+from app.schemas.plan import PlanCatalog
 from app.schemas.tenant import SignupRequest, SignupResponse, SlugAvailability
 from app.services.tenant import TenantService
 
@@ -14,6 +16,12 @@ router = APIRouter(prefix="/platform", tags=["Platform"])
 @router.get("/slug-available", response_model=SlugAvailability, dependencies=[Depends(slug_check_rate_limit)])
 def slug_available(slug: str = Query(min_length=1, max_length=60), db: Session = Depends(get_db)):
     return TenantService(db).check_slug(slug)
+
+
+@router.get("/plans", response_model=PlanCatalog)
+def list_plans():
+    """Pricing table shown on the landing page and on the panel's upgrade screen."""
+    return plan_catalog()
 
 
 @router.post("/signup", response_model=SignupResponse, status_code=201, dependencies=[Depends(signup_rate_limit)])
