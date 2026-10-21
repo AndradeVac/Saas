@@ -24,6 +24,7 @@ export type PublicTenant = {
   description: string | null
   phone: string | null
   address: string | null
+  city: string | null
   instagram: string | null
   logo_url: string | null
   cover_url: string | null

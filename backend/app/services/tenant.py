@@ -34,7 +34,7 @@ _PLAIN_FIELDS = (
     "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes",
 )
 # Can be cleared by sending null explicitly.
-_NULLABLE_FIELDS = ("description", "phone", "address", "instagram", "pix_key", "logo_url", "cover_url")
+_NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url")
 
 
 class TenantService:

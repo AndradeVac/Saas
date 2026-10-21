@@ -16,7 +16,7 @@ type TablesValue = {
 
 const TablesContext = createContext<TablesValue | null>(null)
 
-const needsSomeone = (tab: StaffTab) => tab.alerts.needs_approval || tab.alerts.wants_to_close
+const needsSomeone = (tab: StaffTab) => tab.alerts.needs_approval || tab.alerts.wants_to_close || tab.alerts.payments_to_confirm > 0
 
 /** Watches the open bills for the whole panel and calls the floor staff (sound + toast) when a table needs them. */
 export function TablesLiveProvider({ children }: PropsWithChildren) {
@@ -25,6 +25,7 @@ export function TablesLiveProvider({ children }: PropsWithChildren) {
   const [tabs, setTabs] = useState<StaffTab[]>([])
   const [loading, setLoading] = useState(true)
   const seen = useRef<Map<string, string> | null>(null)
+  const seenReports = useRef<Map<string, number>>(new Map())
   const soundRef = useRef(soundOn)
   soundRef.current = soundOn
 
@@ -39,6 +40,9 @@ export function TablesLiveProvider({ children }: PropsWithChildren) {
           if (tab.alerts.needs_approval && was !== 'PENDING') {
             toast.info(`Mesa ${tab.table_label}: novo cliente pedindo. Confirme a mesa.`, { duration: 6000 })
             if (soundRef.current) beep()
+          } else if (tab.alerts.payments_to_confirm > (seenReports.current.get(tab.id) ?? 0)) {
+            toast.info(`Mesa ${tab.table_label}: cliente pagou com PIX. Confira no banco e confirme.`, { duration: 8000 })
+            if (soundRef.current) beep()
           } else if (tab.alerts.wants_to_close && was !== 'CLOSING') {
             toast.info(`Mesa ${tab.table_label} pediu a conta.`, { duration: 6000 })
             if (soundRef.current) beep()
@@ -46,6 +50,7 @@ export function TablesLiveProvider({ children }: PropsWithChildren) {
         }
       }
       seen.current = new Map(data.map((tab) => [tab.id, tab.status]))
+      seenReports.current = new Map(data.map((tab) => [tab.id, tab.alerts.payments_to_confirm]))
       setTabs(data)
     } catch {
       // Keeps the last known state; the next poll retries.

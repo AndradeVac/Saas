@@ -1,4 +1,4 @@
-import { AlertTriangle, BellRing, Check, Clock, Coffee, Plus, Receipt, Settings, Timer, X } from 'lucide-react'
+import { AlertTriangle, BellRing, Check, Clock, Coffee, Plus, QrCode, Receipt, Settings, Timer, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { EmptyState, PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatMoney, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { approveTab, cancelTab, closeTab, tabStatusLabels, type StaffTab } from '../../services/tabs'
+import { addTabPayment, approveTab, cancelTab, closeTab, resolveTabPayment, tabStatusLabels, type StaffTab } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 import { useTablesLive } from './TablesLive'
@@ -14,7 +14,7 @@ import { useTablesLive } from './TablesLive'
 /** Who needs the floor staff first: new tables, bills requested, idle tables, then the rest by table number. */
 function priority(tab: StaffTab) {
   if (tab.alerts.needs_approval) return 0
-  if (tab.alerts.wants_to_close) return 1
+  if (tab.alerts.payments_to_confirm > 0 || tab.alerts.wants_to_close) return 1
   if (tab.alerts.late_orders > 0) return 2
   if (tab.alerts.idle) return 3
   return 4
@@ -39,6 +39,21 @@ export function TablesPage() {
 
   const sorted = useMemo(() => [...tabs].sort(tableOrder), [tabs])
   const openTotal = tabs.reduce((sum, tab) => sum + Number(tab.totals.total), 0)
+
+  async function resolve(tab: StaffTab, paymentId: string, confirm: boolean) {
+    setBusy(paymentId)
+    try {
+      const updated = await resolveTabPayment(tab.id, paymentId, confirm)
+      toast.success(confirm
+        ? (updated.status === 'CLOSED' ? `Mesa ${tab.table_label} quitada e liberada.` : 'PIX confirmado.')
+        : 'Pagamento marcado como não recebido.')
+      await refresh()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível atualizar o pagamento.'))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function approve(tab: StaffTab) {
     setBusy(tab.id)
@@ -104,6 +119,15 @@ export function TablesPage() {
                       {tab.split_count && tab.split_count > 1 && tab.totals.per_person ? ` · ${tab.split_count}× ${formatMoney(tab.totals.per_person)}` : ''}
                     </span>
                   )}
+                  {tab.payments.filter((p) => p.status === 'REPORTED').map((p) => (
+                    <div key={p.id} className="pix-check">
+                      <span><QrCode size={14} /> <strong>{p.payer_name ?? 'Cliente'}</strong> diz que pagou {formatMoney(p.amount)} no PIX. Confira no banco:</span>
+                      <div className="row">
+                        <button className="btn small" disabled={busy === p.id} onClick={() => void resolve(tab, p.id, false)}>Não recebi</button>
+                        <button className="btn small primary" disabled={busy === p.id} onClick={() => void resolve(tab, p.id, true)}><Check size={14} /> Recebi</button>
+                      </div>
+                    </div>
+                  ))}
                   {alerts.late_orders > 0 && <span className="alert-chip warn"><AlertTriangle size={14} /> {alerts.late_orders} {alerts.late_orders === 1 ? 'pedido atrasado' : 'pedidos atrasados'}</span>}
                   {alerts.idle && <span className="alert-chip info"><Timer size={14} /> Parada há {duration(alerts.minutes_since_last_order ?? 0)}: ofereça mais uma rodada</span>}
                 </div>
@@ -119,7 +143,11 @@ export function TablesPage() {
                 </ul>
 
                 <footer>
-                  <div className="table-total"><small>Total</small><strong>{formatMoney(tab.totals.total)}</strong></div>
+                  <div className="table-total">
+                    <small>{Number(tab.totals.paid) > 0 ? `Pago ${formatMoney(tab.totals.paid)} de ${formatMoney(tab.totals.total)}` : 'Total'}</small>
+                    <strong>{formatMoney(Number(tab.totals.paid) > 0 ? tab.totals.remaining : tab.totals.total)}</strong>
+                    {Number(tab.totals.paid) > 0 && <small>falta pagar</small>}
+                  </div>
                   <div className="row">
                     {tab.status === 'PENDING' ? (
                       <>
@@ -150,7 +178,26 @@ export function TablesPage() {
 function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; accepted: PaymentMethod[]; onClose: () => void; onDone: () => Promise<void> }) {
   const [method, setMethod] = useState<PaymentMethod>(tab.requested_payment_method ?? accepted[0])
   const [saving, setSaving] = useState(false)
+  const [share, setShare] = useState('')
   const cooking = tab.orders.filter((o) => o.status === 'RECEIVED' || o.status === 'PREPARING').length
+  const remaining = Number(tab.totals.remaining)
+
+  async function recordShare() {
+    const value = Number(share.replace(',', '.'))
+    if (!value || value <= 0) return toast.error('Informe o valor recebido.')
+    setSaving(true)
+    try {
+      const updated = await addTabPayment(tab.id, value.toFixed(2), method)
+      toast.success(updated.status === 'CLOSED' ? `Mesa ${tab.table_label} quitada e liberada.` : `Parte de ${formatMoney(value)} registrada.`)
+      setShare('')
+      if (updated.status === 'CLOSED') onClose()
+      await onDone()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível registrar o pagamento.'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function confirm() {
     setSaving(true)
@@ -171,7 +218,7 @@ function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; acce
       title={`Fechar a conta da mesa ${tab.table_label}`}
       onClose={onClose}
       size="sm"
-      footer={<><button className="btn" onClick={onClose}>Voltar</button><button className="btn primary" disabled={saving || cooking > 0} onClick={() => void confirm()}><Check size={16} /> Recebi {formatMoney(tab.totals.total)}</button></>}
+      footer={<><button className="btn" onClick={onClose}>Voltar</button><button className="btn primary" disabled={saving || cooking > 0} onClick={() => void confirm()}><Check size={16} /> Recebi {formatMoney(remaining)}</button></>}
     >
       {cooking > 0 && <div className="alert warn">Há {cooking} pedido(s) ainda na cozinha. Entregue ou cancele antes de fechar.</div>}
       <div className="card flat">
@@ -179,6 +226,8 @@ function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; acce
         {Number(tab.totals.discount) > 0 && <div className="total-row sub discount"><span>Descontos</span><span>−{formatMoney(tab.totals.discount)}</span></div>}
         {Number(tab.totals.service_fee) > 0 && <div className="total-row sub"><span>Taxa de serviço</span><span>{formatMoney(tab.totals.service_fee)}</span></div>}
         <div className="total-row"><span>Total</span><strong>{formatMoney(tab.totals.total)}</strong></div>
+        {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>−{formatMoney(tab.totals.paid)}</span></div>}
+        {Number(tab.totals.paid) > 0 && <div className="total-row"><span>Falta</span><strong>{formatMoney(remaining)}</strong></div>}
         {tab.split_count && tab.split_count > 1 && tab.totals.per_person && (
           <div className="total-row sub"><span><Clock size={13} /> Dividida em {tab.split_count}</span><span>{formatMoney(tab.totals.per_person)} cada</span></div>
         )}
@@ -187,7 +236,12 @@ function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; acce
       <div className="pay-grid">
         {accepted.map((m) => <button key={m} className={`pay-option ${method === m ? 'active' : ''}`} onClick={() => setMethod(m)}>{paymentMethodLabels[m]}</button>)}
       </div>
-      <p className="muted">Ao confirmar, todos os pedidos da mesa ficam pagos e a mesa é liberada para o próximo cliente.</p>
+      <h4>Alguém pagou só a parte dele?</h4>
+      <div className="coupon-row">
+        <input inputMode="decimal" placeholder="Valor recebido (ex.: 25,00)" value={share} onChange={(e) => setShare(e.target.value)} aria-label="Valor de uma parte" />
+        <button className="btn" disabled={saving || !share} onClick={() => void recordShare()}>Registrar parte</button>
+      </div>
+      <p className="muted" style={{ marginTop: 12 }}>“Recebi” quita o que falta, marca todos os pedidos como pagos e libera a mesa para o próximo cliente.</p>
     </Modal>
   )
 }

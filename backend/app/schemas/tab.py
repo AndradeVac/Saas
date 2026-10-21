@@ -39,6 +39,18 @@ class TabTotals(BaseModel):
     total: Decimal
     # total / split_count, when the customer chose to split the bill.
     per_person: Decimal | None
+    paid: Decimal = Decimal("0.00")  # confirmed payments
+    reported: Decimal = Decimal("0.00")  # PIX the customers say they sent, waiting for staff to confirm
+    remaining: Decimal = Decimal("0.00")
+
+
+class TabPaymentOut(BaseModel):
+    id: UUID
+    amount: Decimal
+    method: PaymentMethod
+    status: str
+    payer_name: str | None
+    created_at: datetime
 
 
 class TabAlerts(BaseModel):
@@ -50,6 +62,8 @@ class TabAlerts(BaseModel):
     idle: bool
     # Orders waiting in the kitchen for more than LATE_ORDER_MINUTES.
     late_orders: int
+    # PIX payments reported by customers that staff still has to check.
+    payments_to_confirm: int = 0
     minutes_open: int
     minutes_since_last_order: int | None
 
@@ -70,6 +84,7 @@ class TabResponse(BaseModel):
     closed_at: datetime | None
     totals: TabTotals
     orders: list[TabOrder]
+    payments: list[TabPaymentOut] = []
     alerts: TabAlerts
 
 
@@ -83,6 +98,7 @@ class PublicTab(BaseModel):
     last_order_at: datetime | None
     totals: TabTotals
     orders: list[TabOrder]
+    payments: list[TabPaymentOut] = []
 
 
 class TabCloseRequest(BaseModel):
@@ -97,6 +113,25 @@ class TabCloseRequest(BaseModel):
 class TabClose(BaseModel):
     """Staff received the payment."""
 
+    payment_method: PaymentMethod
+
+    _validate_payment = field_validator("payment_method")(_real_payment)
+
+
+class PixCode(BaseModel):
+    code: str  # PIX copia e cola (also rendered as a QR Code)
+    amount: Decimal
+
+
+class PixReport(BaseModel):
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    payer_name: str | None = Field(default=None, max_length=120)
+
+
+class TabPaymentCreate(BaseModel):
+    """Staff records a share paid in cash/card (or PIX checked in the bank)."""
+
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
     payment_method: PaymentMethod
 
     _validate_payment = field_validator("payment_method")(_real_payment)
