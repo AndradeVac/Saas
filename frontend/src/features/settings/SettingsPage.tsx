@@ -29,7 +29,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
 const PRESETS = ['#c2410c', '#dc2626', '#d97706', '#65a30d', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#c026d3', '#57534e']
 
 const editable = (s: TenantSettings) => ({
-  name: s.name, business_type: s.business_type, description: s.description, phone: s.phone, address: s.address,
+  name: s.name, business_type: s.business_type, description: s.description, phone: s.phone, address: s.address, city: s.city,
   instagram: s.instagram, pix_key: s.pix_key, logo_url: s.logo_url, cover_url: s.cover_url, primary_color: s.primary_color,
   accepting_orders: s.accepting_orders, hours_mode: s.hours_mode, opening_hours: s.opening_hours,
   enabled_services: s.enabled_services, accepted_payments: s.accepted_payments,
@@ -78,7 +78,7 @@ export function SettingsPage() {
     try {
       const updated = await updateTenantSettings({
         ...editable(form),
-        phone: form.phone || null, address: form.address || null, instagram: form.instagram || null,
+        phone: form.phone || null, address: form.address || null, city: form.city || null, instagram: form.instagram || null,
         description: form.description || null, pix_key: form.pix_key || null,
       })
       setSaved(updated)
@@ -129,7 +129,10 @@ export function SettingsPage() {
             <label className="field"><span>Telefone / WhatsApp</span><input inputMode="tel" placeholder="(11) 99999-9999" value={form.phone ? maskPhone(form.phone) : ''} onChange={(e) => set('phone', e.target.value ? maskPhone(e.target.value) : null)} /></label>
             <label className="field"><span>Instagram</span><input placeholder="@suaconta" maxLength={60} value={form.instagram ?? ''} onChange={(e) => set('instagram', e.target.value)} /></label>
           </div>
-          <label className="field"><span>Endereço</span><input maxLength={200} placeholder="Rua, número – bairro, cidade" value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} /></label>
+          <div className="grid-2">
+            <label className="field"><span>Endereço</span><input maxLength={200} placeholder="Rua, número – bairro" value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} /></label>
+            <label className="field"><span>Cidade</span><input maxLength={60} placeholder="Ex.: São Paulo" value={form.city ?? ''} onChange={(e) => set('city', e.target.value)} /><small className="muted">Aparece no PIX que o cliente paga pela mesa.</small></label>
+          </div>
         </div>
       )}
 
@@ -233,7 +236,7 @@ export function SettingsPage() {
               />
             ))}
             {form.accepted_payments.includes('PIX') && (
-              <label className="field" style={{ marginTop: 12 }}><span>Chave PIX (opcional)</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Mostrada ao cliente que escolher PIX, com botão de copiar.</small></label>
+              <label className="field" style={{ marginTop: 12 }}><span>Chave PIX (opcional)</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Com a chave, o cliente paga a conta da mesa pelo PIX com o valor exato, direto na sua conta. O garçom confere no banco e confirma.</small></label>
             )}
           </div>
           <div className="card">

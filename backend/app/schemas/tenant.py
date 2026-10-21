@@ -80,6 +80,7 @@ class PublicTenant(BaseModel):
     description: str | None
     phone: str | None
     address: str | None
+    city: str | None = None
     instagram: str | None
     logo_url: str | None
     cover_url: str | None
@@ -118,6 +119,7 @@ class TenantSettingsUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=30)
     address: str | None = Field(default=None, max_length=200)
+    city: str | None = Field(default=None, max_length=60)
     instagram: str | None = Field(default=None, max_length=60)
     logo_url: str | None = Field(default=None, max_length=300)
     cover_url: str | None = Field(default=None, max_length=300)

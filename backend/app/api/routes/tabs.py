@@ -13,7 +13,7 @@ from app.core.tables import normalize_table_label, table_code
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.schemas.tab import TableQr, TabClose, TabReason, TabResponse
+from app.schemas.tab import TableQr, TabClose, TabPaymentCreate, TabReason, TabResponse
 from app.services.tab import TabService
 
 router = APIRouter(prefix="/tabs", tags=["Tabs"])
@@ -60,6 +60,31 @@ def close_tab(
 ):
     service = TabService(db, tenant.id)
     return service.to_response(service.close(tab_id, data.payment_method, actor), tenant)
+
+
+@router.post("/{tab_id}/payments", response_model=TabResponse)
+def add_tab_payment(
+    tab_id: UUID, data: TabPaymentCreate, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(staff_only),
+):
+    """One person's share received (cash, card or PIX checked in the bank)."""
+    service = TabService(db, tenant.id)
+    return service.to_response(service.add_payment(tab_id, data.amount, data.payment_method, actor), tenant)
+
+
+@router.post("/{tab_id}/payments/{payment_id}/confirm", response_model=TabResponse)
+def confirm_tab_payment(
+    tab_id: UUID, payment_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(staff_only),
+):
+    service = TabService(db, tenant.id)
+    return service.to_response(service.resolve_payment(tab_id, payment_id, True, actor), tenant)
+
+
+@router.post("/{tab_id}/payments/{payment_id}/reject", response_model=TabResponse)
+def reject_tab_payment(
+    tab_id: UUID, payment_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(staff_only),
+):
+    service = TabService(db, tenant.id)
+    return service.to_response(service.resolve_payment(tab_id, payment_id, False, actor), tenant)
 
 
 @router.post("/{tab_id}/cancel", response_model=TabResponse)

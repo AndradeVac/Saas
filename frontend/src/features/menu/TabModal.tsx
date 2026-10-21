@@ -1,10 +1,12 @@
-import { Copy, Minus, Plus, Receipt, Repeat2, ShoppingBag, Users } from 'lucide-react'
+import { Check, Copy, Minus, Plus, QrCode, Receipt, Repeat2, ShoppingBag, Users } from 'lucide-react'
+import QRCode from 'qrcode'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Modal } from '../../components/ui/Modal'
 import { formatMoney, formatTime, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { requestTabClose, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
+import { readJson } from '../../lib/storage'
+import { getTabPix, reportTabPix, requestTabClose, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod, PublicTenant } from '../../types'
 
 type Props = {
@@ -19,7 +21,10 @@ type Props = {
 }
 
 export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepeat, onUpdated }: Props) {
-  const [view, setView] = useState<'bill' | 'close'>('bill')
+  const [view, setView] = useState<'bill' | 'close' | 'pix'>('bill')
+  const [pix, setPix] = useState<{ code: string; amount: string } | null>(null)
+  const [qr, setQr] = useState('')
+  const [reported, setReported] = useState(false)
   const [payment, setPayment] = useState<PaymentMethod>(tab.requested_payment_method ?? tenant.accepted_payments[0])
   const [split, setSplit] = useState(tab.split_count ?? 1)
   const [sending, setSending] = useState(false)
@@ -28,6 +33,36 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
   const last = live[live.length - 1]
   const total = Number(tab.totals.total)
   const canOrder = tab.status === 'OPEN' || tab.status === 'CLOSING' || tab.status === 'PENDING'
+  const pixAvailable = Boolean(tenant.pix_key) && tenant.accepted_payments.includes('PIX')
+
+  async function startPix(amount: number) {
+    setSending(true)
+    try {
+      const code = await getTabPix(tab.public_token, amount.toFixed(2))
+      setPix(code)
+      setQr(await QRCode.toDataURL(code.code, { margin: 1, width: 280 }))
+      setReported(false)
+      setView('pix')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível gerar o PIX.'))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function sayPaid() {
+    if (!pix) return
+    setSending(true)
+    try {
+      const payer = readJson<{ name?: string }>(`mesa:${tenant.slug}:customer`, {}).name
+      onUpdated(await reportTabPix(tab.public_token, pix.amount, payer))
+      setReported(true)
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível avisar o garçom.'))
+    } finally {
+      setSending(false)
+    }
+  }
 
   async function askForBill() {
     setSending(true)
@@ -43,30 +78,53 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
     }
   }
 
-  if (view === 'close') {
+  if (view === 'pix' && pix) {
     return (
       <Modal
-        title="Fechar a conta"
-        onClose={() => setView('bill')}
+        title="Pagar com PIX"
+        onClose={() => setView('close')}
         footer={
-          <div className="stack" style={{ width: '100%' }}>
-            <div className="total-row" style={{ padding: 0 }}>
-              <span>{split > 1 ? `Cada um paga (${split})` : 'Total'}</span>
-              <strong>{formatMoney(split > 1 ? total / split : total)}</strong>
-            </div>
-            <button className="btn primary large block" disabled={sending} onClick={() => void askForBill()}>
-              <Receipt size={18} /> {sending ? 'Enviando…' : 'Pedir a conta'}
+          reported ? (
+            <button className="btn primary large block" onClick={() => { setView('bill'); setPix(null); setReported(false) }}>Voltar para a conta</button>
+          ) : (
+            <button className="btn primary large block" disabled={sending} onClick={() => void sayPaid()}>
+              <Check size={18} /> {sending ? 'Avisando…' : 'Já paguei'}
             </button>
-          </div>
+          )
         }
       >
-        <p className="muted">O garçom recebe o aviso na hora e vem até a sua mesa.</p>
-        <h4>Como vocês vão pagar?</h4>
-        <div className="pay-grid">
-          {tenant.accepted_payments.map((method) => (
-            <button key={method} className={`pay-option ${payment === method ? 'active' : ''}`} onClick={() => setPayment(method)}>{paymentMethodLabels[method]}</button>
-          ))}
+        {reported ? (
+          <div className="success-hero">
+            <div className="tick"><Check size={28} /></div>
+            <h2>Pagamento enviado!</h2>
+            <p className="muted">Avisamos o garçom. Ele confere o PIX de <strong>{formatMoney(pix.amount)}</strong> e confirma em instantes.</p>
+          </div>
+        ) : (
+          <>
+            <p className="muted">Pague <strong>{formatMoney(pix.amount)}</strong> direto para <strong>{tenant.name}</strong>: abra o app do seu banco e use o QR Code ou o PIX copia e cola.</p>
+            {qr && <img className="pix-qr" src={qr} alt="QR Code PIX" />}
+            <div className="pix-box">
+              <code className="pix-code">{pix.code}</code>
+              <button className="btn small" onClick={() => { void navigator.clipboard?.writeText(pix.code); toast.success('PIX copiado. Cole no app do seu banco.') }}><Copy size={14} /> Copiar</button>
+            </div>
+            <p className="muted"><small>Depois de pagar, toque em “Já paguei” para avisar o garçom.</small></p>
+          </>
+        )}
+      </Modal>
+    )
+  }
+
+  if (view === 'close') {
+    const remaining = Number(tab.totals.remaining)
+    const share = split > 1 ? Math.ceil((remaining / split) * 100) / 100 : remaining
+    return (
+      <Modal title="Fechar a conta" onClose={() => setView('bill')} footer={<button className="btn large block" onClick={() => setView('bill')}>Voltar</button>}>
+        <div className="card flat">
+          <div className="total-row sub"><span>Total da mesa</span><span>{formatMoney(total)}</span></div>
+          {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>−{formatMoney(tab.totals.paid)}</span></div>}
+          <div className="total-row"><span>Falta pagar</span><strong>{formatMoney(remaining)}</strong></div>
         </div>
+
         <h4>Dividir a conta</h4>
         <div className="split-row">
           <span><Users size={16} /> Pessoas</span>
@@ -76,10 +134,27 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
             <button onClick={() => setSplit((n) => Math.min(20, n + 1))} aria-label="Mais pessoas" disabled={split >= 20}><Plus size={14} /></button>
           </div>
         </div>
-        <div className="card flat">
-          <div className="total-row sub"><span>Total da mesa</span><span>{formatMoney(total)}</span></div>
-          {split > 1 && <div className="total-row sub"><span>Por pessoa</span><strong>{formatMoney(total / split)}</strong></div>}
+
+        {pixAvailable && remaining > 0 && (
+          <div className="pay-now">
+            <strong><QrCode size={18} /> Pagar agora pelo PIX</strong>
+            <span className="muted">Na hora, sem esperar o garçom. O dinheiro vai direto para {tenant.name}.</span>
+            <div className="pay-now-actions">
+              {split > 1 && <button className="btn primary" disabled={sending} onClick={() => void startPix(share)}>Minha parte · {formatMoney(share)}</button>}
+              <button className={`btn ${split > 1 ? '' : 'primary'}`} disabled={sending} onClick={() => void startPix(remaining)}>Conta inteira · {formatMoney(remaining)}</button>
+            </div>
+          </div>
+        )}
+
+        <h4>{pixAvailable ? 'Ou chame o garçom' : 'Chamar o garçom'}</h4>
+        <div className="pay-grid">
+          {tenant.accepted_payments.map((method) => (
+            <button key={method} className={`pay-option ${payment === method ? 'active' : ''}`} onClick={() => setPayment(method)}>{paymentMethodLabels[method]}</button>
+          ))}
         </div>
+        <button className="btn large block" disabled={sending} onClick={() => void askForBill()}>
+          <Receipt size={18} /> {sending ? 'Enviando…' : `Pedir a conta (${paymentMethodLabels[payment]})`}
+        </button>
       </Modal>
     )
   }
@@ -149,6 +224,9 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
         {Number(tab.totals.discount) > 0 && <div className="total-row sub discount"><span>Descontos</span><span>−{formatMoney(tab.totals.discount)}</span></div>}
         {Number(tab.totals.service_fee) > 0 && <div className="total-row sub"><span>Taxa de serviço</span><span>{formatMoney(tab.totals.service_fee)}</span></div>}
         <div className="total-row"><span>Total da mesa</span><strong>{formatMoney(tab.totals.total)}</strong></div>
+        {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>{formatMoney(tab.totals.paid)}</span></div>}
+        {Number(tab.totals.reported) > 0 && <div className="total-row sub"><span>PIX aguardando o garçom confirmar</span><span>{formatMoney(tab.totals.reported)}</span></div>}
+        {Number(tab.totals.paid) > 0 && <div className="total-row"><span>Falta pagar</span><strong>{formatMoney(tab.totals.remaining)}</strong></div>}
       </div>
     </Modal>
   )

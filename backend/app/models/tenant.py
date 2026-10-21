@@ -54,6 +54,8 @@ class Tenant(Base):
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     address: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # City printed in PIX codes (and useful on the menu); free text, optional.
+    city: Mapped[str | None] = mapped_column(String(60), nullable=True)
     instagram: Mapped[str | None] = mapped_column(String(60), nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     pix_key: Mapped[str | None] = mapped_column(String(100), nullable=True)

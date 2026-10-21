@@ -1,5 +1,6 @@
 """Endpoints used by the customer-facing menu (no authentication, scoped by the X-Tenant header)."""
 import time
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -29,7 +30,7 @@ from app.schemas.public import (
 )
 from app.core.plans import public_tenant
 from app.core.tables import normalize_table_label, valid_table_code
-from app.schemas.tab import PublicTab, TabCloseRequest
+from app.schemas.tab import PixCode, PixReport, PublicTab, TabCloseRequest
 from app.services.coupon import CouponService
 from app.services.tab import TabService
 from app.services.order import OrderService
@@ -178,6 +179,24 @@ def request_tab_close(token: UUID, data: TabCloseRequest, tenant: Tenant = Depen
     """The customer asks for the bill: the table lights up on the staff's Mesas screen."""
     service = TabService(db, tenant.id)
     return service.to_public(service.request_close(token, tenant, data.payment_method, data.split_count))
+
+
+@router.get("/tabs/{token}/pix", response_model=PixCode, dependencies=[Depends(public_lookup_rate_limit)])
+def tab_pix_code(
+    token: UUID,
+    amount: Decimal | None = Query(default=None, gt=0, max_digits=10, decimal_places=2),
+    tenant: Tenant = Depends(get_tenant),
+    db: Session = Depends(get_db),
+):
+    """PIX copia e cola for the bill (or one person's share), paid straight to the restaurant's PIX key."""
+    return TabService(db, tenant.id).pix_code(token, tenant, amount)
+
+
+@router.post("/tabs/{token}/pix-report", response_model=PublicTab, dependencies=[Depends(public_order_rate_limit)])
+def report_tab_pix(token: UUID, data: PixReport, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """"Já paguei": the waiter gets an alert to check the bank and confirm."""
+    service = TabService(db, tenant.id)
+    return service.to_public(service.report_pix(token, tenant, data.amount, data.payer_name))
 
 
 @router.get(

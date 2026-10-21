@@ -10,17 +10,23 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus
 from app.models.order_status_history import OrderStatusHistory
+from app.core.pix import brcode, normalize_pix_key
 from app.models.tab import ACTIVE_TAB_STATUSES, Tab, TabStatus
+from app.models.tab_payment import TabPayment, TabPaymentStatus
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.schemas.tab import PublicTab, TabAlerts, TabOrder, TabOrderItem, TabResponse, TabTotals
+from app.schemas.tab import PixCode, PublicTab, TabAlerts, TabOrder, TabOrderItem, TabPaymentOut, TabResponse, TabTotals
 from app.services.audit import record_audit
 from app.services.coupon import CouponService
 
 LATE_ORDER_MINUTES = 20
 _CENTS = Decimal("0.01")
 _COOKING = (OrderStatus.RECEIVED, OrderStatus.PREPARING)
-_LOAD = (selectinload(Tab.orders).selectinload(Order.items), selectinload(Tab.orders).selectinload(Order.customer))
+_LOAD = (
+    selectinload(Tab.orders).selectinload(Order.items),
+    selectinload(Tab.orders).selectinload(Order.customer),
+    selectinload(Tab.payments),
+)
 
 
 def _minutes_since(moment: datetime | None, now: datetime) -> int | None:
@@ -137,7 +143,8 @@ class TabService:
             record_audit(self.db, self.tenant_id, actor, "TAB_CANCELLED", "TAB", tab.id, f"mesa {tab.table_label}: todos os pedidos cancelados")
 
     def close(self, tab_id: UUID, payment_method: PaymentMethod, actor: User) -> Tab:
-        """Payment received: every order is marked paid, served ones are finished and the table is free again."""
+        """Payment received: whatever is still open is paid with `payment_method`, every order is marked paid,
+        served ones are finished and the table is free again."""
         tab = self.get(tab_id)
         if tab.status not in (TabStatus.OPEN, TabStatus.CLOSING):
             raise BusinessRuleError("Só é possível fechar uma comanda aberta.")
@@ -146,7 +153,19 @@ class TabService:
         cooking = sum(1 for order in tab.orders if order.status in _COOKING)
         if cooking:
             raise BusinessRuleError(f"Há {cooking} pedido(s) ainda na cozinha. Entregue ou cancele antes de fechar a conta.")
+        remaining = self.totals(tab).remaining
+        if remaining > 0:
+            self._add_payment(tab, remaining, payment_method, TabPaymentStatus.CONFIRMED, None)
+        self._finalize(tab, payment_method, actor)
+        self.db.commit()
+        return tab
+
+    def _finalize(self, tab: Tab, payment_method: PaymentMethod, actor: User | None) -> None:
         now = datetime.now(timezone.utc)
+        # Reported PIX that nobody confirmed are dropped: the bill was settled another way.
+        for payment in tab.payments:
+            if payment.status is TabPaymentStatus.REPORTED:
+                payment.status, payment.resolved_at = TabPaymentStatus.REJECTED, now
         for order in tab.orders:
             if order.status is OrderStatus.CANCELLED:
                 continue
@@ -159,6 +178,82 @@ class TabService:
             self.db, self.tenant_id, actor, "TAB_CLOSED", "TAB", tab.id,
             f"mesa {tab.table_label} total={self.totals(tab).total} method={payment_method.value}",
         )
+
+    # ---- payments (whole bill or one person's share) ----------------------------------------
+    def _add_payment(self, tab: Tab, amount: Decimal, method: PaymentMethod, status: TabPaymentStatus, payer: str | None) -> TabPayment:
+        payment = TabPayment(
+            tenant_id=self.tenant_id, tab_id=tab.id, amount=amount.quantize(_CENTS), method=method, status=status,
+            payer_name=payer, resolved_at=datetime.now(timezone.utc) if status is TabPaymentStatus.CONFIRMED else None,
+        )
+        self.db.add(payment)
+        self.db.flush()
+        self.db.refresh(tab, ["payments"])
+        return payment
+
+    def _settle_if_paid(self, tab: Tab, actor: User | None) -> None:
+        """Automation: a bill fully paid closes itself (when nothing is still being cooked)."""
+        totals = self.totals(tab)
+        if totals.remaining > 0 or any(order.status in _COOKING for order in tab.orders):
+            return
+        confirmed = [p for p in tab.payments if p.status is TabPaymentStatus.CONFIRMED]
+        main_method = max(confirmed, key=lambda p: p.amount).method if confirmed else PaymentMethod.CASH
+        self._finalize(tab, main_method, actor)
+
+    def pix_code(self, token: UUID, tenant: Tenant, amount: Decimal | None) -> PixCode:
+        tab = self.get_by_token(token)
+        if tab.status not in (TabStatus.OPEN, TabStatus.CLOSING):
+            raise BusinessRuleError("Esta comanda não está aberta para pagamento.")
+        key = normalize_pix_key(tenant.pix_key or "")
+        if not key or "PIX" not in tenant.accepted_payments:
+            raise BusinessRuleError("Este estabelecimento não recebe PIX pelo cardápio. Peça a conta ao garçom.")
+        remaining = self.totals(tab).remaining
+        value = (amount or remaining).quantize(_CENTS)
+        if value <= 0 or value > remaining:
+            raise BusinessRuleError(f"Informe um valor entre R$ 0,01 e R$ {remaining:.2f}.".replace(".", ","))
+        code = brcode(key, value, tenant.name, tenant.city or "BRASIL", f"MESA{tab.table_label}")
+        return PixCode(code=code, amount=value)
+
+    def report_pix(self, token: UUID, tenant: Tenant, amount: Decimal, payer: str | None) -> Tab:
+        """The customer says the PIX was sent; staff gets a "check the bank" alert to confirm."""
+        tab = self.get_by_token(token)
+        if tab.status not in (TabStatus.OPEN, TabStatus.CLOSING):
+            raise BusinessRuleError("Esta comanda não está aberta para pagamento.")
+        if amount > self.totals(tab).remaining:
+            raise BusinessRuleError("Este valor é maior que o saldo da conta.")
+        self._add_payment(tab, amount, PaymentMethod.PIX, TabPaymentStatus.REPORTED, payer)
+        if tab.status is TabStatus.OPEN:
+            tab.status, tab.close_requested_at, tab.requested_payment_method = TabStatus.CLOSING, datetime.now(timezone.utc), PaymentMethod.PIX
+        self.db.commit()
+        return tab
+
+    def add_payment(self, tab_id: UUID, amount: Decimal, method: PaymentMethod, actor: User) -> Tab:
+        tab = self.get(tab_id)
+        if tab.status not in (TabStatus.OPEN, TabStatus.CLOSING):
+            raise BusinessRuleError("Esta comanda não está aberta.")
+        if amount > self.totals(tab).remaining:
+            raise BusinessRuleError("Este valor é maior que o saldo da conta.")
+        self._add_payment(tab, amount, method, TabPaymentStatus.CONFIRMED, None)
+        record_audit(self.db, self.tenant_id, actor, "TAB_PAYMENT", "TAB", tab.id, f"mesa {tab.table_label} {method.value} {amount}")
+        self._settle_if_paid(tab, actor)
+        self.db.commit()
+        return tab
+
+    def resolve_payment(self, tab_id: UUID, payment_id: UUID, confirm: bool, actor: User) -> Tab:
+        tab = self.get(tab_id)
+        payment = next((p for p in tab.payments if p.id == payment_id), None)
+        if payment is None or payment.status is not TabPaymentStatus.REPORTED:
+            raise BusinessRuleError("Este pagamento já foi resolvido.")
+        if confirm and payment.amount > self.totals(tab).remaining:
+            raise BusinessRuleError("Este valor é maior que o saldo da conta.")
+        payment.status = TabPaymentStatus.CONFIRMED if confirm else TabPaymentStatus.REJECTED
+        payment.resolved_at = datetime.now(timezone.utc)
+        record_audit(
+            self.db, self.tenant_id, actor, "TAB_PAYMENT_CONFIRMED" if confirm else "TAB_PAYMENT_REJECTED", "TAB", tab.id,
+            f"mesa {tab.table_label} PIX {payment.amount}",
+        )
+        self.db.flush()
+        if confirm:
+            self._settle_if_paid(tab, actor)
         self.db.commit()
         return tab
 
@@ -182,13 +277,25 @@ class TabService:
         live = [order for order in tab.orders if order.status is not OrderStatus.CANCELLED]
         total = sum((order.total for order in live), Decimal("0.00"))
         per_person = (total / tab.split_count).quantize(_CENTS, rounding=ROUND_HALF_UP) if tab.split_count and tab.split_count > 1 else None
+        paid = sum((p.amount for p in tab.payments if p.status is TabPaymentStatus.CONFIRMED), Decimal("0.00"))
+        reported = sum((p.amount for p in tab.payments if p.status is TabPaymentStatus.REPORTED), Decimal("0.00"))
         return TabTotals(
             subtotal=sum((order.subtotal for order in live), Decimal("0.00")),
             discount=sum((order.discount for order in live), Decimal("0.00")),
             service_fee=sum((order.service_fee for order in live), Decimal("0.00")),
             total=total,
             per_person=per_person,
+            paid=paid,
+            reported=reported,
+            remaining=max(total - paid, Decimal("0.00")),
         )
+
+    @staticmethod
+    def _payments(tab: Tab) -> list[TabPaymentOut]:
+        return [
+            TabPaymentOut(id=p.id, amount=p.amount, method=p.method, status=p.status.value, payer_name=p.payer_name, created_at=p.created_at)
+            for p in tab.payments
+        ]
 
     @staticmethod
     def _orders(tab: Tab) -> list[TabOrder]:
@@ -217,6 +324,7 @@ class TabService:
                 and since_last is not None and since_last >= tenant.tab_idle_minutes
             ),
             late_orders=sum(1 for order in cooking if _minutes_since(order.created_at, now) >= LATE_ORDER_MINUTES),
+            payments_to_confirm=sum(1 for p in tab.payments if p.status is TabPaymentStatus.REPORTED),
             minutes_open=_minutes_since(tab.created_at, now) or 0,
             minutes_since_last_order=since_last,
         )
@@ -227,12 +335,12 @@ class TabService:
             opened_by=tab.opened_by, requested_payment_method=tab.requested_payment_method, split_count=tab.split_count,
             payment_method=tab.payment_method, created_at=tab.created_at, last_order_at=tab.last_order_at,
             close_requested_at=tab.close_requested_at, closed_at=tab.closed_at,
-            totals=self.totals(tab), orders=self._orders(tab), alerts=self.alerts(tab, tenant),
+            totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab), alerts=self.alerts(tab, tenant),
         )
 
     def to_public(self, tab: Tab) -> PublicTab:
         return PublicTab(
             number=tab.number, public_token=tab.public_token, table_label=tab.table_label, status=tab.status,
             requested_payment_method=tab.requested_payment_method, split_count=tab.split_count,
-            last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab),
+            last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab),
         )

@@ -54,6 +54,9 @@ class Tab(Base):
     close_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    payments: Mapped[list["TabPayment"]] = relationship(
+        "TabPayment", primaryjoin="Tab.id == foreign(TabPayment.tab_id)", order_by="TabPayment.created_at", viewonly=True
+    )
     orders: Mapped[list["Order"]] = relationship(
         "Order", primaryjoin="Tab.id == foreign(Order.tab_id)", back_populates="tab", order_by="Order.created_at"
     )
