@@ -5,10 +5,10 @@ export const LEGAL = {
   versionLabel: '10 de outubro de 2026',
   brand: 'Mesa Digital',
   /** Razão social and CNPJ (or name and CPF for an individual). */
-  companyName: '',
-  document: '',
+  companyName: '63.148.827 VINICIUS ANDRADE CASTEGLIONI',
+  document: 'CNPJ 63.148.827/0001-67',
   /** E-mail for privacy requests (encarregado/DPO) and support. */
   privacyEmail: '',
   /** City/UF whose courts settle disputes (foro). */
-  forum: '',
+  forum: 'São Caetano do Sul/SP',
 }
