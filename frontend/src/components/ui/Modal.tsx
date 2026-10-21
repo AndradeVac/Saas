@@ -23,6 +23,15 @@ export function Modal({ title, onClose, children, footer, size = 'md' }: ModalPr
     const previous = document.activeElement as HTMLElement | null
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCloseRef.current()
+      if (event.key !== 'Tab' || !ref.current) return
+      // Focus trap: Tab never leaves the open dialog for the page behind it.
+      const focusable = [...ref.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => el.offsetParent !== null)
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
     }
     document.addEventListener('keydown', onKey)
     const overflow = document.body.style.overflow

@@ -14,7 +14,7 @@
   --surface-2: #f3f0ec;
   --text: #1c1917;
   --text-2: #57534e;
-  --muted: #78716c;
+  --muted: #6b625c;
   --border: #e7e2dc;
   --ok: #15803d;
   --ok-bg: #dcfce7;
@@ -682,7 +682,9 @@ a.menu-footer:hover { color: var(--brand); }
 .tab-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); width: min(calc(100% - 28px), 700px);
   display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; z-index: 39;
   background: var(--text); color: var(--bg); border: 0; font-weight: 700; box-shadow: var(--shadow-3); animation: pop 0.25s var(--ease); }
-.tab-bar-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-bar-label { display: inline-flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
+.tab-bar-label > span { display: grid; line-height: 1.2; min-width: 0; }
+.tab-bar-label small { font-weight: 600; opacity: 0.85; font-size: 12.5px; }
 .tab-bar.tab-closing { background: var(--warn); color: #fff; }
 .tab-bar.tab-pending { background: var(--info); color: #fff; }
 .round-offer { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom)); width: min(calc(100% - 28px), 700px);

@@ -99,7 +99,16 @@ export function SettingsPage() {
     <section className="page narrow">
       <PageHeader title="Configurações" subtitle="Você controla tudo sobre o seu negócio por aqui." />
       <div className="tabs" role="tablist">
-        {tabs.map((t) => <button key={t.key} role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>)}
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
+            className={tab === t.key ? 'active' : ''}
+            onClick={() => setTab(t.key)}
+            ref={(el) => { if (el && tab === t.key) el.scrollIntoView({ block: 'nearest', inline: 'center' }) }}
+          >{t.label}</button>
+        ))}
       </div>
       <ErrorBanner message={error} />
 

@@ -379,7 +379,10 @@ export function MenuPage() {
       )}
       {tab && !hasCart && (
         <button className={`tab-bar tab-${tab.status.toLowerCase()}`} onClick={() => setModal({ kind: 'tab' })}>
-          <span className="tab-bar-label"><Receipt size={18} /> Mesa {tab.table_label} · {tabStatusLabels[tab.status]}</span>
+          <span className="tab-bar-label">
+            <Receipt size={20} />
+            <span>Mesa {tab.table_label}<small>{tabStatusLabels[tab.status]}</small></span>
+          </span>
           <strong>{formatMoney(tab.totals.total)}</strong>
         </button>
       )}
