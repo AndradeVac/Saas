@@ -1,4 +1,5 @@
 from app.models.audit_log import AuditLog
+from app.models.billing_event import BillingEvent
 from app.models.category import Category
 from app.models.coupon import Coupon, CouponKind
 from app.models.customer import Customer
@@ -15,6 +16,7 @@ from app.models.user import User, UserRole
 
 __all__ = [
     "AuditLog",
+    "BillingEvent",
     "BusinessType",
     "Category",
     "Coupon",

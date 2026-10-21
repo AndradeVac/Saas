@@ -1,12 +1,12 @@
-import { Check, Lock, MessageCircle, Sparkles } from 'lucide-react'
+import { Check, CreditCard, Lock, MessageCircle, Sparkles } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatMoney } from '../../lib/format'
-import { PLAN_LIMIT_EVENT, type PlanLimitDetail } from '../../services/api'
-import { getPlanCatalog, getPlanStatus, paidPlans, salesLink, type FeatureKey, type PlanCatalog, type PlanInfo, type PlanStatus } from '../../services/plans'
+import { apiErrorMessage, PLAN_LIMIT_EVENT, type PlanLimitDetail } from '../../services/api'
+import { getPlanCatalog, getPlanStatus, paidPlans, salesLink, subscribe, type FeatureKey, type PlanCatalog, type PlanInfo, type PlanStatus } from '../../services/plans'
 import { useAuth } from '../auth/AuthProvider'
 import { useTenant } from '../tenant/TenantProvider'
 
@@ -112,16 +112,64 @@ export function usePlan() {
   return context
 }
 
-/** "Quero este plano" button: opens WhatsApp with a ready message, or explains how to subscribe. */
+/** "Quero este plano": online checkout (Asaas) when available, else WhatsApp with a ready message. */
 export function SubscribeButton({ plan, className = 'btn primary block', children }: { plan: PlanInfo; className?: string; children?: ReactNode }) {
   const { catalog } = usePlan()
   const { tenant } = useTenant()
+  const [open, setOpen] = useState(false)
   const link = salesLink(catalog, `Olá! Quero assinar o plano ${plan.name} para ${tenant.name} (${tenant.slug}).`)
   const label = children ?? `Quero o ${plan.name}`
+  if (catalog?.online_billing) {
+    return (
+      <>
+        <button className={className} onClick={() => setOpen(true)}><CreditCard size={16} /> {label}</button>
+        {open && <SubscribeModal plan={plan} onClose={() => setOpen(false)} />}
+      </>
+    )
+  }
   if (link) {
     return <a className={className} href={link} target="_blank" rel="noreferrer"><MessageCircle size={16} /> {label}</a>
   }
   return <Link className={className} to="/painel/plano#assinar">{label}</Link>
+}
+
+function SubscribeModal({ plan, onClose }: { plan: PlanInfo; onClose: () => void }) {
+  const { user } = useAuth()
+  const [documentNumber, setDocumentNumber] = useState('')
+  const [email, setEmail] = useState(user?.email ?? '')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit() {
+    setError('')
+    const digits = documentNumber.replace(/\D/g, '')
+    if (digits.length !== 11 && digits.length !== 14) return setError('Informe o CPF ou o CNPJ de quem vai pagar.')
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setError('Informe um e-mail válido.')
+    setSending(true)
+    try {
+      const { checkout_url } = await subscribe(plan.key, digits, email.trim())
+      if (checkout_url) window.location.href = checkout_url
+      else { toast.success('Assinatura atualizada.'); onClose() }
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Não foi possível iniciar a assinatura.'))
+      setSending(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={`Assinar o ${plan.name}`}
+      onClose={onClose}
+      size="sm"
+      footer={<><button className="btn" onClick={onClose}>Voltar</button><button className="btn primary" disabled={sending} onClick={() => void submit()}>{sending ? 'Abrindo o pagamento…' : `Ir para o pagamento · ${formatMoney(plan.price)}/mês`}</button></>}
+    >
+      <p className="muted">Você paga com <strong>PIX, boleto ou cartão</strong> na página segura do Asaas. Assim que o pagamento for confirmado, o plano é liberado automaticamente.</p>
+      <label className="field"><span>CPF ou CNPJ de quem paga</span><input inputMode="numeric" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="000.000.000-00" autoFocus /></label>
+      <label className="field"><span>E-mail para a nota e os avisos de cobrança</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+      <p className="muted"><small>Cobrança mensal, sem fidelidade: cancele quando quiser pelo próprio painel.</small></p>
+      {error && <div className="alert error" role="alert">{error}</div>}
+    </Modal>
+  )
 }
 
 function UpgradeModal({ reason, onClose }: { reason?: string; onClose: () => void }) {

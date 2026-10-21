@@ -18,10 +18,19 @@ export type PlanCatalog = {
   plans: PlanInfo[]
   feature_names: Record<FeatureKey, string>
   trial_days: number
+  /** Subscriptions paid online (Asaas checkout); otherwise "Assinar" opens the sales WhatsApp. */
+  online_billing: boolean
   sales_whatsapp: string
 }
 
+export type BillingStatus = 'NONE' | 'PENDING' | 'ACTIVE' | 'OVERDUE' | 'CANCELED'
+
 export type PlanStatus = {
+  billing_status: BillingStatus
+  billing_plan: string | null
+  paid_until: string | null
+  grace_until: string | null
+  billing_blocked: boolean
   plan: PlanInfo
   status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED'
   trial_ends_at: string | null
@@ -41,3 +50,9 @@ export function salesLink(catalog: PlanCatalog | null, message: string) {
   if (!catalog?.sales_whatsapp) return null
   return `https://wa.me/${catalog.sales_whatsapp}?text=${encodeURIComponent(message)}`
 }
+
+// Online subscription (Asaas): every call returns the Asaas payment page to open.
+export const subscribe = async (plan: string, document: string, email: string) =>
+  (await api.post<{ checkout_url: string | null }>('/billing/subscribe', { plan, document, email })).data
+export const payNow = async () => (await api.post<{ checkout_url: string | null }>('/billing/pay')).data
+export const cancelSubscription = async () => { await api.post('/billing/cancel') }

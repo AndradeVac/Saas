@@ -1,11 +1,11 @@
 import enum
 import secrets
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Integer, Numeric, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Enum, Integer, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,6 +52,13 @@ class Tenant(Base):
     )
     plan: Mapped[str] = mapped_column(String(30), nullable=False, default="trial", server_default="trial")
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Online billing (Asaas). NONE: plan set by hand; PENDING: waiting for the first payment; ACTIVE; OVERDUE; CANCELED.
+    billing_customer_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    billing_subscription_id: Mapped[str | None] = mapped_column(String(40), nullable=True, unique=True)
+    billing_status: Mapped[str] = mapped_column(String(20), nullable=False, default="NONE", server_default="NONE")
+    billing_plan: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    paid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    past_due_since: Mapped[date | None] = mapped_column(Date, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     address: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # City printed in PIX codes (and useful on the menu); free text, optional.
