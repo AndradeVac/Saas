@@ -1,8 +1,11 @@
-import { Check, Minus, Sparkles } from 'lucide-react'
-import { useEffect } from 'react'
+import { Check, CreditCard, Minus, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { useConfirm } from '../../components/ui/Confirm'
+import { apiErrorMessage } from '../../services/api'
 import { PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatDate, formatMoney } from '../../lib/format'
-import { paidPlans, type FeatureKey, type PlanInfo } from '../../services/plans'
+import { cancelSubscription, paidPlans, payNow, type FeatureKey, type PlanInfo } from '../../services/plans'
 import { useTenant } from '../tenant/TenantProvider'
 import { planHighlights, SubscribeButton, usePlan } from './PlanProvider'
 
@@ -61,7 +64,9 @@ export function PlanPage() {
         </div>
       </div>
 
-      <h2 id="assinar" className="section-heading">Escolha o seu plano</h2>
+      {status.billing_status !== 'NONE' && <BillingCard />}
+
+      <h2 id="assinar" className="section-heading">{status.billing_status === 'ACTIVE' ? 'Trocar de plano' : 'Escolha o seu plano'}</h2>
       <div className="plan-grid">
         {paidPlans(catalog).map((plan) => {
           const current = !trial && plan.key === status.plan.key
@@ -107,5 +112,78 @@ export function PlanPage() {
         </table>
       </div>
     </section>
+  )
+}
+
+
+/** Online subscription state with the one action that matters in each case. */
+function BillingCard() {
+  const { status, refresh, catalog } = usePlan()
+  const confirm = useConfirm()
+  const [busy, setBusy] = useState(false)
+  if (!status) return null
+  const billingPlan = catalog?.plans.find((p) => p.key === status.billing_plan)
+
+  async function pay() {
+    setBusy(true)
+    try {
+      const { checkout_url } = await payNow()
+      if (checkout_url) window.location.href = checkout_url
+      else toast.info('Não há cobrança em aberto no momento.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível abrir o pagamento.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function cancel() {
+    const ok = await confirm({
+      title: 'Cancelar a assinatura?',
+      message: status?.paid_until
+        ? `Você continua com todos os recursos até ${formatDate(status.paid_until)}. Depois disso o cardápio para de receber pedidos.`
+        : 'O plano volta para a degustação.',
+      confirmLabel: 'Cancelar assinatura',
+      danger: true,
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await cancelSubscription()
+      toast.success('Assinatura cancelada.')
+      await refresh()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível cancelar.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const s = status.billing_status
+  return (
+    <div className={`card billing-card billing-${s.toLowerCase()}`}>
+      <div>
+        <h3>
+          {s === 'PENDING' && 'Aguardando o primeiro pagamento'}
+          {s === 'ACTIVE' && `Assinatura ativa · ${billingPlan?.name ?? ''}`}
+          {s === 'OVERDUE' && (status.billing_blocked ? 'Pedidos bloqueados por falta de pagamento' : 'Pagamento em atraso')}
+          {s === 'CANCELED' && 'Assinatura cancelada'}
+        </h3>
+        <p className="muted" style={{ margin: 0 }}>
+          {s === 'PENDING' && `Plano ${billingPlan?.name ?? ''}: assim que o pagamento for confirmado, os recursos são liberados automaticamente.`}
+          {s === 'ACTIVE' && status.paid_until && `Pago até ${formatDate(status.paid_until)}. A próxima cobrança chega por e-mail.`}
+          {s === 'OVERDUE' && (status.billing_blocked
+            ? 'O cardápio está no ar, mas não recebe pedidos. Pague agora e tudo volta na hora.'
+            : `Pague até ${formatDate(status.grace_until)} para o cardápio continuar recebendo pedidos.`)}
+          {s === 'CANCELED' && (status.paid_until && !status.billing_blocked
+            ? `Você continua com acesso até ${formatDate(status.paid_until)}.`
+            : 'Assine de novo quando quiser: seus dados continuam salvos.')}
+        </p>
+      </div>
+      <div className="row">
+        {(s === 'PENDING' || s === 'OVERDUE') && <button className="btn primary" disabled={busy} onClick={() => void pay()}><CreditCard size={16} /> Pagar agora</button>}
+        {(s === 'ACTIVE' || s === 'OVERDUE' || s === 'PENDING') && <button className="btn ghost" disabled={busy} onClick={() => void cancel()}>Cancelar assinatura</button>}
+      </div>
+    </div>
   )
 }

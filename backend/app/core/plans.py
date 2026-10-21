@@ -134,7 +134,9 @@ def count_orders(db: Session, tenant_id: UUID) -> int:
 
 
 def can_take_orders(db: Session, tenant: Tenant) -> bool:
-    if trial_expired(tenant):
+    from app.services.billing import billing_blocked
+
+    if trial_expired(tenant) or billing_blocked(tenant):
         return False
     limit = plan_for(tenant).max_orders
     return limit is None or count_orders(db, tenant.id) < limit
@@ -154,8 +156,12 @@ def ensure_can_add_user(db: Session, tenant: Tenant) -> None:
 
 
 def ensure_can_take_order(db: Session, tenant: Tenant) -> None:
+    from app.services.billing import billing_blocked
+
     if trial_expired(tenant):
         raise PlanLimitError(_upgrade_message("Seu período de teste terminou."), "trial_expired")
+    if billing_blocked(tenant):
+        raise PlanLimitError("Sua assinatura está com pagamento pendente. Regularize em Meu plano para voltar a receber pedidos.", "billing_overdue")
     if not can_take_orders(db, tenant):
         limit = plan_for(tenant).max_orders
         raise PlanLimitError(_upgrade_message(f"Você usou os {limit} pedidos do período de teste."), "max_orders")
@@ -181,6 +187,7 @@ def plan_catalog():
         plans=[plan_info(plan) for plan in PLANS.values()],
         feature_names=FEATURE_NAMES,
         trial_days=settings.trial_days,
+        online_billing=bool(settings.asaas_api_key),
         sales_whatsapp="".join(ch for ch in settings.sales_whatsapp if ch.isdigit()),
     )
 
@@ -191,7 +198,14 @@ def plan_status(db: Session, tenant: Tenant):
     days_left = None
     if tenant.status is TenantStatus.TRIAL and tenant.trial_ends_at is not None:
         days_left = max(0, -(-int((tenant.trial_ends_at - datetime.now(timezone.utc)).total_seconds()) // 86_400))
+    from app.services.billing import billing_blocked, grace_until
+
     return TenantPlanStatus(
+        billing_status=tenant.billing_status,
+        billing_plan=tenant.billing_plan,
+        paid_until=tenant.paid_until,
+        grace_until=grace_until(tenant),
+        billing_blocked=billing_blocked(tenant),
         plan=plan_info(plan_for(tenant)),
         status=tenant.status.value,
         trial_ends_at=tenant.trial_ends_at,

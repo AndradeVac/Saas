@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     trial_days: int = 14
     # WhatsApp (with country code) the "Assinar" buttons open, e.g. 5511999990000. Empty hides the shortcut.
     sales_whatsapp: str = ""
+    # Online subscription billing (Asaas). Empty key = subscriptions are activated by hand (WhatsApp flow).
+    asaas_api_key: str = ""
+    asaas_base_url: str = "https://api.asaas.com/v3"  # sandbox: https://sandbox.asaas.com/api/v3
+    # Sent by Asaas in the asaas-access-token header of every webhook; anything else is rejected.
+    asaas_webhook_token: str = ""
+    # Days a paid plan keeps working after a missed payment before orders stop.
+    billing_grace_days: int = 5
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.
     resend_api_key: str = ""
     email_from: str = "Mesa Digital <nao-responda@mesadig.com.br>"

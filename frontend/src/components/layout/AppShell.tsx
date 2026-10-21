@@ -88,10 +88,18 @@ function PlanCard({ onNavigate }: { onNavigate: () => void }) {
 /** Top-of-page warning when the plan stops the menu from taking orders. */
 function PlanBanner() {
   const { status } = usePlan()
+  if (status?.billing_status === 'OVERDUE' && !status.billing_blocked) {
+    return (
+      <div className="alert warn no-print" style={{ margin: '12px 16px 0' }}>
+        <span>Pagamento da assinatura em atraso. Regularize até {new Date(`${status.grace_until}T12:00:00`).toLocaleDateString('pt-BR')} para não bloquear os pedidos.</span>
+        <NavLink className="btn small" to="/painel/plano">Pagar agora</NavLink>
+      </div>
+    )
+  }
   if (!status || status.can_take_orders) return null
   return (
     <div className="alert error no-print" style={{ margin: '12px 16px 0' }}>
-      <span>{status.trial_expired ? 'Seu período de teste terminou' : 'Você usou todos os pedidos do teste'}: o cardápio está no ar, mas não aceita novos pedidos.</span>
+      <span>{status.billing_blocked ? 'Assinatura com pagamento pendente' : status.trial_expired ? 'Seu período de teste terminou' : 'Você usou todos os pedidos do teste'}: o cardápio está no ar, mas não aceita novos pedidos.</span>
       <NavLink className="btn small" to="/painel/plano">Ver planos</NavLink>
     </div>
   )
