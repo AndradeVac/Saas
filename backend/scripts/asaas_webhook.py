@@ -18,9 +18,11 @@ NAME = "Mesa Digital - assinaturas"
 def main() -> int:
     if len(sys.argv) != 2 or not settings.asaas_api_key or len(settings.asaas_webhook_token) < 32:
         sys.exit(__doc__)
+    # Failure notices go to the e-mail already registered on the Asaas account.
+    email = asaas._request("GET", "/myAccount").get("email")
     body = {
-        "name": NAME, "url": sys.argv[1], "enabled": True, "interrupted": False, "apiVersion": 3,
-        "authToken": settings.asaas_webhook_token, "sendType": "SEQUENTIAL", "events": EVENTS,
+        "name": NAME, "url": sys.argv[1], "email": email, "enabled": True, "interrupted": False, "apiVersion": 3,
+        "authToken": settings.asaas_webhook_token, "sendType": "SEQUENTIALLY", "events": EVENTS,
     }
     existing = next((w for w in asaas._request("GET", "/webhooks").get("data", []) if w.get("name") == NAME), None)
     result = asaas._request("PUT", f"/webhooks/{existing['id']}", body) if existing else asaas._request("POST", "/webhooks", body)
