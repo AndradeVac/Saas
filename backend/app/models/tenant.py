@@ -1,4 +1,5 @@
 import enum
+import secrets
 import uuid
 from datetime import datetime
 
@@ -81,6 +82,8 @@ class Tenant(Base):
     # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Signs the code printed in each table's QR Code (see app.core.tables); never sent to the browser as is.
+    table_secret: Mapped[str] = mapped_column(String(64), nullable=False, default=lambda: secrets.token_hex(32))
     tab_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     # Last order number handed out; incremented atomically so numbers are sequential per tenant.
     order_counter: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")

@@ -31,7 +31,7 @@ def test_full_table_flow(make_tenant):
     beer = shop.add_product("Chope", "12.00")
 
     # First phone at table 7: the bill opens waiting for approval, and the kitchen does not see it yet.
-    first = shop.public_order(beer["id"], quantity=1, table_label="7", payment_method="PIX")
+    first = shop.public_order(beer["id"], quantity=1, table_label="7", table_code=shop.table_code("7"), payment_method="PIX")
     assert first.status_code == 201, first.text
     token = first.json()["tab_token"]
     assert token
@@ -45,8 +45,8 @@ def test_full_table_flow(make_tenant):
     assert order["payment_method"] == "TAB" and order["tab_id"] == tabs[0]["id"]
 
     # A second phone at the same table finds the bill and joins it; the minimum order does not apply per round.
-    assert shop.public_get("/public/tables/7/tab").json()["public_token"] == token
-    second = shop.public_order(beer["id"], quantity=1, phone="11977776666", table_label="7")
+    assert shop.public_get("/public/tables/7/tab", params={"k": shop.table_code("7")}).json()["public_token"] == token
+    second = shop.public_order(beer["id"], quantity=1, phone="11977776666", table_label="7", table_code=shop.table_code("7"))
     assert second.status_code == 201 and second.json()["tab_token"] == token
     bill = shop.public_get(f"/public/tabs/{token}").json()
     assert len(bill["orders"]) == 2 and bill["totals"]["total"] == "24.00"
@@ -58,7 +58,7 @@ def test_full_table_flow(make_tenant):
     closing = shop.public_post(f"/public/tabs/{token}/close-request", {"payment_method": "PIX", "split_count": 2}).json()
     assert closing["status"] == "CLOSING" and closing["totals"]["per_person"] == "12.00"
     assert shop.get("/tabs").json()[0]["alerts"]["wants_to_close"]
-    third = shop.public_order(beer["id"], quantity=1, table_label="7")
+    third = shop.public_order(beer["id"], quantity=1, table_label="7", table_code=shop.table_code("7"))
     assert shop.public_get(f"/public/tabs/{token}").json()["status"] == "OPEN"
 
     # Staff closes: blocked while something is still cooking.
@@ -73,7 +73,7 @@ def test_full_table_flow(make_tenant):
     assert shop.get("/tabs").json() == []
 
     # The table is free: the next customer starts a new bill.
-    again = shop.public_order(beer["id"], quantity=1, table_label="7")
+    again = shop.public_order(beer["id"], quantity=1, table_label="7", table_code=shop.table_code("7"))
     assert again.json()["tab_token"] != token
     assert shop.get("/tabs").json()[0]["number"] == 2
 
@@ -82,7 +82,7 @@ def test_rejecting_a_table_cancels_its_orders(make_tenant):
     shop = make_tenant()
     enable_tabs(shop)
     product = shop.add_product()
-    shop.public_order(product["id"], table_label="12")
+    shop.public_order(product["id"], table_label="12", table_code=shop.table_code("12"))
     tab = shop.get("/tabs").json()[0]
     assert shop.post(f"/tabs/{tab['id']}/cancel", {"reason": "Mesa vazia"}).json()["status"] == "CANCELLED"
     history = shop.get("/orders").json()["items"]
@@ -93,7 +93,7 @@ def test_auto_approve_staff_orders_and_rules(make_tenant):
     shop = make_tenant()
     enable_tabs(shop, tabs_auto_approve=True)
     product = shop.add_product()
-    assert shop.public_order(product["id"], table_label="3").status_code == 201
+    assert shop.public_order(product["id"], table_label="3", table_code=shop.table_code("3")).status_code == 201
     assert shop.get("/tabs").json()[0]["status"] == "OPEN"
 
     # Dine-in with tabs on needs a table; "TAB" is never a payment the customer can pick otherwise.
@@ -115,7 +115,7 @@ def test_alerts_for_idle_tables_and_late_orders(make_tenant):
     shop = make_tenant()
     enable_tabs(shop, tabs_auto_approve=True, tab_idle_minutes=15)
     product = shop.add_product()
-    order = shop.public_order(product["id"], table_label="5").json()
+    order = shop.public_order(product["id"], table_label="5", table_code=shop.table_code("5")).json()
     tab = shop.get("/tabs").json()[0]
     assert tab["alerts"]["idle"] is False and tab["alerts"]["late_orders"] == 0
 
@@ -136,9 +136,32 @@ def test_tabs_are_isolated(make_tenant):
     shop, other = make_tenant("a"), make_tenant("b")
     enable_tabs(shop, tabs_auto_approve=True)
     product = shop.add_product()
-    token = shop.public_order(product["id"], table_label="1").json()["tab_token"]
+    token = shop.public_order(product["id"], table_label="1", table_code=shop.table_code("1")).json()["tab_token"]
     tab_id = shop.get("/tabs").json()[0]["id"]
     assert other.public_get(f"/public/tabs/{token}").status_code == 404
     assert other.get(f"/tabs/{tab_id}").status_code == 404
     assert other.post(f"/tabs/{tab_id}/close", {"payment_method": "CASH"}).status_code == 404
     assert other.get("/tabs").json() == []
+
+
+def test_cannot_turn_tabs_off_with_open_bills(make_tenant):
+    shop = make_tenant()
+    enable_tabs(shop, tabs_auto_approve=True)
+    product = shop.add_product()
+    shop.public_order(product["id"], table_label="8", table_code=shop.table_code("8"))
+    refused = shop.patch("/tenant/settings", {"tabs_enabled": False})
+    assert refused.status_code == 422 and "Mesas" in refused.json()["detail"]
+    assert shop.get("/tenant/settings").json()["tabs_enabled"] is True
+    assert shop.patch("/tenant/settings", {"enabled_services": ["TAKEAWAY"]}).status_code == 422
+
+
+def test_bill_with_everything_cancelled_closes_itself(make_tenant):
+    shop = make_tenant()
+    enable_tabs(shop, tabs_auto_approve=True)
+    product = shop.add_product()
+    shop.public_order(product["id"], table_label="2", table_code=shop.table_code("2"))
+    tab = shop.get("/tabs").json()[0]
+    for order in shop.get("/orders/board").json():
+        shop.patch(f"/orders/{order['id']}/status", {"status": "CANCELLED", "reason": "cliente desistiu"})
+    assert shop.get(f"/tabs/{tab['id']}").json()["status"] == "CANCELLED"
+    assert shop.get("/tabs").json() == []

@@ -14,11 +14,13 @@ type Props = {
   lines: CartLine[]
   setLines: Dispatch<SetStateAction<CartLine[]>>
   tableFromQr: string
+  /** Code from the table's QR Code; without it the customer cannot order on a table's bill. */
+  tableCode: string
   onClose: () => void
   onOrdered: (order: { token: string; tabToken: string | null; number: number }) => void
 }
 
-export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrdered }: Props) {
+export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onClose, onOrdered }: Props) {
   const customerKey = `mesa:${tenant.slug}:customer`
   const saved = useMemo(() => readJson<{ name?: string; phone?: string }>(customerKey, {}), [customerKey])
   const services = tenant.enabled_services
@@ -84,6 +86,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
     if (name.trim().length < 2) return setError('Informe seu nome.')
     if (phone.replace(/\D/g, '').length < 10) return setError('Informe um telefone com DDD.')
     if (service === 'DINE_IN' && !table.trim()) return setError('Informe o número da mesa.')
+    if (onTab && !tableCode) return setError('Para pedir na mesa, leia o QR Code que está nela.')
     if (service === 'DELIVERY' && address.trim().length < 6) return setError('Informe o endereço de entrega.')
     if (belowMinimum) return setError(`O pedido mínimo é de ${formatMoney(minOrder)}.`)
     setSending(true)
@@ -93,6 +96,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
         customer_phone: phone,
         service_type: service,
         table_label: service === 'DINE_IN' ? table : undefined,
+        table_code: onTab ? tableCode : undefined,
         delivery_address: service === 'DELIVERY' ? address : undefined,
         payment_method: onTab ? 'TAB' : payment,
         notes: notes || undefined,
@@ -161,6 +165,9 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, onClose, onOrd
           {/* The QR Code already says which table: on a tab, it cannot be changed to someone else's. */}
           <input value={table} onChange={(e) => setTable(e.target.value)} maxLength={30} readOnly={onTab && Boolean(tableFromQr)} />
         </label>
+      )}
+      {onTab && !tableCode && (
+        <div className="alert warn"><span>Para pedir na mesa, <strong>leia o QR Code que está nela</strong> com a câmera do celular. Se preferir, escolha “Para levar”.</span></div>
       )}
       {service === 'DELIVERY' && (
         <label className="field" style={{ marginTop: 12 }}>

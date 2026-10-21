@@ -23,7 +23,7 @@ function Meter({ label, used, max }: { label: string; used: number; max: number 
 const limitRows: Array<{ label: string; value: (plan: PlanInfo) => string }> = [
   { label: 'Produtos no cardápio', value: (plan) => (plan.max_products === null ? 'Ilimitados' : `Até ${plan.max_products}`) },
   { label: 'Pessoas na equipe', value: (plan) => (plan.max_users === null ? 'Ilimitadas' : `Até ${plan.max_users}`) },
-  { label: 'Pedidos', value: (plan) => (plan.max_orders === null ? 'Ilimitados' : `${plan.max_orders} no teste`) },
+  { label: 'Pedidos', value: (plan) => (plan.max_orders === null ? 'Ilimitados' : `${plan.max_orders} no teste (comanda conta 1)`) },
 ]
 const coreRows = ['Cardápio digital com fotos', 'QR Code por mesa', 'Pedidos em tempo real', 'Tamanhos e adicionais', 'Relatórios no painel']
 

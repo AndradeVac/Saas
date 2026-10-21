@@ -111,6 +111,9 @@ PHOTOS: dict[str, str] = {
     "Água mineral": "1548839140-29a749e1cf4d",
 }
 COVER_PHOTO = "1568254183919-78a4f43a2877"
+# The trial demo must look like a real trial account: within the plan's product limit.
+TRIAL_HIDDEN = ("Pão de forma integral", "Torta de limão", "Pastel de forno", "Água mineral")
+
 # Account-specific logos (the monogram only fits the trial demo's brand).
 LOGOS: dict[str, str] = {DEMO_SLUG: "logo-inoviosion.png"}
 PHOTO_DIR = Path(__file__).resolve().parent / "demo_photos"
@@ -206,6 +209,9 @@ def seed_account(db, slug: str, name: str, plan: str, email: str, password: str,
                 options=OPTIONS.get(product_name, []),
             ))
             created += 1
+    if plan == "trial":
+        for product in db.scalars(select(Product).where(Product.tenant_id == tenant.id, Product.name.in_(TRIAL_HIDDEN))):
+            product.active = False
     if db.scalar(select(Coupon).where(Coupon.tenant_id == tenant.id, Coupon.code == "DEMO10")) is None:
         db.add(Coupon(tenant_id=tenant.id, code="DEMO10", kind=CouponKind.PERCENT, value=Decimal("10")))
     db.flush()

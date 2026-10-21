@@ -119,9 +119,18 @@ def count_users(db: Session, tenant_id: UUID) -> int:
 
 
 def count_orders(db: Session, tenant_id: UUID) -> int:
-    from app.models.order import Order
+    """Orders that count toward the trial cap: cancelled ones never count (spam or mistakes must not use up the
+    trial), and a table's bill (comanda) counts once however many rounds it had."""
+    from app.models.order import Order, OrderStatus
+    from app.models.tab import Tab, TabStatus
 
-    return int(db.scalar(select(func.count(Order.id)).where(Order.tenant_id == tenant_id)) or 0)
+    standalone = db.scalar(
+        select(func.count(Order.id)).where(
+            Order.tenant_id == tenant_id, Order.tab_id.is_(None), Order.status != OrderStatus.CANCELLED
+        )
+    )
+    tabs = db.scalar(select(func.count(Tab.id)).where(Tab.tenant_id == tenant_id, Tab.status != TabStatus.CANCELLED))
+    return int(standalone or 0) + int(tabs or 0)
 
 
 def can_take_orders(db: Session, tenant: Tenant) -> bool:

@@ -47,7 +47,9 @@ export type StaffTab = PublicTab & {
 
 // Customer side (public, by token)
 export const getPublicTab = async (token: string) => (await api.get<PublicTab>(`/public/tabs/${token}`)).data
-export const findTableTab = async (table: string) => (await api.get<PublicTab>(`/public/tables/${encodeURIComponent(table)}/tab`)).data
+/** `code` is the secret printed in the table's QR Code (`?k=`); without it the table's bill is not revealed. */
+export const findTableTab = async (table: string, code: string) =>
+  (await api.get<PublicTab>(`/public/tables/${encodeURIComponent(table)}/tab`, { params: { k: code } })).data
 export const requestTabClose = async (token: string, payment_method: PaymentMethod, split_count: number | null) =>
   (await api.post<PublicTab>(`/public/tabs/${token}/close-request`, { payment_method, split_count })).data
 
@@ -64,3 +66,8 @@ export const tabStatusLabels: Record<TabStatus, string> = {
   CLOSED: 'Conta fechada',
   CANCELLED: 'Comanda cancelada',
 }
+
+export type TableQr = { label: string; code: string; url: string }
+/** Menu links (with each table's code) for printing the QR Codes. */
+export const getTableQrCodes = async (labels: string[]) =>
+  (await api.get<TableQr[]>('/tabs/qr-codes', { params: { labels }, paramsSerializer: { indexes: null } })).data

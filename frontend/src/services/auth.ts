@@ -15,7 +15,9 @@ export async function login(payload: LoginPayload) {
 export const logout = () => tokenStorage.clear()
 
 export async function changePassword(current_password: string, new_password: string) {
-  await api.post('/auth/password', { current_password, new_password })
+  // Other devices are logged out; this one receives a fresh token and stays in.
+  const { data } = await api.post<{ access_token: string }>('/auth/password', { current_password, new_password })
+  tokenStorage.set(data.access_token)
 }
 
 export async function requestPasswordReset(email: string) {

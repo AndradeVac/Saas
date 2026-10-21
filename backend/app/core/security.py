@@ -24,6 +24,7 @@ def create_access_token(user: User) -> str:
         "sub": str(user.id),
         "tid": str(user.tenant_id),
         "role": user.role.value,
+        "ver": user.token_version,
         "exp": expires_at,
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
@@ -38,6 +39,7 @@ def get_current_user(
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         user_id = UUID(payload["sub"])
         token_tenant_id = UUID(payload["tid"])
+        token_version = int(payload.get("ver", 0))
     except (KeyError, TypeError, ValueError, jwt.InvalidTokenError) as error:
         raise AuthenticationError("Token inválido ou expirado.") from error
 
@@ -48,6 +50,9 @@ def get_current_user(
     user = UserRepository(db, tenant.id).get_by_id(user_id)
     if user is None:
         raise AuthenticationError("Usuário não encontrado ou inativo.")
+    # Password changed/reset since this token was issued: it no longer works.
+    if token_version != user.token_version:
+        raise AuthenticationError("Sua sessão expirou. Entre novamente.")
     return user
 
 

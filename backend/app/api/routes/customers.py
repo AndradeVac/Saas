@@ -1,4 +1,3 @@
-import csv
 import io
 from uuid import UUID
 
@@ -7,6 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.spreadsheet import SafeCsvWriter
 from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
 from app.models.user import User
@@ -40,7 +40,7 @@ def list_customers(
 def export_customers(db: Session = Depends(get_db), actor: User = Depends(staff_only)):
     items, _ = CustomerService(db, actor.tenant_id).search(None, True, 1, 5000, "name")
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = SafeCsvWriter(buffer, delimiter=";")
     writer.writerow(["Nome", "Telefone", "Pedidos", "Total gasto", "Último pedido", "Observações"])
     for c in items:
         writer.writerow([

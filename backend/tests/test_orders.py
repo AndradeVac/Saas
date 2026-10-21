@@ -85,13 +85,13 @@ def test_inactive_products_leave_the_menu_and_cannot_be_ordered(make_tenant):
     assert tenant.public_order(product["id"]).status_code == 404
 
 
-def test_history_by_phone_and_validation(make_tenant):
+def test_no_order_lookup_by_phone_and_validation(make_tenant):
     tenant = make_tenant()
     product = tenant.add_product()
     tenant.public_order(product["id"], phone="(11) 98888-7777")
 
-    history = tenant.public_get("/public/history", params={"phone": "11988887777"}).json()
-    assert len(history) == 1 and history[0]["items"][0]["quantity"] == 2
+    # Knowing someone's phone must not reveal their orders (or, through them, their delivery address).
+    assert tenant.public_get("/public/history", params={"phone": "11988887777"}).status_code == 404
     assert tenant.public_order(product["id"], phone="123").status_code == 422
     assert tenant.public_order(product["id"], quantity=0).status_code == 422
 

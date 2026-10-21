@@ -21,7 +21,6 @@ from app.schemas.public import (
     CouponCheckResponse,
     PublicCategory,
     PublicHistoryItem,
-    PublicHistoryOrder,
     PublicMenu,
     PublicOrderCreate,
     PublicOrderResponse,
@@ -29,6 +28,7 @@ from app.schemas.public import (
     PublicProduct,
 )
 from app.core.plans import public_tenant
+from app.core.tables import normalize_table_label, valid_table_code
 from app.schemas.tab import PublicTab, TabCloseRequest
 from app.services.coupon import CouponService
 from app.services.tab import TabService
@@ -130,6 +130,7 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
             payment_method=data.payment_method,
             service_type=data.service_type,
             table_label=data.table_label,
+            table_code=data.table_code,
             delivery_address=data.delivery_address,
             notes=data.notes,
             coupon_code=data.coupon_code,
@@ -151,9 +152,16 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
 
 
 @router.get("/tables/{table_label}/tab", response_model=PublicTab, dependencies=[Depends(public_lookup_rate_limit)])
-def table_tab(table_label: str, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
-    """The bill already open at this table, so a second phone scanning the QR Code joins it."""
-    tab = TabService(db, tenant.id).active_for_table(" ".join(table_label.split())[:30])
+def table_tab(
+    table_label: str,
+    k: str | None = Query(default=None, max_length=20),
+    tenant: Tenant = Depends(get_tenant),
+    db: Session = Depends(get_db),
+):
+    """The bill already open at this table, so a second phone scanning the QR Code joins it.
+    Requires the code printed in that table's QR Code (`k`), so a table number alone reveals nothing."""
+    label = normalize_table_label(table_label)
+    tab = TabService(db, tenant.id).active_for_table(label) if valid_table_code(tenant.table_secret, label, k) else None
     if tab is None:
         raise NotFoundError("Nenhuma comanda aberta nesta mesa.")
     return TabService(db, tenant.id).to_public(tab)
@@ -197,26 +205,3 @@ def track_public_order(public_token: UUID, tenant: Tenant = Depends(get_tenant),
         delivery_address=order.delivery_address,
         items=_items(order),
     )
-
-
-@router.get(
-    "/history",
-    response_model=list[PublicHistoryOrder],
-    dependencies=[Depends(public_lookup_rate_limit)],
-)
-def public_order_history(
-    phone: str = Query(min_length=10, max_length=20),
-    tenant: Tenant = Depends(get_tenant),
-    db: Session = Depends(get_db),
-):
-    customer = CustomerRepository(db, tenant.id).get_by_phone(phone)
-    if customer is None:
-        return []
-    orders = OrderRepository(db, tenant.id).get_recent_by_customer(customer.id, limit=20)
-    return [
-        PublicHistoryOrder(
-            order_number=o.order_number, public_token=o.public_token, status=o.status.value,
-            total=str(o.total), created_at=o.created_at, items=_items(o),
-        )
-        for o in orders
-    ]

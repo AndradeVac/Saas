@@ -124,7 +124,7 @@ export function NewOrderPage() {
       <div className="two-col">
         <div className="card">
           <label className="search"><Search size={16} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" /></label>
-          <div className="segmented" style={{ overflowX: 'auto', marginBottom: 12 }}>
+          <div className="segmented scroll" style={{ marginBottom: 12 }}>
             <button className={!category ? 'active' : ''} onClick={() => setCategory(null)}>Tudo</button>
             {categories.map((c) => <button key={c.id} className={category === c.id ? 'active' : ''} onClick={() => setCategory(c.id)}>{c.name}</button>)}
           </div>

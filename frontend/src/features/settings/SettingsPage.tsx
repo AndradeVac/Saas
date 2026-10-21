@@ -10,6 +10,9 @@ import { DAYS, businessTypeLabels, formatDate, maskPhone, paymentMethodLabels, r
 import { tenantUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { changePassword } from '../../services/auth'
+import { useSearchParams } from 'react-router-dom'
+import { writeJson } from '../../lib/storage'
+import { getTableQrCodes } from '../../services/tabs'
 import { getMediaUsage, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
 import type { BusinessType, DayKey, OpeningHours, ServiceType, TenantSettings } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
@@ -42,7 +45,9 @@ export function SettingsPage() {
   const { setTenant } = useTenant()
   const [saved, setSaved] = useState<TenantSettings | null>(null)
   const [form, setForm] = useState<TenantSettings | null>(null)
-  const [tab, setTab] = useState<Tab>('business')
+  // ?aba=tables (etc.) opens a tab directly, e.g. from the dashboard's first steps.
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(() => (tabs.some((t) => t.key === params.get('aba')) ? (params.get('aba') as Tab) : 'business'))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [usage, setUsage] = useState<UploadResult | null>(null)
@@ -233,7 +238,7 @@ export function SettingsPage() {
         </>
       )}
 
-      {tab === 'tables' && <TablesTab slug={form.slug} menuUrl={menuUrl} />}
+      {tab === 'tables' && <TablesTab menuUrl={menuUrl} slugForFlag={form.slug} />}
       {tab === 'account' && <AccountTab settings={saved} />}
 
       {dirty && (
@@ -293,7 +298,7 @@ function HoursEditor({ value, onChange }: { value: OpeningHours; onChange: (v: O
   )
 }
 
-function TablesTab({ slug, menuUrl }: { slug: string; menuUrl: string }) {
+function TablesTab({ menuUrl, slugForFlag }: { menuUrl: string; slugForFlag: string }) {
   const [count, setCount] = useState(10)
   const [prefix, setPrefix] = useState('')
   const [qrs, setQrs] = useState<Array<{ label: string; src: string }>>([])
@@ -303,10 +308,17 @@ function TablesTab({ slug, menuUrl }: { slug: string; menuUrl: string }) {
 
   async function generate() {
     const total = Math.min(Math.max(1, count), 200)
-    setQrs(await Promise.all(Array.from({ length: total }, async (_, i) => {
-      const label = `${prefix ? `${prefix} ` : ''}${i + 1}`
-      return { label, src: await QRCode.toDataURL(tenantUrl(slug, `/?mesa=${encodeURIComponent(label)}`), { margin: 1, width: 260 }) }
-    })))
+    const labels = Array.from({ length: total }, (_, i) => `${prefix ? `${prefix} ` : ''}${i + 1}`)
+    try {
+      // Each link carries the table's secret code (the comanda only accepts orders from the QR on that table).
+      const links = await getTableQrCodes(labels)
+      writeJson(`mesa:${slugForFlag}:qr-generated`, true)
+      setQrs(await Promise.all(links.map(async (link, i) => ({
+        label: labels[i], src: await QRCode.toDataURL(link.url, { margin: 1, width: 260 }),
+      }))))
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível gerar os QR Codes.'))
+    }
   }
 
   function print() {
@@ -329,7 +341,7 @@ function TablesTab({ slug, menuUrl }: { slug: string; menuUrl: string }) {
       </div>
       <div className={`card ${qrs.length ? 'qr-print-area' : ''}`}>
         <h3>QR Code por mesa</h3>
-        <p className="card-sub">Cada QR abre o cardápio com o número da mesa já preenchido. Imprima e cole nas mesas.</p>
+        <p className="card-sub">Cada QR abre o cardápio já na mesa certa, com um código de segurança: só quem está na mesa consegue pedir na comanda dela. Imprima e cole nas mesas. Se reimprimir, os QR antigos continuam valendo.</p>
         <div className="row no-print">
           <label className="field" style={{ margin: 0, width: 120 }}><span>Quantas mesas</span><input type="number" min={1} max={200} value={count} onChange={(e) => setCount(Number(e.target.value))} /></label>
           <label className="field" style={{ margin: 0, width: 160 }}><span>Prefixo (opcional)</span><input value={prefix} maxLength={12} placeholder="Ex.: Mesa" onChange={(e) => setPrefix(e.target.value)} /></label>

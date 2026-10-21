@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.spreadsheet import neutralise_formulas
 from app.core.exceptions import BusinessRuleError
 from app.models.category import Category
 from app.models.order import Order, OrderStatus
@@ -203,6 +204,8 @@ class AnalyticsService:
         sheet.append(["Produto", "Quantidade", "Receita"])
         for product in dashboard.products:
             sheet.append([product.product_name, product.quantity, float(product.revenue)])
+        for sheet in workbook.worksheets:
+            neutralise_formulas(sheet)
         output = BytesIO()
         workbook.save(output)
         return output.getvalue()

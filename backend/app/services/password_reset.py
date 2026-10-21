@@ -75,6 +75,7 @@ class PasswordResetService:
         if user is None or not user.active or user.tenant_id != self.tenant.id:
             raise BusinessRuleError("Este link é inválido ou expirou. Peça um novo em “Esqueci minha senha”.")
         user.password_hash = UserService.password_hash.hash(new_password)
+        user.token_version += 1  # whoever knew the old password is logged out too
         row.used_at = now
         self._invalidate(user, now)
         record_audit(self.db, self.tenant.id, user, "PASSWORD_RESET_COMPLETED", "USER", user.id, user.email)

@@ -746,3 +746,31 @@ a.menu-footer:hover { color: var(--brand); }
 .landing-footer a, .menu-legal a { color: var(--muted); }
 .menu-legal { text-align: center; font-size: 12px; padding-top: 8px; }
 a.landing-logo { text-decoration: none; }
+
+/* ---- mobile fixes (QA 2026-10-21) ---- */
+/* Grid children default to min-width:auto, so long content pushed cards past the screen edge. */
+.two-col > *, .board-col, .order-card { min-width: 0; }
+.order-card { overflow: hidden; }
+.order-card, .table-card { overflow-wrap: anywhere; }
+/* Category pills that scroll sideways instead of squeezing words into several lines. */
+.segmented.scroll { display: flex; overflow-x: auto; scrollbar-width: none; }
+.segmented.scroll::-webkit-scrollbar { display: none; }
+.segmented.scroll button { flex: none; white-space: nowrap; padding-inline: 14px; }
+@media (max-width: 640px) {
+  /* Orders board: one column per screen, swiped sideways, each fully visible. */
+  .board { grid-template-columns: repeat(4, 86vw); scroll-snap-type: x mandatory; }
+  .board-col { scroll-snap-align: start; }
+  /* History: each order becomes a compact card with every field visible. */
+  .table.stack-mobile, .table.stack-mobile tbody { display: block; width: 100%; }
+  .table.stack-mobile thead { display: none; }
+  .table.stack-mobile tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .table.stack-mobile td { display: block !important; padding: 0; border: 0; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .table.stack-mobile td:nth-child(1) { grid-row: 1; grid-column: 1; }
+  .table.stack-mobile td:nth-child(6) { grid-row: 1; grid-column: 2; text-align: right; }
+  .table.stack-mobile td:nth-child(2) { grid-row: 2; grid-column: 1; }
+  .table.stack-mobile td:nth-child(4) { grid-row: 2; grid-column: 2; text-align: right; }
+  .table.stack-mobile td:nth-child(3) { grid-row: 3; grid-column: 1; color: var(--muted); font-size: 13px; }
+  .table.stack-mobile td:nth-child(5) { grid-row: 3; grid-column: 2; text-align: right; }
+  .table.stack-mobile td:nth-child(5) .sub { display: inline; margin-left: 6px; }
+}
+.pick-row > span:last-child { white-space: nowrap; flex: none; margin-left: 10px; }

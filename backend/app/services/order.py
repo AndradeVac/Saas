@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.core.plans import can_take_orders, ensure_can_take_order
+from app.core.tables import valid_table_code
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
@@ -95,6 +96,9 @@ class OrderService:
         on_tab = tenant.tabs_enabled and data.service_type is ServiceType.DINE_IN
         if on_tab and not data.table_label:
             raise BusinessRuleError("Informe o número da mesa.")
+        if on_tab and public and not valid_table_code(tenant.table_secret, data.table_label, data.table_code):
+            # Only someone looking at the QR Code on that table can order on its bill.
+            raise BusinessRuleError("Para pedir na mesa, leia o QR Code que está nela.")
         if data.payment_method is PaymentMethod.TAB and not on_tab:
             raise BusinessRuleError("Escolha a forma de pagamento.")
 
@@ -200,6 +204,8 @@ class OrderService:
         if data.status is OrderStatus.CANCELLED:
             # A cancelled order gives its coupon use back.
             self.coupons.release(order.coupon_code)
+            if order.tab_id:
+                TabService(self.db, self.tenant_id).cancel_if_empty(order.tab_id, actor)
         record_audit(self.db, self.tenant_id, actor, "ORDER_STATUS_CHANGED", "ORDER", order.id, f"#{order.order_number} status={data.status.value}")
         try:
             self.repository.update(order)

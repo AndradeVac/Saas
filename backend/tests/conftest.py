@@ -107,6 +107,10 @@ class TenantSession:
         assert response.status_code == 201, response.text
         return response.json()
 
+    def table_code(self, label: str) -> str:
+        """Code printed in that table's QR Code (needed to order on a comanda)."""
+        return self.get("/tabs/qr-codes", params={"labels": [label]}).json()[0]["code"]
+
     def public_order(self, product_id: str, quantity: int = 2, phone: str = "11999998888", items_options=None, **extra):
         return self.public_post("/public/orders", {
             "customer_name": "Maria Cliente",

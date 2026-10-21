@@ -1,6 +1,6 @@
 import { ArrowLeft, Pencil, Printer } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useConfirm } from '../../components/ui/Confirm'
 import { Modal } from '../../components/ui/Modal'
@@ -132,7 +132,12 @@ export function OrderDetailPage() {
               <span className={`badge ${order.payment_status === 'PAID' ? 'ok' : 'warn'}`}>{order.payment_status === 'PAID' ? `Pago às ${formatTime(order.paid_at)}` : 'Pendente'}</span>
             </p>
           </div>
-          {order.status !== 'CANCELLED' && (
+          {order.tab_id ? (
+            // Paid together with the table's bill: the payment buttons here would always fail.
+            order.payment_status !== 'PAID' && order.status !== 'CANCELLED' && (
+              <Link className="btn" to="/painel/mesas">Cobrar na comanda da mesa {order.table_label}</Link>
+            )
+          ) : order.status !== 'CANCELLED' && (
             order.payment_status === 'PAID'
               ? <button className="btn" disabled={busy} onClick={() => void run(() => updateOrderPayment(order.id, 'PENDING'))}>Desfazer pagamento</button>
               : <button className="btn primary" disabled={busy} onClick={() => void run(() => updateOrderPayment(order.id, 'PAID'), 'Pagamento confirmado')}>Confirmar pagamento recebido</button>
@@ -185,7 +190,13 @@ export function OrderDetailPage() {
           onClose={() => setEditing(false)}
           footer={<><button className="btn" onClick={() => setEditing(false)}>Cancelar</button><button className="btn primary" onClick={() => void saveEdit()}>Salvar</button></>}
         >
-          {order.service_type === 'DINE_IN' && <label className="field"><span>Mesa</span><input value={draft.table_label} onChange={(e) => setDraft({ ...draft, table_label: e.target.value })} maxLength={30} /></label>}
+          {order.service_type === 'DINE_IN' && (
+            <label className="field">
+              <span>Mesa</span>
+              <input value={draft.table_label} onChange={(e) => setDraft({ ...draft, table_label: e.target.value })} maxLength={30} readOnly={Boolean(order.tab_id)} />
+              {order.tab_id && <small className="muted">Este pedido está na comanda da mesa; a mesa não muda por aqui.</small>}
+            </label>
+          )}
           {order.service_type === 'DELIVERY' && <label className="field"><span>Endereço de entrega</span><textarea rows={2} value={draft.delivery_address} onChange={(e) => setDraft({ ...draft, delivery_address: e.target.value })} /></label>}
           <label className="field"><span>Observações</span><textarea rows={3} maxLength={500} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></label>
         </Modal>

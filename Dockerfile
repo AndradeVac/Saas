@@ -27,5 +27,5 @@ COPY --from=frontend /app/frontend/dist /app/frontend/dist
 RUN useradd --create-home --uid 1000 app && chown -R app:app /app
 USER app
 EXPOSE 8080
-# Fly's proxy (and Cloudflare in front of it) set X-Forwarded-For with the customer's IP.
-CMD ["sh", "-c", "exec uvicorn app.web:web --host 0.0.0.0 --port 8080 --workers ${WEB_CONCURRENCY:-2} --proxy-headers --forwarded-allow-ips '*' --timeout-graceful-shutdown 10"]
+# No --proxy-headers: the real client IP comes from Fly-Client-IP / CF-Connecting-IP (app/core/client_ip.py).
+CMD ["sh", "-c", "exec uvicorn app.web:web --host 0.0.0.0 --port 8080 --workers ${WEB_CONCURRENCY:-2} --timeout-graceful-shutdown 10"]
