@@ -64,9 +64,13 @@ export function MenuPage() {
   const [latest, setLatest] = useState<{ token: string; data: Tracking } | null>(null)
   const sections = useRef(new Map<string, HTMLElement>())
   const tableFromQr = params.get('mesa') ?? ''
+  // Secret code printed in the table's QR Code: required to join or order on that table's bill.
+  const tableCode = params.get('k') ?? ''
   const [tab, setTab] = useState<PublicTab | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [dismissedRound, setDismissedRound] = useState<string | null>(null)
+  // The QR code of the table this phone joined, kept so ordering still works if the page is reopened without it.
+  const [tabTableCode, setTabTableCode] = useState('')
 
   const load = useCallback(() => {
     setError('')
@@ -83,15 +87,19 @@ export function MenuPage() {
   const forgetTab = useCallback(() => { setTab(null); if (tabKey) writeJson(tabKey, null) }, [tabKey])
   useEffect(() => {
     if (!tabsEnabled || !tabKey) return
-    const saved = readJson<{ token: string; table: string } | null>(tabKey, null)
-    const lookup = tableFromQr ? findTableTab(tableFromQr) : saved ? getPublicTab(saved.token) : null
+    const saved = readJson<{ token: string; table: string; code?: string } | null>(tabKey, null)
+    if (saved?.code && !tableCode) setTabTableCode(saved.code)
+    const lookup = tableFromQr && tableCode ? findTableTab(tableFromQr, tableCode) : saved ? getPublicTab(saved.token) : null
     lookup
       ?.then((found) => {
-        if (ACTIVE_TAB.includes(found.status)) { setTab(found); writeJson(tabKey, { token: found.public_token, table: found.table_label }) }
+        if (ACTIVE_TAB.includes(found.status)) {
+          setTab(found)
+          writeJson(tabKey, { token: found.public_token, table: found.table_label, code: tableCode || saved?.code })
+        }
         else forgetTab()
       })
       .catch(() => forgetTab())
-  }, [tabsEnabled, tabKey, tableFromQr, forgetTab])
+  }, [tabsEnabled, tabKey, tableFromQr, tableCode, forgetTab])
 
   // Live bill: keeps every phone at the table in sync and notices when the staff closes it.
   const tabToken = tab?.public_token
@@ -169,21 +177,22 @@ export function MenuPage() {
 
   async function onOrdered({ token, tabToken: newTab, number }: { token: string; tabToken: string | null; number: number }) {
     if (!slug) return
+    // Every order goes to "Meus pedidos" on this phone, comanda rounds included.
+    const remembered = [token, ...tokens.filter((t) => t !== token)].slice(0, 10)
+    setTokens(remembered)
+    writeJson(`mesa:${slug}:tokens`, remembered)
     if (newTab) {
       setLines([])
       try {
         const fresh = await getPublicTab(newTab)
         setTab(fresh)
-        writeJson(tabKey, { token: fresh.public_token, table: fresh.table_label })
+        writeJson(tabKey, { token: fresh.public_token, table: fresh.table_label, code: tableCode || tabTableCode })
       } catch {
         // The order is placed either way; the bill shows up on the next refresh.
       }
       setModal({ kind: 'tab', highlight: number })
       return
     }
-    const next = [token, ...tokens.filter((t) => t !== token)].slice(0, 10)
-    setTokens(next)
-    writeJson(`mesa:${slug}:tokens`, next)
     setLines([])
     setModal({ kind: 'track', token, isNew: true })
   }
@@ -370,7 +379,10 @@ export function MenuPage() {
       )}
       {tab && !hasCart && (
         <button className={`tab-bar tab-${tab.status.toLowerCase()}`} onClick={() => setModal({ kind: 'tab' })}>
-          <span className="tab-bar-label"><Receipt size={18} /> Mesa {tab.table_label} · {tabStatusLabels[tab.status]}</span>
+          <span className="tab-bar-label">
+            <Receipt size={20} />
+            <span>Mesa {tab.table_label}<small>{tabStatusLabels[tab.status]}</small></span>
+          </span>
           <strong>{formatMoney(tab.totals.total)}</strong>
         </button>
       )}
@@ -390,7 +402,7 @@ export function MenuPage() {
 
       {modal?.kind === 'product' && <ProductModal product={modal.product} canOrder={canOrder && modal.product.available} onClose={() => setModal(null)} onAdd={addLine} />}
       {modal?.kind === 'cart' && (
-        <CartModal tenant={tenant} lines={lines} setLines={setLines} tableFromQr={tableFromQr} onClose={() => setModal(null)} onOrdered={onOrdered} />
+        <CartModal tenant={tenant} lines={lines} setLines={setLines} tableFromQr={tableFromQr} tableCode={tableCode || tabTableCode} onClose={() => setModal(null)} onOrdered={onOrdered} />
       )}
       {modal?.kind === 'orders' && <OrdersModal tokens={tokens} onClose={() => setModal(null)} onOpen={(token) => setModal({ kind: 'track', token, isNew: false })} />}
       {modal?.kind === 'tab' && tab && (

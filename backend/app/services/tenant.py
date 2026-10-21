@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -101,6 +102,18 @@ class TenantService:
                 if field in ("logo_url", "cover_url") and getattr(tenant, field) != getattr(data, field):
                     replaced_images.append(getattr(tenant, field))
                 setattr(tenant, field, getattr(data, field) or None)
+
+        turning_off_tabs = not tenant.tabs_enabled or "DINE_IN" not in tenant.enabled_services
+        if turning_off_tabs:
+            from app.models.tab import ACTIVE_TAB_STATUSES, Tab
+
+            open_tabs = self.db.scalar(
+                select(func.count(Tab.id)).where(Tab.tenant_id == tenant.id, Tab.status.in_(ACTIVE_TAB_STATUSES))
+            )
+            if open_tabs:
+                self.db.rollback()
+                mesas = "1 mesa aberta" if open_tabs == 1 else f"{open_tabs} mesas abertas"
+                raise BusinessRuleError(f"Há {mesas} com conta. Feche ou cancele as contas em Mesas antes de desligar.")
 
         if tenant.hours_mode == "SCHEDULE" and not tenant.opening_hours:
             raise BusinessRuleError("Cadastre ao menos um horário de funcionamento ou use o modo manual.")

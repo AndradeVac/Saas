@@ -46,6 +46,7 @@ export type PublicOrderPayload = {
   customer_phone: string
   service_type: ServiceType
   table_label?: string
+  table_code?: string
   delivery_address?: string
   payment_method: PaymentMethod
   notes?: string

@@ -30,13 +30,15 @@ def current_user(user: User = Depends(get_current_user)):
     return user
 
 
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/password", response_model=TokenResponse)
 def change_password(
     data: PasswordChange,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Changes the password, logs the user out of other devices and returns a new token for this one."""
     UserService(db, user.tenant_id).change_password(user, data)
+    return TokenResponse(access_token=create_access_token(user))
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(password_reset_rate_limit)])

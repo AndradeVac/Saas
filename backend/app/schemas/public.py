@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.phone import normalize_phone
+from app.core.tables import normalize_table_label
 from app.models.order import PaymentMethod, ServiceType
 from app.schemas.order import SelectedOption
 from app.schemas.product import OptionGroup
@@ -48,6 +49,7 @@ class PublicOrderCreate(BaseModel):
     customer_phone: str = Field(min_length=10, max_length=20)
     service_type: ServiceType = ServiceType.DINE_IN
     table_label: str | None = Field(default=None, max_length=30)
+    table_code: str | None = Field(default=None, max_length=20)
     delivery_address: str | None = Field(default=None, max_length=300)
     payment_method: PaymentMethod = PaymentMethod.CASH
     notes: str | None = Field(default=None, max_length=500)
@@ -67,11 +69,16 @@ class PublicOrderCreate(BaseModel):
     def _normalize_phone(cls, value: str) -> str:
         return normalize_phone(value)
 
-    @field_validator("table_label", "delivery_address", "coupon_code")
+    @field_validator("delivery_address", "coupon_code")
     @classmethod
     def _strip_optional(cls, value: str | None) -> str | None:
         value = " ".join((value or "").split())
         return value or None
+
+    @field_validator("table_label")
+    @classmethod
+    def _normalize_table(cls, value: str | None) -> str | None:
+        return normalize_table_label(value)
 
 
 class PublicOrderResponse(BaseModel):
@@ -108,14 +115,6 @@ class PublicOrderTracking(BaseModel):
     delivery_address: str | None
     items: list[PublicHistoryItem]
 
-
-class PublicHistoryOrder(BaseModel):
-    order_number: int
-    public_token: UUID
-    status: str
-    total: str
-    created_at: datetime
-    items: list[PublicHistoryItem]
 
 
 class CouponCheckRequest(BaseModel):

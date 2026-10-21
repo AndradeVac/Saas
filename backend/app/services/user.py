@@ -72,6 +72,7 @@ class UserService:
     def reset_password(self, user_id: UUID, data: PasswordReset, actor: User) -> None:
         user = self.get_by_id(user_id)
         user.password_hash = self.password_hash.hash(data.new_password)
+        user.token_version += 1  # logs that person out of every device
         record_audit(self.db, self.tenant_id, actor, "PASSWORD_RESET", "USER", user.id, user.email)
         self.repository.update(user)
         self.db.commit()
@@ -80,6 +81,7 @@ class UserService:
         if not self.verify_password(data.current_password, user.password_hash):
             raise BusinessRuleError("A senha atual está incorreta.")
         user.password_hash = self.password_hash.hash(data.new_password)
+        user.token_version += 1  # other devices are logged out; the caller gets a fresh token
         record_audit(self.db, self.tenant_id, user, "PASSWORD_CHANGED", "USER", user.id)
         self.repository.update(user)
         self.db.commit()

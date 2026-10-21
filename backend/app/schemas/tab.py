@@ -102,5 +102,11 @@ class TabClose(BaseModel):
     _validate_payment = field_validator("payment_method")(_real_payment)
 
 
+class TableQr(BaseModel):
+    label: str
+    code: str
+    url: str
+
+
 class TabReason(BaseModel):
     reason: str = Field(min_length=2, max_length=200)

@@ -1,11 +1,13 @@
 import { Check, Lock, MessageCircle, Sparkles } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatMoney } from '../../lib/format'
 import { PLAN_LIMIT_EVENT, type PlanLimitDetail } from '../../services/api'
 import { getPlanCatalog, getPlanStatus, paidPlans, salesLink, type FeatureKey, type PlanCatalog, type PlanInfo, type PlanStatus } from '../../services/plans'
+import { useAuth } from '../auth/AuthProvider'
 import { useTenant } from '../tenant/TenantProvider'
 
 type Limit = 'products' | 'users'
@@ -35,12 +37,16 @@ export function planHighlights(plan: PlanInfo, catalog: PlanCatalog): string[] {
   const lines = [
     plan.max_products === null ? 'Produtos ilimitados' : `Até ${plan.max_products} produtos`,
     plan.max_users === null ? 'Equipe ilimitada' : plan.max_users === 1 ? 'Só o dono acessa o painel' : `Até ${plan.max_users} pessoas na equipe`,
-    plan.max_orders === null ? 'Pedidos ilimitados' : `${plan.max_orders} pedidos para testar`,
+    plan.max_orders === null ? 'Pedidos ilimitados' : `${plan.max_orders} pedidos para testar (cada mesa conta 1)`,
   ]
   return [...lines, ...plan.features.map((feature) => catalog.feature_names[feature])]
 }
 
 export function PlanProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'ADMIN'
+  const isAdminRef = useRef(isAdmin)
+  isAdminRef.current = isAdmin
   const [status, setStatus] = useState<PlanStatus | null>(null)
   const [catalog, setCatalog] = useState<PlanCatalog | null>(null)
   const [upgrade, setUpgrade] = useState<{ reason?: string } | null>(null)
@@ -60,7 +66,10 @@ export function PlanProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const onLimit = (event: Event) => {
-      setUpgrade({ reason: (event as CustomEvent<PlanLimitDetail>).detail.message })
+      const { message } = (event as CustomEvent<PlanLimitDetail>).detail
+      // Only the owner (admin) can subscribe; the rest of the team just learns why it did not work.
+      if (isAdminRef.current) setUpgrade({ reason: message })
+      else toast.info(`${message.replace(/ Assine um plano para liberar\.?$/, '')} Fale com o responsável pelo estabelecimento.`)
       void refresh()
     }
     window.addEventListener(PLAN_LIMIT_EVENT, onLimit)
@@ -70,7 +79,10 @@ export function PlanProvider({ children }: PropsWithChildren) {
   const value = useMemo<PlanContextValue>(() => {
     // Until the status loads, assume unlocked: the API is the real gate and this avoids flashing locks.
     const has = (feature: FeatureKey) => !status || status.plan.features.includes(feature)
-    const openUpgrade = (reason?: string) => setUpgrade({ reason })
+    const openUpgrade = (reason?: string) => {
+      if (isAdmin) setUpgrade({ reason })
+      else toast.info(`${reason ?? 'Recurso indisponível no plano atual.'} Fale com o responsável pelo estabelecimento.`)
+    }
     return {
       status,
       catalog,
@@ -84,7 +96,7 @@ export function PlanProvider({ children }: PropsWithChildren) {
       },
       guard: (feature, action) => (has(feature) ? action() : openUpgrade(`“${catalog?.feature_names[feature] ?? 'Este recurso'}” não está incluído no seu plano.`)),
     }
-  }, [status, catalog, refresh])
+  }, [status, catalog, refresh, isAdmin])
 
   return (
     <PlanContext.Provider value={value}>

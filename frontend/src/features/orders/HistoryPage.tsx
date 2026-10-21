@@ -94,7 +94,7 @@ export function HistoryPage() {
         ) : data && (
           <>
             <div className="table-wrap" style={{ opacity: loading ? 0.6 : 1 }}>
-              <table className="table keep-cols">
+              <table className="table keep-cols stack-mobile">
                 <thead><tr><th>Pedido</th><th>Cliente</th><th>Atendimento</th><th>Status</th><th>Pagamento</th><th className="num">Total</th></tr></thead>
                 <tbody>
                   {data.items.map((order) => (

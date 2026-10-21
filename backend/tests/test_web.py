@@ -33,3 +33,8 @@ def test_spa_routes_assets_and_api(site):
     assert missing.status_code == 404 and "immutable" not in missing.headers.get("cache-control", "")
     assert site.get("/api/platform/plans").json()["plans"]
     assert site.get("/health").json() == {"status": "ok"}
+    headers = site.get("/").headers
+    assert headers["x-content-type-options"] == "nosniff"
+    assert "max-age=" in headers["strict-transport-security"]
+    assert headers["content-security-policy"].startswith("frame-ancestors 'self'")
+    assert site.get("/api/platform/plans").headers["x-content-type-options"] == "nosniff"

@@ -44,7 +44,8 @@ def test_inactive_user_loses_access(make_tenant):
 def test_change_password(make_tenant, client):
     tenant = make_tenant()
     assert tenant.post("/auth/password", {"current_password": "errada", "new_password": "nova-senha-123"}).status_code == 422
-    assert tenant.post("/auth/password", {"current_password": PASSWORD, "new_password": "nova-senha-123"}).status_code == 204
+    changed = tenant.post("/auth/password", {"current_password": PASSWORD, "new_password": "nova-senha-123"})
+    assert changed.status_code == 200 and changed.json()["access_token"]  # this device stays logged in
     assert tenant.login(password=PASSWORD).status_code == 401
     assert tenant.login(password="nova-senha-123").status_code == 200
 

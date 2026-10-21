@@ -13,11 +13,28 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.core.config import settings
 from app.main import app as api
 
 FRONTEND_DIR = Path(os.getenv("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
 
 web = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@web.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    headers = response.headers
+    headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    headers.setdefault("X-Content-Type-Options", "nosniff")
+    headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    # Only our own pages may frame the app (the landing page shows a menu inside a phone mockup): blocks
+    # clickjacking of the panel by other sites.
+    headers.setdefault("Content-Security-Policy", f"frame-ancestors 'self' https://{settings.root_domain} https://*.{settings.root_domain}")
+    return response
+
+
 web.mount("/api", api)
 
 

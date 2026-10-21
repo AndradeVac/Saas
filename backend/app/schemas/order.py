@@ -2,7 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.tables import normalize_table_label
 
 from app.models.order import OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 
@@ -24,10 +26,17 @@ class OrderCreate(BaseModel):
     payment_method: PaymentMethod
     service_type: ServiceType = ServiceType.DINE_IN
     table_label: str | None = Field(default=None, max_length=30)
+    # Code from the table's QR Code; required for customers ordering on a table's bill (comanda).
+    table_code: str | None = Field(default=None, max_length=20)
     delivery_address: str | None = Field(default=None, max_length=300)
     notes: str | None = Field(default=None, max_length=500)
     coupon_code: str | None = Field(default=None, max_length=40)
     items: list[OrderItemCreate] = Field(min_length=1, max_length=60)
+
+    @field_validator("table_label")
+    @classmethod
+    def _normalize_table(cls, value: str | None) -> str | None:
+        return normalize_table_label(value)
 
 
 class OrderItemResponse(BaseModel):

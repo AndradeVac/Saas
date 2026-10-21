@@ -1,4 +1,3 @@
-import csv
 import io
 from datetime import date, datetime, time, timedelta
 from uuid import UUID
@@ -9,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.spreadsheet import SafeCsvWriter
 from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
 from app.core.tenancy import get_tenant
@@ -29,6 +29,7 @@ from app.services.order import OrderService
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 _SERVICE_LABELS = {"DINE_IN": "No local", "TAKEAWAY": "Para levar", "DELIVERY": "Entrega"}
+_PAYMENT_LABELS = {"PIX": "PIX", "CARD": "Cartão", "CASH": "Dinheiro", "TAB": "Na comanda"}
 _STATUS_LABELS = {
     "RECEIVED": "Recebido", "PREPARING": "Em preparo", "READY": "Pronto", "FINISHED": "Entregue", "CANCELLED": "Cancelado",
 }
@@ -95,7 +96,7 @@ def export_orders(
     )
     zone = ZoneInfo(tenant.timezone)
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=";")
+    writer = SafeCsvWriter(buffer, delimiter=";")
     writer.writerow(["Pedido", "Data", "Cliente", "Telefone", "Atendimento", "Mesa", "Status", "Pagamento", "Forma",
                      "Itens", "Subtotal", "Desconto", "Taxa de serviço", "Entrega", "Total"])
     for order in orders:
@@ -110,7 +111,7 @@ def export_orders(
             order.table_label or "",
             _STATUS_LABELS.get(order.status.value, order.status.value),
             "Pago" if order.payment_status is PaymentStatus.PAID else "Pendente",
-            order.payment_method.value,
+            _PAYMENT_LABELS.get(order.payment_method.value, order.payment_method.value),
             "; ".join(f"{i.quantity}x {i.product_name}" for i in order.items),
             money(order.subtotal), money(order.discount), money(order.service_fee), money(order.delivery_fee), money(order.total),
         ])

@@ -126,11 +126,23 @@ class TabService:
         self.db.commit()
         return tab
 
+    def cancel_if_empty(self, tab_id: UUID, actor: User | None) -> None:
+        """Automation: when every order of a bill was cancelled, the bill closes itself (the caller commits)."""
+        tab = self.db.get(Tab, tab_id)
+        if tab is None or tab.status not in ACTIVE_TAB_STATUSES:
+            return
+        self.db.flush()
+        if all(order.status is OrderStatus.CANCELLED for order in tab.orders):
+            tab.status, tab.closed_at = TabStatus.CANCELLED, datetime.now(timezone.utc)
+            record_audit(self.db, self.tenant_id, actor, "TAB_CANCELLED", "TAB", tab.id, f"mesa {tab.table_label}: todos os pedidos cancelados")
+
     def close(self, tab_id: UUID, payment_method: PaymentMethod, actor: User) -> Tab:
         """Payment received: every order is marked paid, served ones are finished and the table is free again."""
         tab = self.get(tab_id)
         if tab.status not in (TabStatus.OPEN, TabStatus.CLOSING):
             raise BusinessRuleError("Só é possível fechar uma comanda aberta.")
+        if not any(order.status is not OrderStatus.CANCELLED for order in tab.orders):
+            raise BusinessRuleError("Não há nada para cobrar nesta mesa. Cancele a comanda em vez de fechar.")
         cooking = sum(1 for order in tab.orders if order.status in _COOKING)
         if cooking:
             raise BusinessRuleError(f"Há {cooking} pedido(s) ainda na cozinha. Entregue ou cancele antes de fechar a conta.")

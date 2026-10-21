@@ -58,11 +58,16 @@ export function DashboardPage() {
   useEffect(() => {
     Promise.all([getTenantSettings(), getProducts(), getDashboard('all')]).then(([settings, products, all]) => {
       setSteps([
-        { done: Boolean(settings.logo_url), text: 'Envie a logo e escolha a cor da sua marca', to: '/painel/configuracoes', cta: 'Personalizar' },
+        { done: Boolean(settings.logo_url), text: 'Envie a logo e escolha a cor da sua marca', to: '/painel/configuracoes?aba=look', cta: 'Personalizar' },
         { done: products.filter((p) => p.active).length >= 3, text: 'Cadastre seus primeiros produtos (pelo menos 3)', to: '/painel/produtos', cta: 'Cadastrar' },
         { done: Boolean(settings.phone && settings.address), text: 'Informe telefone e endereço do negócio', to: '/painel/configuracoes', cta: 'Preencher' },
-        { done: settings.hours_mode === 'SCHEDULE', text: 'Defina os horários de funcionamento', to: '/painel/configuracoes', cta: 'Definir' },
-        { done: all.order_count > 0, text: 'Receba o primeiro pedido (faça um teste pelo seu cardápio)', to: '/painel/pedidos/novo', cta: 'Lançar pedido' },
+        { done: settings.hours_mode === 'SCHEDULE', text: 'Defina os horários de funcionamento', to: '/painel/configuracoes?aba=hours', cta: 'Definir' },
+        ...(settings.tabs_enabled
+          ? [
+            { done: readJson<boolean>(`mesa:${settings.slug}:qr-generated`, false), text: 'Gere e imprima os QR Codes das mesas', to: '/painel/configuracoes?aba=tables', cta: 'Gerar QR Codes' },
+            { done: all.order_count > 0, text: 'Faça um pedido de teste: leia o QR Code de uma mesa com o celular', to: '/painel/configuracoes?aba=tables', cta: 'Ver QR Codes' },
+          ]
+          : [{ done: all.order_count > 0, text: 'Receba o primeiro pedido (faça um teste pelo seu cardápio)', to: '/painel/pedidos/novo', cta: 'Lançar pedido' }]),
       ])
     }).catch(() => setSteps(null))
   }, [])

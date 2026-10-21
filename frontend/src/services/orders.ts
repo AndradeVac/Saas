@@ -21,6 +21,8 @@ export type Order = {
   status: OrderStatus
   service_type: ServiceType
   table_label: string | null
+  /** Set when the order belongs to a table's bill (comanda): it is paid when the bill closes. */
+  tab_id?: string | null
   delivery_address: string | null
   payment_method: PaymentMethod
   payment_status: PaymentStatus
