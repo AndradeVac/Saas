@@ -5,12 +5,13 @@ Usage (from backend/):
     python -m scripts.manage_tenant suspend padaria-do-ze
     python -m scripts.manage_tenant activate padaria-do-ze --plan pro
     python -m scripts.manage_tenant extend-trial padaria-do-ze --days 7
+    python -m scripts.manage_tenant courtesy padaria-do-ze --days 15 --plan pro   # full plan, stops by itself
 """
 from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
@@ -24,13 +25,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list")
-    for name in ("suspend", "activate", "extend-trial"):
+    for name in ("suspend", "activate", "extend-trial", "courtesy"):
         command = sub.add_parser(name)
         command.add_argument("slug")
-        if name == "activate":
+        if name in ("activate", "courtesy"):
             command.add_argument("--plan", default=DEFAULT_PAID_PLAN, choices=[k for k in PLANS if k != "trial"])
-        if name == "extend-trial":
-            command.add_argument("--days", type=int, default=7)
+        if name in ("extend-trial", "courtesy"):
+            command.add_argument("--days", type=int, default=7 if name == "extend-trial" else 15)
     args = parser.parse_args()
 
     with SessionLocal() as db:
@@ -51,6 +52,16 @@ def main() -> int:
             sys.exit(f"Tenant '{args.slug}' não encontrado.")
         if args.command == "suspend":
             tenant.status = TenantStatus.SUSPENDED
+        elif args.command == "courtesy":
+            # Full paid plan for free until a date; orders stop after it unless the owner subscribes.
+            if tenant.billing_status in ("ACTIVE", "PENDING", "OVERDUE"):
+                sys.exit(f"{tenant.slug} já tem assinatura ({tenant.billing_status}); cortesia não aplicada.")
+            tenant.status, tenant.plan = TenantStatus.ACTIVE, args.plan
+            tenant.billing_status, tenant.past_due_since = "COURTESY", None
+            tenant.paid_until = date.today() + timedelta(days=args.days)
+            db.commit()
+            print(f"{tenant.slug}: cortesia do plano {tenant.plan} até {tenant.paid_until:%d/%m/%Y}")
+            return 0
         elif args.command == "activate":
             tenant.status = TenantStatus.ACTIVE
             tenant.plan = args.plan

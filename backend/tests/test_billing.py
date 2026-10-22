@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from app.core import asaas
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.models.tenant import Tenant
+from app.models.tenant import Tenant, TenantStatus
 
 CNPJ = "63.148.827/0001-67"
 TOKEN = "segredo-do-webhook"
@@ -114,3 +114,30 @@ def test_operator_cannot_subscribe(make_tenant, client, fake_asaas):
     operator = type(shop)(client, shop.slug, f"op@{shop.slug}.com")
     operator.login(password="senha-segura-123")
     assert operator.post("/billing/subscribe", {"plan": "pro", "document": CNPJ, "email": "x@x.com"}).status_code == 403
+
+
+def test_courtesy_gives_the_full_plan_until_a_date(make_tenant, client, fake_asaas):
+    shop = make_tenant(plan=None)
+    product = shop.add_product(price="30.00")
+    end = date.today() + timedelta(days=15)
+    with SessionLocal() as db:
+        db.execute(update(Tenant).where(Tenant.slug == shop.slug).values(status=TenantStatus.ACTIVE, plan="pro", billing_status="COURTESY", paid_until=end))
+        db.commit()
+    status = shop.get("/tenant/plan").json()
+    assert status["plan"]["key"] == "pro" and status["billing_blocked"] is False
+    assert shop.get("/coupons").status_code == 200
+
+    # Subscribing during the courtesy: the first charge is due when the courtesy ends.
+    shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com"})
+    assert fake_asaas["subscriptions"][0][4] == end.isoformat()
+    assert shop.get("/tenant/plan").json()["billing_blocked"] is False
+
+    # Courtesy over and the first charge not paid: orders stop.
+    with SessionLocal() as db:
+        db.execute(update(Tenant).where(Tenant.slug == shop.slug).values(paid_until=date.today() - timedelta(days=1)))
+        db.commit()
+    assert shop.get("/tenant/plan").json()["billing_blocked"] is True
+    assert shop.public_order(product["id"], service_type="TAKEAWAY", payment_method="PIX").status_code == 422
+    webhook(client, "PAYMENT_CONFIRMED", tenant_row(shop.slug).billing_subscription_id, "evt_courtesy")
+    status = shop.get("/tenant/plan").json()
+    assert status["billing_status"] == "ACTIVE" and status["plan"]["key"] == "essencial" and status["billing_blocked"] is False
