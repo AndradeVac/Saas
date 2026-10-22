@@ -144,6 +144,36 @@ DATABASE_URL='<url do banco de produção>' python -m scripts.seed_demo --random
 Use `--random-passwords`: as senhas do README valem só no seu computador, e em produção qualquer pessoa que as
 conhecesse entraria nas contas demo. As senhas geradas aparecem uma vez na saída do comando; guarde-as.
 
+## 7b. Backup e restauração
+
+Todo dia às 03:00 o GitHub Actions (`.github/workflows/backup.yml`) copia o schema `mesa` da produção,
+**restaura a cópia num PostgreSQL 17 temporário para provar que funciona**, criptografa (AES-256) e guarda
+por 30 dias em **Actions → Backup do banco → (execução) → Artifacts**.
+
+- Segredos no GitHub (Settings → Secrets → Actions): `BACKUP_DATABASE_URL` e `BACKUP_PASSPHRASE`.
+- **A senha (`BACKUP_PASSPHRASE`) está em `backend/.env.production.secret`. Guarde-a também num gerenciador
+  de senhas: sem ela os backups não abrem.**
+- Rodar agora: Actions → Backup do banco → Run workflow (ou `gh workflow run backup.yml`).
+
+Restaurar (precisa do cliente do PostgreSQL 17 e do gpg):
+
+```bash
+gpg --decrypt mesa-digital-AAAA-MM-DD.dump.gpg > backup.dump          # pede a senha
+# Num banco vazio (ex.: novo projeto Supabase ou branch do Neon):
+pg_restore --dbname="postgresql://...novo-banco..." --no-owner --no-privileges backup.dump
+```
+
+Depois de restaurar num banco novo, aponte o `DATABASE_URL` do Fly para ele e rode `fly deploy`.
+
+## 7c. Aviso de erros (Sentry)
+
+1. Crie a conta grátis em <https://sentry.io> → **Create project** → plataforma **FastAPI** (nome `mesa-digital`).
+2. Copie o **DSN** (Settings → Client Keys). O mesmo projeto serve para o servidor e o navegador.
+3. Servidor: `fly secrets set SENTRY_DSN='https://...ingest.sentry.io/...'`
+4. Navegador: em `fly.toml`, `[build.args]`, adicione `VITE_SENTRY_DSN = "https://..."` (o DSN é público por natureza) e `fly deploy`.
+
+Os eventos não levam dados pessoais: sem corpo das requisições, cookies, credenciais ou query strings.
+
 ## 8. Monitoramento (grátis)
 
 - **UptimeRobot**: monitor HTTP em `https://mesadig.com.br/api/health`, com aviso por e-mail ou WhatsApp.

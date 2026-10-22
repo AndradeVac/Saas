@@ -11,6 +11,9 @@ COPY frontend/ ./
 ARG VITE_ROOT_DOMAIN
 RUN test -n "$VITE_ROOT_DOMAIN" || (echo "Defina VITE_ROOT_DOMAIN (fly.toml > [build.args])" && exit 1)
 ENV VITE_ROOT_DOMAIN=$VITE_ROOT_DOMAIN
+# Optional: error alerts from the browser (Sentry). The DSN is public by design.
+ARG VITE_SENTRY_DSN=""
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN npm run build
 
 # ---- runtime --------------------------------------------------------------------------------
