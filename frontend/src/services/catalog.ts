@@ -54,3 +54,20 @@ export const createCoupon = async (payload: CouponPayload) => (await api.post<Co
 export const updateCoupon = async (id: string, payload: Partial<Pick<Coupon, 'active' | 'value' | 'min_order' | 'max_uses' | 'expires_at'>>) =>
   (await api.patch<Coupon>(`/coupons/${id}`, payload)).data
 export const deleteCoupon = async (id: string) => { await api.delete(`/coupons/${id}`) }
+
+export type MenuDraftProduct = { name: string; description: string | null; price: number | null; sizes: { name: string; price: number }[] }
+export type MenuDraft = { categories: { name: string; products: MenuDraftProduct[] }[] }
+export type MenuImportPayload = {
+  categories: { name: string; products: { name: string; description: string | null; price: string; sizes: { name: string; price: string }[] }[] }[]
+}
+
+/** Photos (or a PDF) of a printed menu -> a draft read by AI. Saves nothing. */
+export async function readMenuPhotos(files: File[]) {
+  const form = new FormData()
+  files.forEach((file) => form.append('files', file))
+  const { data } = await api.post<MenuDraft>('/menu-import/read', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180_000 })
+  return data
+}
+
+export const applyMenuImport = async (payload: MenuImportPayload) =>
+  (await api.post<{ created: number; hidden: number; categories: number }>('/menu-import/apply', payload)).data

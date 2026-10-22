@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Pencil, Plus, Search, Star } from 'lucide-react'
+import { ArrowDown, ArrowUp, Camera, Pencil, Plus, Search, Star } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import {
   type Category, type Product,
 } from '../../services/catalog'
 import type { OptionGroup } from '../../types'
+import { MenuImportModal } from './MenuImport'
 import { OptionsEditor } from './OptionsEditor'
 import { usePlan } from '../plans/PlanProvider'
 
@@ -47,6 +48,7 @@ export function ProductsPage() {
   const [formError, setFormError] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [importing, setImporting] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden' | 'soldout'>('all')
 
   const plan = usePlan()
@@ -157,12 +159,16 @@ export function ProductsPage() {
 
   return (
     <section className="page">
+      {importing && <MenuImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); void load() }} />}
       <PageHeader
         title="Produtos"
         subtitle={plan.status?.plan.max_products != null
           ? `${plan.status.usage.products} de ${plan.status.plan.max_products} produtos ativos no plano ${plan.status.plan.name}.`
           : 'Tudo o que aparece no cardápio dos seus clientes.'}
-        actions={<button className="btn primary" disabled={activeCategories.length === 0} onClick={openNew}><Plus size={16} /> Novo produto</button>}
+        actions={<>
+          {plan.catalog?.menu_import && <button className="btn" onClick={() => setImporting(true)}><Camera size={16} /> Importar por foto</button>}
+          <button className="btn primary" disabled={activeCategories.length === 0} onClick={openNew}><Plus size={16} /> Novo produto</button>
+        </>}
       />
       <ErrorBanner message={error} onRetry={() => void load()} />
       {!loading && activeCategories.length === 0 && (
@@ -184,7 +190,15 @@ export function ProductsPage() {
       </div>
 
       {loading ? <Skeleton lines={5} height={70} /> : products.length === 0 ? (
-        <EmptyState icon={<Plus size={26} />} title="Nenhum produto ainda" hint="Cadastre o primeiro produto para ele aparecer no cardápio." action={<button className="btn primary" onClick={openNew} disabled={activeCategories.length === 0}>Cadastrar produto</button>} />
+        <EmptyState
+          icon={<Plus size={26} />}
+          title="Nenhum produto ainda"
+          hint={plan.catalog?.menu_import ? 'Tire uma foto do seu cardápio e a gente cadastra tudo para você conferir, ou cadastre um por um.' : 'Cadastre o primeiro produto para ele aparecer no cardápio.'}
+          action={<div className="row" style={{ justifyContent: 'center' }}>
+            {plan.catalog?.menu_import && <button className="btn primary" onClick={() => setImporting(true)}><Camera size={16} /> Importar cardápio por foto</button>}
+            <button className={`btn ${plan.catalog?.menu_import ? '' : 'primary'}`} onClick={openNew} disabled={activeCategories.length === 0}>Cadastrar produto</button>
+          </div>}
+        />
       ) : grouped.map(({ category, items }) => {
         const shown = items.filter(matches)
         if (shown.length === 0) return null

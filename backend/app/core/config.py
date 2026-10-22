@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     asaas_webhook_token: str = ""
     # Days a paid plan keeps working after a missed payment before orders stop.
     billing_grace_days: int = 5
+    # Claude (Anthropic) reads menu photos into a draft of categories and products. Empty = feature hidden.
+    anthropic_api_key: str = ""
     # Error alerts (Sentry). Empty = off.
     sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.

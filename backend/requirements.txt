@@ -31,3 +31,6 @@ boto3==1.43.108
 
 # Error alerts (Sentry); off unless SENTRY_DSN is set
 sentry-sdk[fastapi]==2.73.0
+
+# Menu photo reading (Claude); off unless ANTHROPIC_API_KEY is set
+anthropic==2.1.0

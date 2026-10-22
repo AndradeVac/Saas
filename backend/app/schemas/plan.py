@@ -23,6 +23,8 @@ class PlanCatalog(BaseModel):
     trial_days: int
     # True when subscriptions are paid online (Asaas); otherwise "Assinar" opens the sales WhatsApp.
     online_billing: bool = False
+    # True when "Importar cardápio por foto" is available (Claude API key set).
+    menu_import: bool = False
     # WhatsApp number (digits) of the platform's sales team; empty when not configured.
     sales_whatsapp: str
 

@@ -791,3 +791,21 @@ a.landing-logo { text-decoration: none; }
 .billing-card.billing-active { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
 .billing-card.billing-overdue { border-color: var(--warn); background: color-mix(in srgb, var(--warn-bg) 50%, var(--surface)); }
 .billing-card.billing-pending { border-color: var(--brand-line); }
+
+/* Menu import by photo */
+.import-drop { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 26px 16px; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; color: var(--text-2); }
+.import-drop:hover, .import-drop:focus-within { border-color: var(--brand); }
+.import-drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.import-files { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
+.import-files li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.import-files li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-group { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+.import-row { display: grid; grid-template-columns: auto 1fr 120px; gap: 10px; align-items: start; padding: 8px 0; }
+.import-row > input[type='checkbox'] { margin-top: 12px; width: 18px; height: 18px; }
+.import-row.off .import-fields, .import-row.off .import-price { opacity: 0.45; }
+.import-row.invalid .import-price, .import-row.invalid .import-fields .input:first-child { border-color: var(--danger); }
+.import-fields { display: grid; gap: 6px; min-width: 0; }
+@media (max-width: 560px) {
+  .import-row { grid-template-columns: auto 1fr; }
+  .import-price { grid-column: 2; }
+}
