@@ -1,0 +1,66 @@
+# Daily backup of the production database (Supabase, schema "mesa").
+# Every run also restores the dump into a throwaway PostgreSQL 17 to prove the backup is usable,
+# then encrypts it (AES-256): the repository is public, so only the passphrase holder can read it.
+# Restore instructions: DEPLOY.md, "Backup e restauração".
+name: Backup do banco
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 03:00 in Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      restore-check:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Dump production
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: pg_dump "$DATABASE_URL" --schema=mesa --no-owner --no-privileges --format=custom --file=backup.dump
+
+      - name: Prove the dump restores
+        env:
+          PGPASSWORD: postgres
+        run: |
+          pg_restore --host=localhost --username=postgres --dbname=postgres --no-owner --no-privileges --exit-on-error backup.dump
+          counts=$(psql --host=localhost --username=postgres --dbname=postgres -At -c \
+            "select (select count(*) from mesa.tenants) || ' estabelecimentos, ' || (select count(*) from mesa.orders) || ' pedidos, ' || (select count(*) from mesa.products) || ' produtos'")
+          echo "Restaurado com sucesso: $counts"
+          echo "### Backup restaurado com sucesso: $counts" >> "$GITHUB_STEP_SUMMARY"
+          test "$(psql --host=localhost --username=postgres --dbname=postgres -At -c 'select count(*) from mesa.tenants')" -gt 0
+
+      - name: Encrypt
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          name="mesa-digital-$(date -u +%Y-%m-%d).dump.gpg"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 --output "$name" backup.dump
+          rm backup.dump
+          echo "FILE=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILE }}
+          path: ${{ env.FILE }}
+          retention-days: 30
+          if-no-files-found: error
