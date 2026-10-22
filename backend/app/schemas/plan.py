@@ -34,7 +34,7 @@ class PlanUsage(BaseModel):
 
 
 class TenantPlanStatus(BaseModel):
-    billing_status: str = "NONE"  # NONE, PENDING, ACTIVE, OVERDUE, CANCELED
+    billing_status: str = "NONE"  # NONE, COURTESY, PENDING, ACTIVE, OVERDUE, CANCELED
     billing_plan: str | None = None
     paid_until: date | None = None
     grace_until: date | None = None  # last day before orders stop when a payment is overdue

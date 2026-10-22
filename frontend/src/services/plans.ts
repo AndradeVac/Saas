@@ -23,7 +23,7 @@ export type PlanCatalog = {
   sales_whatsapp: string
 }
 
-export type BillingStatus = 'NONE' | 'PENDING' | 'ACTIVE' | 'OVERDUE' | 'CANCELED'
+export type BillingStatus = 'NONE' | 'COURTESY' | 'PENDING' | 'ACTIVE' | 'OVERDUE' | 'CANCELED'
 
 export type PlanStatus = {
   billing_status: BillingStatus

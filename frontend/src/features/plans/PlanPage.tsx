@@ -41,6 +41,7 @@ export function PlanPage() {
 
   const plans = catalog.plans
   const trial = status.status === 'TRIAL'
+  const courtesy = status.billing_status === 'COURTESY'
   const features = Object.keys(catalog.feature_names) as FeatureKey[]
 
   return (
@@ -49,12 +50,12 @@ export function PlanPage() {
 
       <div className={`card plan-current ${trial ? 'trial' : ''}`}>
         <div>
-          <span className="badge brand">{trial ? 'Período de teste' : 'Plano ativo'}</span>
+          <span className="badge brand">{trial ? 'Período de teste' : courtesy ? 'Cortesia' : 'Plano ativo'}</span>
           <h2>{status.plan.name}</h2>
           {trial && (status.trial_expired
             ? <p><strong>Seu período de teste terminou.</strong> O cardápio continua no ar, mas não recebe novos pedidos.</p>
             : <p>Faltam <strong>{status.trial_days_left} {status.trial_days_left === 1 ? 'dia' : 'dias'}</strong> de teste (até {formatDate(status.trial_ends_at)}).</p>)}
-          {!trial && <p className="muted">{formatMoney(status.plan.price)}/mês</p>}
+          {!trial && !courtesy && <p className="muted">{formatMoney(status.plan.price)}/mês</p>}
           {!status.can_take_orders && !status.trial_expired && <p className="field-error">Você usou todos os pedidos do teste. Assine para voltar a receber pedidos.</p>}
         </div>
         <div className="meters">
@@ -69,7 +70,7 @@ export function PlanPage() {
       <h2 id="assinar" className="section-heading">{status.billing_status === 'ACTIVE' ? 'Trocar de plano' : 'Escolha o seu plano'}</h2>
       <div className="plan-grid">
         {paidPlans(catalog).map((plan) => {
-          const current = !trial && plan.key === status.plan.key
+          const current = !trial && !courtesy && plan.key === status.plan.key
           return (
             <div key={plan.key} className={`plan-card ${plan.highlight ? 'highlight' : ''}`}>
               {plan.highlight && <span className="plan-ribbon"><Sparkles size={13} /> Mais escolhido</span>}
@@ -164,13 +165,19 @@ function BillingCard() {
     <div className={`card billing-card billing-${s.toLowerCase()}`}>
       <div>
         <h3>
+          {s === 'COURTESY' && (status.billing_blocked ? 'Seu período de cortesia terminou' : 'Período de cortesia')}
           {s === 'PENDING' && 'Aguardando o primeiro pagamento'}
           {s === 'ACTIVE' && `Assinatura ativa · ${billingPlan?.name ?? ''}`}
           {s === 'OVERDUE' && (status.billing_blocked ? 'Pedidos bloqueados por falta de pagamento' : 'Pagamento em atraso')}
           {s === 'CANCELED' && 'Assinatura cancelada'}
         </h3>
         <p className="muted" style={{ margin: 0 }}>
-          {s === 'PENDING' && `Plano ${billingPlan?.name ?? ''}: assim que o pagamento for confirmado, os recursos são liberados automaticamente.`}
+          {s === 'COURTESY' && (status.billing_blocked
+            ? 'O cardápio está no ar, mas não recebe pedidos. Assine um plano abaixo e tudo volta na hora.'
+            : `Todos os recursos liberados até ${formatDate(status.paid_until)}. Assine abaixo para continuar depois disso: a primeira cobrança só vem quando a cortesia acabar.`)}
+          {s === 'PENDING' && (status.status === 'ACTIVE' && status.paid_until && !status.billing_blocked
+            ? `Plano ${billingPlan?.name ?? ''} assinado: a primeira cobrança vence em ${formatDate(status.paid_until)}.`
+            : `Plano ${billingPlan?.name ?? ''}: assim que o pagamento for confirmado, os recursos são liberados automaticamente.`)}
           {s === 'ACTIVE' && status.paid_until && `Pago até ${formatDate(status.paid_until)}. A próxima cobrança chega por e-mail.`}
           {s === 'OVERDUE' && (status.billing_blocked
             ? 'O cardápio está no ar, mas não recebe pedidos. Pague agora e tudo volta na hora.'

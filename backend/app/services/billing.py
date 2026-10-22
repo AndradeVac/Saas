@@ -45,8 +45,10 @@ def _valid_document(digits: str) -> bool:
 
 def billing_blocked(tenant: Tenant, today: date | None = None) -> bool:
     """A paid plan stops taking orders after the grace period of a missed payment, or when a cancelled
-    subscription reaches the end of the period already paid."""
+    subscription (or a courtesy period not yet paid for) reaches the end of the period it covers."""
     today = today or date.today()
+    if tenant.billing_status in ("COURTESY", "PENDING") and tenant.status is TenantStatus.ACTIVE and tenant.paid_until:
+        return today > tenant.paid_until
     if tenant.billing_status == "OVERDUE" and tenant.past_due_since:
         return today > tenant.past_due_since + timedelta(days=settings.billing_grace_days)
     if tenant.billing_status == "CANCELED" and tenant.paid_until:
@@ -85,8 +87,11 @@ class BillingService:
             if tenant.billing_status == "ACTIVE":
                 tenant.plan = plan_key  # plan changes apply now; the new price from the next charge
         else:
+            # Subscribing during a courtesy period: the first charge only comes when the courtesy ends.
+            courtesy_left = tenant.billing_status == "COURTESY" and tenant.paid_until and tenant.paid_until > date.today()
+            first_due = tenant.paid_until if courtesy_left else date.today()
             subscription = asaas.create_subscription(
-                tenant.billing_customer_id, value, description, str(tenant.id), date.today().isoformat()
+                tenant.billing_customer_id, value, description, str(tenant.id), first_due.isoformat()
             )
             tenant.billing_subscription_id = subscription["id"]
             tenant.billing_status = "PENDING"
