@@ -1,0 +1,4 @@
+# Backup job (no web service): the image is built with `fly deploy --build-only --push` and runs as a
+# scheduled Machine. Setup: DEPLOY.md, "Backup e restauração".
+app = "mesa-digital-backup"
+primary_region = "gru"
