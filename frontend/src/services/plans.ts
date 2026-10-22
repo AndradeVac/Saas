@@ -20,6 +20,7 @@ export type PlanCatalog = {
   trial_days: number
   /** Subscriptions paid online (Asaas checkout); otherwise "Assinar" opens the sales WhatsApp. */
   online_billing: boolean
+  menu_import: boolean
   sales_whatsapp: string
 }
 
