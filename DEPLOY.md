@@ -146,16 +146,32 @@ conhecesse entraria nas contas demo. As senhas geradas aparecem uma vez na saíd
 
 ## 7b. Backup e restauração
 
-Todo dia às 03:00 o GitHub Actions (`.github/workflows/backup.yml`) copia o schema `mesa` da produção,
-**restaura a cópia num PostgreSQL 17 temporário para provar que funciona**, criptografa (AES-256) e guarda
-por 30 dias em **Actions → Backup do banco → (execução) → Artifacts**.
+Uma vez por dia, uma máquina agendada do Fly (app `mesa-digital-backup`, código em `backup/`) copia o schema
+`mesa` da produção, **restaura a cópia num PostgreSQL 17 temporário para provar que funciona**, criptografa
+(AES-256) e envia para o **Cloudflare R2** (bucket `mesa-digital-backups`), apagando cópias com mais de 30 dias.
+Se falhar, manda um e-mail (Resend) para `ALERT_EMAIL`.
 
-- Segredos no GitHub (Settings → Secrets → Actions): `BACKUP_DATABASE_URL` e `BACKUP_PASSPHRASE`.
 - **A senha (`BACKUP_PASSPHRASE`) está em `backend/.env.production.secret`. Guarde-a também num gerenciador
   de senhas: sem ela os backups não abrem.**
-- Rodar agora: Actions → Backup do banco → Run workflow (ou `gh workflow run backup.yml`).
+- Alternativa manual: `.github/workflows/backup.yml` (Actions → Backup do banco → Run workflow).
 
-Restaurar (precisa do cliente do PostgreSQL 17 e do gpg):
+Instalação (uma vez):
+
+```bash
+cd backup
+fly apps create mesa-digital-backup
+fly secrets set -a mesa-digital-backup --stage BACKUP_DATABASE_URL='postgresql://...' BACKUP_PASSPHRASE='...' \
+  R2_ACCOUNT_ID='...' R2_ACCESS_KEY_ID='...' R2_SECRET_ACCESS_KEY='...' RESEND_API_KEY='...' ALERT_EMAIL='...'
+fly deploy --build-only --push --image-label latest
+fly machine run registry.fly.io/mesa-digital-backup:latest --schedule daily --restart no \
+  --vm-memory 512 --region gru -a mesa-digital-backup
+```
+
+Depois de mudar `backup.sh`: `fly deploy --build-only --push --image-label latest` e
+`fly machine update <id> --image registry.fly.io/mesa-digital-backup:latest -a mesa-digital-backup`.
+Rodar agora: `fly machine start <id> -a mesa-digital-backup`; ver o resultado: `fly logs -a mesa-digital-backup`.
+
+Restaurar (precisa do cliente do PostgreSQL 17 e do gpg; baixe o arquivo no painel do R2):
 
 ```bash
 gpg --decrypt mesa-digital-AAAA-MM-DD.dump.gpg > backup.dump          # pede a senha
