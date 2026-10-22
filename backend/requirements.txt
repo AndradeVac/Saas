@@ -28,3 +28,6 @@ pillow==12.3.0
 
 # Image storage (Cloudflare R2, S3-compatible); optional at runtime
 boto3==1.43.108
+
+# Error alerts (Sentry); off unless SENTRY_DSN is set
+sentry-sdk[fastapi]==2.73.0

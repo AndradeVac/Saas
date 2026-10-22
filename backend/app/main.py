@@ -27,8 +27,10 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import register_exception_handlers
 from app.core.logging_config import configure_logging
+from app.core.monitoring import init_monitoring
 
 configure_logging()
+init_monitoring()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(

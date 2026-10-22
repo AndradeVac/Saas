@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     asaas_webhook_token: str = ""
     # Days a paid plan keeps working after a missed payment before orders stop.
     billing_grace_days: int = 5
+    # Error alerts (Sentry). Empty = off.
+    sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.
     resend_api_key: str = ""
     email_from: str = "Mesa Digital <nao-responda@mesadig.com.br>"
