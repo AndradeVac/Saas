@@ -6,6 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
 import { cancelPublicOrder, getOrderPix, reviewOrder, trackOrder, type Tracking } from '../../services/publicMenu'
+import { pushSupported, subscribeOrderPush } from '../../lib/push'
 import { apiErrorMessage } from '../../services/api'
 import type { OrderStatus, PublicTenant } from '../../types'
 
@@ -96,6 +97,17 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
   const [order, setOrder] = useState<Tracking | null>(null)
   const [missing, setMissing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [alerting, setAlerting] = useState(false)
+  async function alertMe() {
+    try {
+      const state = await subscribeOrderPush(token)
+      if (state === 'on') { setAlerting(true); toast.success('Pronto! Avisamos neste celular quando o pedido estiver pronto.') }
+      else if (state === 'blocked') toast.error('As notificações estão bloqueadas neste navegador.')
+      else toast.error('Este celular não aceita avisos pelo navegador. No iPhone, adicione o cardápio à tela de início.')
+    } catch {
+      toast.error('Não foi possível ativar o aviso.')
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -158,6 +170,11 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
             ))}
           </ol>
           <p className="alert info">{waitingPix ? 'Pague o PIX abaixo. Assim que o pagamento for confirmado, seu pedido entra em preparo.' : stepHints[status]}</p>
+          {(status === 'RECEIVED' || status === 'PREPARING') && !order.table_label && (
+            tenant.whatsapp_notifications
+              ? <p className="muted eta">📲 Vamos avisar pelo WhatsApp quando estiver pronto.</p>
+              : !alerting && pushSupported() && <button className="btn block" onClick={() => void alertMe()}>🔔 Avisar neste celular quando ficar pronto</button>
+          )}
           {(status === 'RECEIVED' || status === 'PREPARING') && (
             <p className="muted eta">⏱ {order.service_type === 'DELIVERY'
               ? `Previsão de entrega: cerca de ${tenant.delivery_minutes} min após o pedido.`

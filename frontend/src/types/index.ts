@@ -54,6 +54,8 @@ export type PublicTenant = {
   loyalty_reward: string | null
   google_review_url: string | null
   scheduling_enabled: boolean
+  notify_customers: boolean
+  whatsapp_notifications: boolean
 }
 
 export type TenantSettings = PublicTenant & {

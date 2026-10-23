@@ -47,6 +47,7 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
   const [couponError, setCouponError] = useState('')
   const [withFee, setWithFee] = useState(true)
   const [optIn, setOptIn] = useState(false)
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
@@ -125,6 +126,7 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
         coupon_code: coupon?.code,
         waive_service_fee: feeRate > 0 && !onTab && !withFee,
         marketing_opt_in: optIn,
+        notify_whatsapp: tenant.whatsapp_notifications && !onTab && notifyWhatsapp,
         items: lines.map((line) => ({
           product_id: line.productId,
           quantity: line.quantity,
@@ -294,6 +296,12 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
         {deliveryFee > 0 && <div className="total-row sub"><span>Entrega</span><span>{formatMoney(deliveryFee)}</span></div>}
       </div>
       {onTab && feeRate > 0 && <p className="muted"><small>A taxa de serviço é opcional: você pode retirar ao fechar a conta.</small></p>}
+      {tenant.whatsapp_notifications && !onTab && (
+        <label className="check-line">
+          <input type="checkbox" checked={notifyWhatsapp} onChange={(e) => setNotifyWhatsapp(e.target.checked)} />
+          <span>Me avise pelo WhatsApp quando o pedido estiver pronto.</span>
+        </label>
+      )}
       <label className="check-line">
         <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
         <span>Quero receber novidades e promoções de {tenant.name.trim()} pelo WhatsApp.</span>

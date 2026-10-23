@@ -32,3 +32,21 @@ export async function enablePush(): Promise<PushState> {
   await api.post('/push/subscribe', { endpoint: json.endpoint, keys: json.keys })
   return 'on'
 }
+
+/** Customer side: a notification on this phone when the order is being prepared / is ready (no login). */
+export async function subscribeOrderPush(orderToken: string): Promise<PushState> {
+  if (!supported()) return 'unsupported'
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') return permission === 'denied' ? 'blocked' : 'off'
+  const { data } = await api.get<{ key: string | null }>('/push/public-key')
+  if (!data.key) return 'unsupported'
+  const registration = await navigator.serviceWorker.register('/sw.js')
+  await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+    ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(data.key) })
+  const json = subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
+  await api.post(`/public/orders/${orderToken}/push`, { endpoint: json.endpoint, keys: json.keys })
+  return 'on'
+}
+
+export const pushSupported = supported

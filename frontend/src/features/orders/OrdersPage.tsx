@@ -9,6 +9,8 @@ import { formatMoney, formatTime, paymentMethodLabels, serviceShortLabels, timeA
 import { apiErrorMessage } from '../../services/api'
 import { awaitingPix, updateOrderPayment, updateOrderStatus, type Order } from '../../services/orders'
 import { useTenant } from '../tenant/TenantProvider'
+import { usePlan } from '../plans/PlanProvider'
+import { offerReadyWhatsapp } from '../../lib/notify'
 import type { OrderStatus } from '../../types'
 import { useLiveOrders } from './LiveOrders'
 
@@ -48,13 +50,16 @@ export function OrdersPage() {
   }, [])
 
   const { tenant } = useTenant()
+  const { catalog } = usePlan()
   const hasPixKey = Boolean(tenant.pix_key)
 
   async function advance(order: Order, next: OrderStatus) {
     setUpdating(order.id)
     try {
       // PIX takeaway: confirming the payment is what sends it to the kitchen.
-      replace(awaitingPix(order, hasPixKey) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next))
+      const updated = awaitingPix(order, hasPixKey) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
+      replace(updated)
+      if (updated.status === 'READY' && !catalog?.whatsapp_auto) offerReadyWhatsapp(updated, tenant.name.trim())
       void refresh()
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Não foi possível atualizar o pedido.'))

@@ -15,6 +15,7 @@ from app.core.rate_limit import public_lookup_rate_limit, public_order_rate_limi
 from app.core.tenancy import get_tenant
 from app.models.order import Order, OrderStatus
 from app.models.order_review import OrderReview
+from app.models.push_subscription import OrderPushSubscription
 from app.models.tenant import Tenant
 from app.repositories.category import CategoryRepository
 from app.repositories.customer import CustomerRepository
@@ -22,6 +23,7 @@ from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 from app.schemas.order import OrderCreate, OrderItemCreate
 from app.schemas.public import (
+    OrderPushIn,
     ReviewCreate,
     CouponCheckRequest,
     CouponCheckResponse,
@@ -150,6 +152,7 @@ def create_public_order(
             waive_service_fee=data.waive_service_fee,
             delivery_zone=data.delivery_zone,
             scheduled_for=data.scheduled_for,
+            notify_whatsapp=data.notify_whatsapp,
             items=[
                 OrderItemCreate(product_id=i.product_id, quantity=i.quantity, notes=i.notes, options=i.options)
                 for i in data.items
@@ -226,6 +229,20 @@ def report_tab_pix(token: UUID, data: PixReport, tenant: Tenant = Depends(get_te
 @router.post("/orders/{public_token}/cancel", status_code=204, dependencies=[Depends(public_order_rate_limit)])
 def cancel_public_order(public_token: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
     OrderService(db, tenant.id).cancel_by_customer(public_token)
+
+
+@router.post("/orders/{public_token}/push", status_code=204, dependencies=[Depends(public_order_rate_limit)])
+def subscribe_order_push(public_token: UUID, data: OrderPushIn, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """The customer wants a notification on this phone when the order is being prepared / is ready."""
+    order = OrderRepository(db, tenant.id).get_by_public_token(public_token)
+    if order is None:
+        raise NotFoundError("Pedido não encontrado.")
+    if not data.endpoint.startswith("https://"):
+        raise BusinessRuleError("Inscrição inválida.")
+    exists = db.scalar(select(OrderPushSubscription).where(OrderPushSubscription.order_id == order.id, OrderPushSubscription.endpoint == data.endpoint))
+    if exists is None:
+        db.add(OrderPushSubscription(order_id=order.id, endpoint=data.endpoint, p256dh=data.keys.p256dh, auth=data.keys.auth))
+        db.commit()
 
 
 @router.get("/orders/{public_token}/pix", response_model=PixCode, dependencies=[Depends(public_lookup_rate_limit)])
