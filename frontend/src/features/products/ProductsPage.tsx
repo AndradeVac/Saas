@@ -159,14 +159,14 @@ export function ProductsPage() {
 
   return (
     <section className="page">
-      {importing && <MenuImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); void load() }} />}
+      {importing && <MenuImportModal photoReading={!!plan.catalog?.menu_import} onClose={() => setImporting(false)} onDone={() => { setImporting(false); void load() }} />}
       <PageHeader
         title="Produtos"
         subtitle={plan.status?.plan.max_products != null
           ? `${plan.status.usage.products} de ${plan.status.plan.max_products} produtos ativos no plano ${plan.status.plan.name}.`
           : 'Tudo o que aparece no cardápio dos seus clientes.'}
         actions={<>
-          {plan.catalog?.menu_import && <button className="btn" onClick={() => setImporting(true)}><Camera size={16} /> Importar por foto</button>}
+          <button className="btn" onClick={() => setImporting(true)}><Camera size={16} /> Importar cardápio</button>
           <button className="btn primary" disabled={activeCategories.length === 0} onClick={openNew}><Plus size={16} /> Novo produto</button>
         </>}
       />
@@ -193,10 +193,10 @@ export function ProductsPage() {
         <EmptyState
           icon={<Plus size={26} />}
           title="Nenhum produto ainda"
-          hint={plan.catalog?.menu_import ? 'Tire uma foto do seu cardápio e a gente cadastra tudo para você conferir, ou cadastre um por um.' : 'Cadastre o primeiro produto para ele aparecer no cardápio.'}
+          hint="Importe o seu cardápio a partir de fotos e confira tudo antes de salvar, ou cadastre um por um."
           action={<div className="row" style={{ justifyContent: 'center' }}>
-            {plan.catalog?.menu_import && <button className="btn primary" onClick={() => setImporting(true)}><Camera size={16} /> Importar cardápio por foto</button>}
-            <button className={`btn ${plan.catalog?.menu_import ? '' : 'primary'}`} onClick={openNew} disabled={activeCategories.length === 0}>Cadastrar produto</button>
+            <button className="btn primary" onClick={() => setImporting(true)}><Camera size={16} /> Importar cardápio</button>
+            <button className="btn" onClick={openNew} disabled={activeCategories.length === 0}>Cadastrar produto</button>
           </div>}
         />
       ) : grouped.map(({ category, items }) => {
