@@ -23,5 +23,8 @@ export async function getDashboard(period: Period, start?: string, end?: string)
   return data
 }
 
-export const downloadDashboard = (period: Period, format: 'xlsx' | 'pdf') =>
-  downloadCsv('/analytics/dashboard/export', new URLSearchParams({ period, format }), `dashboard-${period}.${format}`)
+export function downloadDashboard(period: Period, format: 'xlsx' | 'pdf', start?: string, end?: string) {
+  const params = new URLSearchParams({ period, format })
+  if (start && end) { params.set('start', start); params.set('end', end) }
+  return downloadCsv('/analytics/dashboard/export', params, `relatorio-de-vendas.${format}`)
+}

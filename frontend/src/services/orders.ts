@@ -94,5 +94,8 @@ export async function downloadCsv(path: string, params: URLSearchParams | undefi
   URL.revokeObjectURL(url)
 }
 
-export const exportOrders = (filters: OrderFilters) =>
-  downloadCsv('/orders/export', serialize({ ...filters, page: undefined, page_size: undefined }), 'pedidos.csv')
+export function exportOrders(filters: OrderFilters) {
+  const params = serialize({ ...filters, page: undefined, page_size: undefined })
+  params.set('format', 'xlsx')
+  return downloadCsv('/orders/export', params, 'pedidos.xlsx')
+}

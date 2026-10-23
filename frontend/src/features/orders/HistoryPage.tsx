@@ -64,7 +64,7 @@ export function HistoryPage() {
       <PageHeader
         title="Histórico de pedidos"
         subtitle="Busque qualquer pedido, filtre por período e exporte para o Excel."
-        actions={<button className="btn" onClick={download}><Download size={16} /> Exportar CSV</button>}
+        actions={<button className="btn" onClick={download}><Download size={16} /> Exportar Excel</button>}
       />
 
       <div className="toolbar">

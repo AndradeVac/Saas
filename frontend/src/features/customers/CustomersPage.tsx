@@ -64,7 +64,7 @@ export function CustomersPage() {
         title="Clientes"
         subtitle="Quem já pediu na sua casa, quanto gastou e quando voltou."
         actions={<>
-          <button className="btn" onClick={() => guard('exports', () => { downloadCsv('/customers/export', undefined, 'clientes.csv').catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') }) })}><Download size={16} /> Exportar</button>
+          <button className="btn" onClick={() => guard('exports', () => { downloadCsv('/customers/export', new URLSearchParams({ format: 'xlsx' }), 'clientes.xlsx').catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') }) })}><Download size={16} /> Exportar</button>
           <button className="btn primary" onClick={() => { setFormError(''); setDraft({ name: '', phone: '', notes: '', active: true }) }}><Plus size={16} /> Novo cliente</button>
         </>}
       />

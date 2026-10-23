@@ -1,15 +1,10 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from io import BytesIO
 from zoneinfo import ZoneInfo
 
-from openpyxl import Workbook
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.spreadsheet import neutralise_formulas
 from app.core.exceptions import BusinessRuleError
 from app.models.category import Category
 from app.models.order import Order, OrderStatus
@@ -74,6 +69,7 @@ class AnalyticsService:
         period: str = "month",
         custom_start: date | None = None,
         custom_end: date | None = None,
+        product_limit: int | None = 10,
     ) -> DashboardAnalyticsResponse:
         if period not in _PERIODS:
             raise BusinessRuleError("Período inválido. Use month, quarter ou all.")
@@ -101,7 +97,7 @@ class AnalyticsService:
             .where(*conditions)
             .group_by(OrderItem.product_id, Product.name)
             .order_by(func.sum(OrderItem.quantity).desc())
-            .limit(10)
+            .limit(product_limit)
         ).all()
 
         category_rows = self.db.execute(
@@ -189,45 +185,3 @@ class AnalyticsService:
             previous_revenue=previous_revenue,
             revenue_change_percent=revenue_change_percent,
         )
-
-    def export_xlsx(self, period: str) -> bytes:
-        dashboard = self.dashboard(period)
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.title = "Resumo"
-        sheet.append([self.tenant.name])
-        sheet.append(["Período", dashboard.period])
-        sheet.append(["Faturamento", float(dashboard.revenue)])
-        sheet.append(["Pedidos", dashboard.order_count])
-        sheet.append(["Ticket médio", float(dashboard.average_ticket)])
-        sheet.append([])
-        sheet.append(["Produto", "Quantidade", "Receita"])
-        for product in dashboard.products:
-            sheet.append([product.product_name, product.quantity, float(product.revenue)])
-        for sheet in workbook.worksheets:
-            neutralise_formulas(sheet)
-        output = BytesIO()
-        workbook.save(output)
-        return output.getvalue()
-
-    def export_pdf(self, period: str) -> bytes:
-        dashboard = self.dashboard(period)
-        output = BytesIO()
-        document = canvas.Canvas(output, pagesize=A4)
-        document.setTitle(f"{self.tenant.name} - Dashboard")
-        document.setFont("Helvetica-Bold", 18)
-        document.drawString(48, 790, f"{self.tenant.name} - Dashboard")
-        document.setFont("Helvetica", 10)
-        document.drawString(48, 770, f"Período: {dashboard.period}")
-        document.drawString(48, 750, f"Faturamento: R$ {dashboard.revenue:.2f}")
-        document.drawString(48, 732, f"Pedidos: {dashboard.order_count}")
-        document.drawString(48, 714, f"Ticket médio: R$ {dashboard.average_ticket:.2f}")
-        document.setFont("Helvetica-Bold", 12)
-        document.drawString(48, 680, "Produtos mais vendidos")
-        document.setFont("Helvetica", 10)
-        y_position = 660
-        for index, product in enumerate(dashboard.products[:10], start=1):
-            document.drawString(58, y_position, f"{index}. {product.product_name} - {product.quantity} un. - R$ {product.revenue:.2f}")
-            y_position -= 18
-        document.save()
-        return output.getvalue()
