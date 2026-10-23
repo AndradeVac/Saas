@@ -48,7 +48,7 @@ def test_returning_customers_abc_and_win_back_list(make_tenant):
     # LGPD: only the customer who agreed to promotions is listed; the other is just counted.
     assert [c["name"] for c in data["at_risk"]] == ["Sumido"] and data["at_risk"][0]["days_since"] >= 39
     assert data["lapsed_without_consent"] == 1
-    assert data["top_customers"][0]["name"] in ("Fiel", "Sumido")
+    assert data["top_customers"][0]["name"] in ("Fiel", "Sumido", "Sumido sem consentimento")  # all spent R$ 80 (tie)
     assert len(data["heatmap"]) >= 1
 
 
