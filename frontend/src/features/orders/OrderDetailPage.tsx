@@ -56,7 +56,7 @@ export function OrderDetailPage() {
   }
 
   const next = FLOW[FLOW.indexOf(order.status) + 1]
-  const waitingPix = awaitingPix(order, Boolean(tenant.pix_key))
+  const waitingPix = awaitingPix(order, tenant)
   const closed = order.status === 'FINISHED' || order.status === 'CANCELLED'
   const cancellation = order.status_history.find((h) => h.status === 'CANCELLED')
 

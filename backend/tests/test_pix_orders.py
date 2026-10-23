@@ -51,3 +51,12 @@ def test_takeaway_pix_waits_for_payment_before_preparing(make_tenant):
         n = shop.public_order(product["id"], service_type=service, payment_method=method, **extra).json()["order_number"]
         other = next(o for o in shop.get("/orders").json()["items"] if o["order_number"] == n)
         assert shop.patch(f"/orders/{other['id']}/status", {"status": "PREPARING"}).status_code == 200
+
+
+def test_store_can_start_takeaway_pix_orders_right_away(make_tenant):
+    shop = make_tenant()
+    shop.patch("/tenant/settings", {"pix_key": "dono@padaria.com", "accepted_payments": ["PIX", "CASH"], "require_pix_takeaway": False})
+    product = shop.add_product(price="20.00")
+    number = shop.public_order(product["id"], service_type="TAKEAWAY", payment_method="PIX").json()["order_number"]
+    order = next(o for o in shop.get("/orders").json()["items"] if o["order_number"] == number)
+    assert shop.patch(f"/orders/{order['id']}/status", {"status": "PREPARING"}).status_code == 200

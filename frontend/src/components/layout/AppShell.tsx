@@ -131,7 +131,7 @@ export function AppShell() {
 
   return (
     <PlanProvider>
-    <LiveOrdersProvider storeName={tenant.name.trim()}>
+    <LiveOrdersProvider storeName={tenant.name.trim()} store={tenant}>
     <TablesLiveProvider>
       {pathname === '/painel/cozinha' ? <Outlet /> : (
       <div className="app-shell">
