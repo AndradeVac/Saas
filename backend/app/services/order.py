@@ -27,6 +27,15 @@ from app.services.tab import TabService
 _CENTS = Decimal("0.01")
 
 
+def awaiting_pix(order: Order, tenant: Tenant) -> bool:
+    """Takeaway paid by PIX (with the QR Code on the order screen): the kitchen only starts once the PIX is in."""
+    return (
+        order.service_type is ServiceType.TAKEAWAY and order.payment_method is PaymentMethod.PIX
+        and order.payment_status is not PaymentStatus.PAID and order.status is OrderStatus.RECEIVED
+        and order.tab_id is None and bool(normalize_pix_key(tenant.pix_key or ""))
+    )
+
+
 def resolve_options(product: Product, item: OrderItemCreate) -> tuple[list[dict], Decimal]:
     """Validates the customer's choices against the product's option groups.
     Returns the snapshot stored on the order item and the extra price per unit."""
@@ -198,6 +207,8 @@ class OrderService:
             raise BusinessRuleError(f"Não é possível alterar {order.status.value} para {data.status.value}.")
         if data.status is OrderStatus.CANCELLED and not data.reason:
             raise BusinessRuleError("Informe o motivo do cancelamento.")
+        if data.status is not OrderStatus.CANCELLED and awaiting_pix(order, self.db.get(Tenant, self.tenant_id)):
+            raise BusinessRuleError("Aguardando o PIX do cliente. Confirme o pagamento para iniciar o preparo.")
 
         order.status = data.status
         order.status_history.append(
@@ -225,9 +236,14 @@ class OrderService:
         if order.tab_id:
             raise BusinessRuleError("Este pedido é pago junto com a comanda da mesa. Feche a conta em Mesas.")
 
+        was_waiting = awaiting_pix(order, self.db.get(Tenant, self.tenant_id))
         if data.payment_method is not None:
             order.payment_method = data.payment_method
         order.payment_status = data.payment_status
+        if was_waiting and data.payment_status is PaymentStatus.PAID:
+            # PIX confirmed: the order goes straight to the kitchen.
+            order.status = OrderStatus.PREPARING
+            order.status_history.append(OrderStatusHistory(status=OrderStatus.PREPARING, changed_by_user_id=actor.id if actor else None))
         order.paid_at = datetime.now(timezone.utc) if data.payment_status is PaymentStatus.PAID else None
         record_audit(
             self.db, self.tenant_id, actor, "ORDER_PAYMENT_CHANGED", "ORDER", order.id,

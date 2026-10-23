@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { EmptyState, PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatMoney, formatTime, paymentMethodLabels, serviceShortLabels, timeAgo } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { updateOrderStatus, type Order } from '../../services/orders'
+import { awaitingPix, updateOrderPayment, updateOrderStatus, type Order } from '../../services/orders'
+import { useTenant } from '../tenant/TenantProvider'
 import type { OrderStatus } from '../../types'
 import { useLiveOrders } from './LiveOrders'
 
@@ -31,10 +32,14 @@ export function OrdersPage() {
     return () => window.clearInterval(timer)
   }, [])
 
+  const { tenant } = useTenant()
+  const hasPixKey = Boolean(tenant.pix_key)
+
   async function advance(order: Order, next: OrderStatus) {
     setUpdating(order.id)
     try {
-      replace(await updateOrderStatus(order.id, next))
+      // PIX takeaway: confirming the payment is what sends it to the kitchen.
+      replace(awaitingPix(order, hasPixKey) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next))
       void refresh()
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Não foi possível atualizar o pedido.'))
@@ -121,7 +126,7 @@ export function OrdersPage() {
                       <div className="order-card-foot">
                         <strong>{formatMoney(order.total)}</strong>
                         <span className={`badge ${order.payment_status === 'PAID' ? 'ok' : 'warn'}`}>
-                          {order.payment_status === 'PAID' ? 'Pago' : paymentMethodLabels[order.payment_method]}
+                          {order.payment_status === 'PAID' ? 'Pago' : awaitingPix(order, hasPixKey) ? 'Aguardando PIX' : paymentMethodLabels[order.payment_method]}
                         </span>
                       </div>
                       {column.next && (
@@ -130,7 +135,7 @@ export function OrdersPage() {
                           disabled={updating === order.id}
                           onClick={(e) => { e.stopPropagation(); void advance(order, column.next!) }}
                         >
-                          <ArrowRight size={14} /> {updating === order.id ? 'Atualizando…' : column.action}
+                          <ArrowRight size={14} /> {updating === order.id ? 'Atualizando…' : awaitingPix(order, hasPixKey) ? 'PIX recebido · iniciar preparo' : column.action}
                         </button>
                       )}
                     </article>
