@@ -1,5 +1,5 @@
 """Endpoints of the platform itself (no tenant yet): self-service sign-up."""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -8,6 +8,7 @@ from app.core.plans import plan_catalog
 from app.core.rate_limit import signup_rate_limit, slug_check_rate_limit
 from app.schemas.plan import PlanCatalog
 from app.schemas.tenant import SignupRequest, SignupResponse, SlugAvailability
+from app.services import lifecycle
 from app.services.tenant import TenantService
 
 router = APIRouter(prefix="/platform", tags=["Platform"])
@@ -25,8 +26,9 @@ def list_plans():
 
 
 @router.post("/signup", response_model=SignupResponse, status_code=201, dependencies=[Depends(signup_rate_limit)])
-def signup(data: SignupRequest, db: Session = Depends(get_db)):
+def signup(data: SignupRequest, background: BackgroundTasks, db: Session = Depends(get_db)):
     tenant = TenantService(db).signup(data)
+    background.add_task(lifecycle.welcome, tenant.id)
     return SignupResponse(
         slug=tenant.slug,
         name=tenant.name,

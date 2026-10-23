@@ -3,6 +3,7 @@ from app.models.billing_event import BillingEvent
 from app.models.category import Category
 from app.models.coupon import Coupon, CouponKind
 from app.models.customer import Customer
+from app.models.lifecycle_email import LifecycleEmail
 from app.models.media import Media
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
@@ -24,6 +25,7 @@ __all__ = [
     "Coupon",
     "CouponKind",
     "Customer",
+    "LifecycleEmail",
     "Media",
     "Order",
     "OrderItem",

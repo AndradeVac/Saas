@@ -10,6 +10,7 @@ export type SignupPayload = {
   email: string
   password: string
   accept_terms: boolean
+  referred_by?: string
 }
 
 export async function signup(payload: SignupPayload) {

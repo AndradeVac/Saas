@@ -6,6 +6,8 @@ primary_region = "gru"
 [build]
   [build.args]
     VITE_ROOT_DOMAIN = "mesadig.com.br"
+    # Menu shown inside the phone on the landing page.
+    VITE_DEMO_SLUG = "hamburgueria-teste"
 
 [deploy]
   # Runs once per deploy, before the new version takes traffic.

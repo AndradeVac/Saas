@@ -41,6 +41,33 @@ async def security_headers(request, call_next):
     return response
 
 
+@web.on_event("startup")
+async def start_background_jobs() -> None:
+    """Every hour: lifecycle e-mails (each goes out once, so several processes running this is fine)."""
+    import asyncio
+
+    from fastapi.concurrency import run_in_threadpool
+
+    from app.services import lifecycle
+
+    enabled = settings.background_jobs if settings.background_jobs is not None else settings.is_production
+    if not enabled:
+        return
+
+    async def loop() -> None:
+        await asyncio.sleep(60)  # let the app finish booting
+        while True:
+            try:
+                await run_in_threadpool(lifecycle.run)
+            except Exception:  # never let the loop die
+                import logging
+
+                logging.getLogger(__name__).exception("Background jobs failed")
+            await asyncio.sleep(3600)
+
+    asyncio.get_running_loop().create_task(loop())
+
+
 web.mount("/api", api)
 
 

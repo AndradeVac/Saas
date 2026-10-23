@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatMoney } from '../../lib/format'
 import { apiErrorMessage, PLAN_LIMIT_EVENT, type PlanLimitDetail } from '../../services/api'
-import { getPlanCatalog, getPlanStatus, paidPlans, salesLink, subscribe, type FeatureKey, type PlanCatalog, type PlanInfo, type PlanStatus } from '../../services/plans'
+import { getPlanCatalog, getPlanStatus, paidPlans, salesLink, subscribe, type Cycle, type FeatureKey, type PlanCatalog, type PlanInfo, type PlanStatus } from '../../services/plans'
 import { useAuth } from '../auth/AuthProvider'
 import { useTenant } from '../tenant/TenantProvider'
 
@@ -115,7 +115,7 @@ export function usePlan() {
 }
 
 /** "Quero este plano": online checkout (Asaas) when available, else WhatsApp with a ready message. */
-export function SubscribeButton({ plan, className = 'btn primary block', children }: { plan: PlanInfo; className?: string; children?: ReactNode }) {
+export function SubscribeButton({ plan, className = 'btn primary block', children, cycle = 'MONTHLY' }: { plan: PlanInfo; className?: string; children?: ReactNode; cycle?: Cycle }) {
   const { catalog } = usePlan()
   const { tenant } = useTenant()
   const [open, setOpen] = useState(false)
@@ -125,7 +125,7 @@ export function SubscribeButton({ plan, className = 'btn primary block', childre
     return (
       <>
         <button className={className} onClick={() => setOpen(true)}><CreditCard size={16} /> {label}</button>
-        {open && <SubscribeModal plan={plan} onClose={() => setOpen(false)} />}
+        {open && <SubscribeModal plan={plan} cycle={cycle} onClose={() => setOpen(false)} />}
       </>
     )
   }
@@ -135,8 +135,11 @@ export function SubscribeButton({ plan, className = 'btn primary block', childre
   return <Link className={className} to="/painel/plano#assinar">{label}</Link>
 }
 
-function SubscribeModal({ plan, onClose }: { plan: PlanInfo; onClose: () => void }) {
+function SubscribeModal({ plan, cycle, onClose }: { plan: PlanInfo; cycle: Cycle; onClose: () => void }) {
   const { user } = useAuth()
+  const { catalog } = usePlan()
+  const yearly = cycle === 'YEARLY'
+  const charge = yearly ? Number(plan.price) * (catalog?.annual_months_charged ?? 10) : Number(plan.price)
   const [documentNumber, setDocumentNumber] = useState('')
   const [email, setEmail] = useState(user?.email ?? '')
   const [sending, setSending] = useState(false)
@@ -149,7 +152,7 @@ function SubscribeModal({ plan, onClose }: { plan: PlanInfo; onClose: () => void
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError('Informe um e-mail válido.')
     setSending(true)
     try {
-      const { checkout_url } = await subscribe(plan.key, digits, email.trim())
+      const { checkout_url } = await subscribe(plan.key, digits, email.trim(), cycle)
       if (checkout_url) window.location.href = checkout_url
       else { toast.success('Assinatura atualizada.'); onClose() }
     } catch (err) {
@@ -160,15 +163,15 @@ function SubscribeModal({ plan, onClose }: { plan: PlanInfo; onClose: () => void
 
   return (
     <Modal
-      title={`Assinar o ${plan.name}`}
+      title={`Assinar o ${plan.name}${yearly ? ' (anual)' : ''}`}
       onClose={onClose}
       size="sm"
-      footer={<><button className="btn" onClick={onClose}>Voltar</button><button className="btn primary" disabled={sending} onClick={() => void submit()}>{sending ? 'Abrindo o pagamento…' : `Ir para o pagamento · ${formatMoney(plan.price)}/mês`}</button></>}
+      footer={<><button className="btn" onClick={onClose}>Voltar</button><button className="btn primary" disabled={sending} onClick={() => void submit()}>{sending ? 'Abrindo o pagamento…' : `Ir para o pagamento · ${formatMoney(charge)}/${yearly ? 'ano' : 'mês'}`}</button></>}
     >
       <p className="muted">Você paga com <strong>PIX, boleto ou cartão</strong> na página segura do Asaas. Assim que o pagamento for confirmado, o plano é liberado automaticamente.</p>
       <label className="field"><span>CPF ou CNPJ de quem paga</span><input inputMode="numeric" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="000.000.000-00" autoFocus /></label>
       <label className="field"><span>E-mail para a nota e os avisos de cobrança</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <p className="muted"><small>Cobrança mensal, sem fidelidade: cancele quando quiser pelo próprio painel.</small></p>
+      <p className="muted"><small>{yearly ? 'Cobrança anual: 12 meses pelo preço de 10.' : 'Cobrança mensal, sem fidelidade: cancele quando quiser pelo próprio painel.'}</small></p>
       {error && <div className="alert error" role="alert">{error}</div>}
     </Modal>
   )

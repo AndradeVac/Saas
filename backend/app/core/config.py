@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:contato@mesadig.com.br"
+    # Hourly background job (lifecycle e-mails). On by default in production.
+    background_jobs: bool | None = None
+    # Platform panel (/admin): only whoever has this token sees every store. Empty = panel off.
+    platform_admin_token: str = ""
     # Error alerts (Sentry). Empty = off.
     sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.

@@ -1,11 +1,12 @@
-import { Check, CreditCard, Minus, Sparkles } from 'lucide-react'
+import { Check, Copy, CreditCard, Gift, Minus, Sparkles } from 'lucide-react'
+import { ROOT_DOMAIN } from '../../lib/tenant'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useConfirm } from '../../components/ui/Confirm'
 import { apiErrorMessage } from '../../services/api'
 import { PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatDate, formatMoney } from '../../lib/format'
-import { cancelSubscription, paidPlans, payNow, type FeatureKey, type PlanInfo } from '../../services/plans'
+import { cancelSubscription, paidPlans, payNow, type Cycle, type FeatureKey, type PlanInfo } from '../../services/plans'
 import { useTenant } from '../tenant/TenantProvider'
 import { planHighlights, SubscribeButton, usePlan } from './PlanProvider'
 
@@ -33,6 +34,7 @@ const coreRows = ['Cardápio digital com fotos', 'QR Code por mesa', 'Pedidos em
 export function PlanPage() {
   const { status, catalog, refresh } = usePlan()
   const { tenant } = useTenant()
+  const [cycle, setCycle] = useState<Cycle>('MONTHLY')
   useEffect(() => { void refresh() }, [refresh])
 
   if (!status || !catalog) {
@@ -68,6 +70,12 @@ export function PlanPage() {
       {status.billing_status !== 'NONE' && <BillingCard />}
 
       <h2 id="assinar" className="section-heading">{status.billing_status === 'ACTIVE' ? 'Trocar de plano' : 'Escolha o seu plano'}</h2>
+      {catalog.online_billing && (
+        <div className="segmented choice cycle-toggle" role="radiogroup" aria-label="Forma de cobrança">
+          <button className={cycle === 'MONTHLY' ? 'active' : ''} onClick={() => setCycle('MONTHLY')} role="radio" aria-checked={cycle === 'MONTHLY'}>Mensal</button>
+          <button className={cycle === 'YEARLY' ? 'active' : ''} onClick={() => setCycle('YEARLY')} role="radio" aria-checked={cycle === 'YEARLY'}>Anual · 2 meses grátis</button>
+        </div>
+      )}
       <div className="plan-grid">
         {paidPlans(catalog).map((plan) => {
           const current = !trial && !courtesy && plan.key === status.plan.key
@@ -75,14 +83,16 @@ export function PlanPage() {
             <div key={plan.key} className={`plan-card ${plan.highlight ? 'highlight' : ''}`}>
               {plan.highlight && <span className="plan-ribbon"><Sparkles size={13} /> Mais escolhido</span>}
               <h3>{plan.name}</h3>
-              <div className="plan-price"><strong>{formatMoney(plan.price)}</strong><span>/mês</span></div>
+              {cycle === 'YEARLY'
+                ? <div className="plan-price"><strong>{formatMoney(Number(plan.price) * catalog.annual_months_charged)}</strong><span>/ano · equivale a {formatMoney((Number(plan.price) * catalog.annual_months_charged) / 12)}/mês</span></div>
+                : <div className="plan-price"><strong>{formatMoney(plan.price)}</strong><span>/mês</span></div>}
               <p className="muted plan-tagline">{plan.tagline}</p>
               <ul className="plan-list">
                 {planHighlights(plan, catalog).map((line) => <li key={line}><Check size={15} /> {line}</li>)}
               </ul>
               {current
                 ? <button className="btn block" disabled>Seu plano atual</button>
-                : <SubscribeButton plan={plan} className={`btn ${plan.highlight ? 'primary' : ''} block`} />}
+                : <SubscribeButton plan={plan} cycle={cycle} className={`btn ${plan.highlight ? 'primary' : ''} block`} />}
             </div>
           )
         })}
@@ -90,6 +100,8 @@ export function PlanPage() {
       {!catalog.sales_whatsapp && (
         <p className="muted center-link">Para assinar, fale com o suporte da plataforma e informe o endereço <strong>{tenant.slug}</strong>.</p>
       )}
+
+      <ReferralCard slug={tenant.slug} name={tenant.name.trim()} />
 
       <div className="card table-wrap compare">
         <table className="table">
@@ -116,6 +128,24 @@ export function PlanPage() {
   )
 }
 
+
+/** "Indique e ganhe": a link that records who recommended the new store (a free month for each one that subscribes). */
+function ReferralCard({ slug, name }: { slug: string; name: string }) {
+  const link = `https://${ROOT_DOMAIN}/cadastro?ref=${slug}`
+  const message = `Uso o Mesa Digital no ${name} para cardápio digital e pedidos pelo celular, sem comissão. Testa grátis por 14 dias: ${link}`
+  return (
+    <div className="card referral">
+      <div>
+        <h3><Gift size={18} /> Indique e ganhe 1 mês grátis</h3>
+        <p className="muted" style={{ margin: 0 }}>Para cada restaurante que assinar pelo seu link, você ganha um mês do seu plano.</p>
+      </div>
+      <div className="row">
+        <button className="btn" onClick={() => { void navigator.clipboard?.writeText(link); toast.success('Link copiado') }}><Copy size={16} /> Copiar link</button>
+        <a className="btn primary" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">Enviar no WhatsApp</a>
+      </div>
+    </div>
+  )
+}
 
 /** Online subscription state with the one action that matters in each case. */
 function BillingCard() {

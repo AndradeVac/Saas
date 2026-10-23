@@ -48,21 +48,21 @@ def create_customer(name: str, document: str, email: str, phone: str | None, ref
     return _request("POST", "/customers", body)["id"]
 
 
-def create_subscription(customer_id: str, value: str, description: str, reference: str, next_due_date: str) -> dict:
+def create_subscription(customer_id: str, value: str, description: str, reference: str, next_due_date: str, cycle: str = "MONTHLY") -> dict:
     return _request("POST", "/subscriptions", {
         "customer": customer_id,
         "billingType": "UNDEFINED",  # the customer picks PIX, boleto or card on Asaas' page
         "value": value,
         "nextDueDate": next_due_date,
-        "cycle": "MONTHLY",
+        "cycle": cycle,  # MONTHLY or YEARLY
         "description": description,
         "externalReference": reference,
     })
 
 
-def update_subscription(subscription_id: str, value: str, description: str) -> dict:
+def update_subscription(subscription_id: str, value: str, description: str, cycle: str = "MONTHLY") -> dict:
     return _request("POST", f"/subscriptions/{subscription_id}", {
-        "value": value, "description": description, "updatePendingPayments": True,
+        "value": value, "description": description, "cycle": cycle, "updatePendingPayments": True,
     })
 
 

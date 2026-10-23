@@ -20,6 +20,7 @@ class SubscribeRequest(BaseModel):
     plan: str = Field(min_length=2, max_length=30)
     document: str = Field(min_length=11, max_length=20)  # CPF or CNPJ of whoever pays
     email: EmailStr
+    cycle: str = Field(default="MONTHLY", pattern="^(MONTHLY|YEARLY)$")
 
 
 class CheckoutResponse(BaseModel):
@@ -29,7 +30,7 @@ class CheckoutResponse(BaseModel):
 @router.post("/subscribe", response_model=CheckoutResponse)
 def subscribe(data: SubscribeRequest, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(admin_only)):
     """Creates (or changes) the subscription and returns Asaas' payment page (PIX, boleto or card)."""
-    return CheckoutResponse(checkout_url=BillingService(db).subscribe(tenant, actor, data.plan, data.document, str(data.email)))
+    return CheckoutResponse(checkout_url=BillingService(db).subscribe(tenant, actor, data.plan, data.document, str(data.email), data.cycle))
 
 
 @router.post("/pay", response_model=CheckoutResponse)
