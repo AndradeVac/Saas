@@ -88,7 +88,7 @@ if (FRONTEND_DIR / "index.html").exists():
                 description = (tenant.description or f"Veja o cardápio de {name} e peça pelo celular.").strip()
                 version = int(tenant.updated_at.timestamp()) if tenant.updated_at else 0
                 tags = meta_tags(f"{name} · Cardápio digital", description, f"{base}/og/{slug}.jpg?v={version}", base + "/")
-        page = BASE.replace("</head>", f"    {tags}\n  </head>", 1)
+        page = BASE.replace("</head>", f"    {tags}\n  </head>", 1) if "</head>" in BASE else tags + BASE
         if len(_pages) > 1000:
             _pages.clear()
         _pages[slug or ""] = (time.monotonic(), page)
