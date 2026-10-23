@@ -3,16 +3,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EmptyState, Skeleton } from '../../components/ui/parts'
-import { DAYS, formatMoney, formatPhone, orderStatusLabels, serviceLabels } from '../../lib/format'
+import { DAYS, formatMoney, formatPhone, serviceLabels } from '../../lib/format'
 import { mediaUrl } from '../../lib/media'
 import { readJson, writeJson } from '../../lib/storage'
 import { APP_NAME, platformUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { getMenu, trackOrder, type Menu, type MenuProduct, type Tracking } from '../../services/publicMenu'
-import type { DayKey, OrderStatus } from '../../types'
+import type { DayKey } from '../../types'
 import { buildLine, cartCount, cartSubtotal, repeatLines, type CartLine } from './cart'
 import { CartModal } from './CartModal'
-import { OrdersModal, TrackModal } from './OrderModals'
+import { celebrate, OrdersModal, TrackModal } from './OrderModals'
+import { orderProgress } from './orderProgress'
 import { ProductModal } from './ProductModal'
 import { TabModal } from './TabModal'
 import { findTableTab, getPublicTab, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
@@ -128,7 +129,13 @@ export function MenuPage() {
       .then((data) => {
         if (!active) return
         const finished = data.status === 'FINISHED' || data.status === 'CANCELLED'
-        setLatest(finished ? null : { token, data })
+        setLatest((previous) => {
+          if (previous && previous.data.status !== 'READY' && data.status === 'READY') {
+            celebrate()
+            toast.success(data.service_type === 'DELIVERY' ? `Pedido #${data.order_number} saiu para entrega!` : `Pedido #${data.order_number} está pronto!`, { duration: 8000 })
+          }
+          return finished ? null : { token, data }
+        })
         if (!finished) timer = window.setTimeout(poll, 8000)
       })
       .catch(() => { if (active) setLatest(null) })
@@ -414,12 +421,19 @@ export function MenuPage() {
           <strong>{formatMoney(tab.totals.total)}</strong>
         </button>
       )}
-      {latest && !hasCart && !tab && (
-        <button className="active-order-bar" onClick={() => setModal({ kind: 'track', token: latest.token, isNew: false })}>
-          <span>Pedido #{latest.data.order_number}</span>
-          <span className={`badge status-${latest.data.status.toLowerCase()}`}>{orderStatusLabels[latest.data.status as OrderStatus]}</span>
-        </button>
-      )}
+      {latest && !hasCart && !tab && (() => {
+        const live = orderProgress(latest.data, false, now)
+        return (
+          <button className={`active-order-bar tone-${live.tone}`} onClick={() => setModal({ kind: 'track', token: latest.token, isNew: false })}>
+            <span className="aob-icon" aria-hidden="true">{{ wait: '🧾', cook: '👨‍🍳', ready: '🎉', done: '✅', off: '✖️' }[live.tone]}</span>
+            <span className="aob-text">
+              <strong>Pedido #{latest.data.order_number} · {{ wait: 'Recebido', cook: 'Em preparo', ready: latest.data.service_type === 'DELIVERY' ? 'Saiu para entrega!' : 'Pronto!', done: 'Entregue', off: 'Cancelado' }[live.tone]}</strong>
+              <small>{live.tone === 'ready' ? live.detail : live.eta ? `Previsão ${live.eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · toque para acompanhar` : 'Toque para acompanhar'}</small>
+            </span>
+            <span className="aob-bar"><b style={{ width: `${live.percent}%` }} /></span>
+          </button>
+        )
+      })()}
       {hasCart && (
         <button className="cart-bar" onClick={() => setModal({ kind: 'cart' })}>
           <span className="cart-count"><ShoppingBag size={18} /> {count}</span>

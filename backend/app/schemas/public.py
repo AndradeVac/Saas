@@ -122,6 +122,8 @@ class PublicOrderTracking(BaseModel):
     delivery_address: str | None
     items: list[PublicHistoryItem]
     scheduled_for: datetime | None = None
+    history: list[dict] = []  # [{"status": "PREPARING", "at": ...}]: when each step happened
+    prep_minutes: int | None = None
     loyalty: dict | None = None  # {stamps, goal, reward, rewards_available} when the store has a loyalty card
     review_stars: int | None = None  # the customer's rating, once given
     google_review_url: str | None = None

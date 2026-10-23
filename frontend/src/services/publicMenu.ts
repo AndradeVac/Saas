@@ -38,6 +38,8 @@ export type Tracking = {
   delivery_address: string | null
   items: TrackedItem[]
   scheduled_for: string | null
+  history: Array<{ status: string; at: string }>
+  prep_minutes: number | null
   loyalty: { stamps: number; goal: number; reward: string; rewards_available: number } | null
   review_stars: number | null
   google_review_url: string | null
