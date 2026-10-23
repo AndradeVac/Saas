@@ -239,6 +239,20 @@ export function MenuPage() {
     && idleFor >= tenant.tab_idle_minutes && !tabOrders.some((o) => COOKING.includes(o.status))
     && dismissedRound !== tab.last_order_at,
   )
+  // "Que tal...?" in the cart: up to 3 products from categories that are not in the cart yet (drinks, sides…).
+  const inCart = new Set(lines.map((l) => l.productId))
+  const cartCategories = new Set(products.filter((p) => inCart.has(p.id)).map((p) => p.category_id))
+  const suggestions = lines.length === 0 ? [] : products
+    .filter((p) => p.available && !inCart.has(p.id) && !cartCategories.has(p.category_id))
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || Number(a.price) - Number(b.price))
+    .filter((p, i, all) => all.findIndex((x) => x.category_id === p.category_id) === i)
+    .slice(0, 3)
+  function suggest(product: MenuProduct) {
+    if (product.options.length > 0) return setModal({ kind: 'product', product })
+    const line = buildLine(product, {}, 1)
+    setLines((current) => (current.some((l) => l.key === line.key) ? current : [...current, line]))
+    toast.success(`${line.name} adicionado`, { duration: 1500 })
+  }
   // One tap adds simple products; products with sizes/extras open the modal so the customer sees the add-ons.
   const quickAdd = (product: MenuProduct) => {
     if (product.options.length > 0) setModal({ kind: 'product', product })
@@ -302,7 +316,10 @@ export function MenuPage() {
           {tableFromQr && <span className="chip ok">Você está na mesa {tableFromQr}</span>}
           {tenant.enabled_services.map((s) => <span className="chip" key={s}>{serviceLabels[s]}</span>)}
           {Number(tenant.min_order_value) > 0 && <span className="chip">Pedido mín. {formatMoney(tenant.min_order_value)}</span>}
-          {Number(tenant.delivery_fee) > 0 && tenant.enabled_services.includes('DELIVERY') && <span className="chip">Entrega {formatMoney(tenant.delivery_fee)}</span>}
+          {tenant.enabled_services.includes('DELIVERY') && (tenant.delivery_zones.length > 0
+            ? <span className="chip">Entrega a partir de {formatMoney(Math.min(...tenant.delivery_zones.map((z) => Number(z.fee))))}</span>
+            : Number(tenant.delivery_fee) > 0 && <span className="chip">Entrega {formatMoney(tenant.delivery_fee)}</span>)}
+          {tenant.is_open && <span className="chip">⏱ Pronto em ~{tenant.prep_minutes} min{tenant.enabled_services.includes('DELIVERY') ? ` · entrega ~${tenant.delivery_minutes} min` : ''}</span>}
         </div>
       </section>
 
@@ -402,7 +419,7 @@ export function MenuPage() {
 
       {modal?.kind === 'product' && <ProductModal product={modal.product} canOrder={canOrder && modal.product.available} onClose={() => setModal(null)} onAdd={addLine} />}
       {modal?.kind === 'cart' && (
-        <CartModal tenant={tenant} lines={lines} setLines={setLines} tableFromQr={tableFromQr} tableCode={tableCode || tabTableCode} onClose={() => setModal(null)} onOrdered={onOrdered} />
+        <CartModal tenant={tenant} lines={lines} setLines={setLines} suggestions={suggestions} onSuggest={suggest} tableFromQr={tableFromQr} tableCode={tableCode || tabTableCode} onClose={() => setModal(null)} onOrdered={onOrdered} />
       )}
       {modal?.kind === 'orders' && <OrdersModal tokens={tokens} onClose={() => setModal(null)} onOpen={(token) => setModal({ kind: 'track', token, isNew: false })} />}
       {modal?.kind === 'tab' && tab && (

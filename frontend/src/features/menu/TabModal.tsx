@@ -27,6 +27,7 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
   const [reported, setReported] = useState(false)
   const [payment, setPayment] = useState<PaymentMethod>(tab.requested_payment_method ?? tenant.accepted_payments[0])
   const [split, setSplit] = useState(tab.split_count ?? 1)
+  const [mine, setMine] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
 
   const live = tab.orders.filter((order) => order.status !== 'CANCELLED')
@@ -156,6 +157,34 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
             <button onClick={() => setSplit((n) => Math.min(20, n + 1))} aria-label="Mais pessoas" disabled={split >= 20}><Plus size={14} /></button>
           </div>
         </div>
+
+        {pixAvailable && remaining > 0 && live.length > 0 && (() => {
+          // "Pagar só o que eu consumi": the chosen items plus their share of fee and discounts.
+          const items = live.flatMap((order) => order.items.map((item, index) => ({ key: `${order.id}:${index}`, item })))
+          const chosen = items.filter((x) => mine.has(x.key)).reduce((sum, x) => sum + Number(x.item.total_price), 0)
+          const subtotal = Number(tab.totals.subtotal) || 1
+          const myShare = Math.min(remaining, Math.round((chosen / subtotal) * total * 100) / 100)
+          return (
+            <details className="by-item">
+              <summary>Pagar só o que eu consumi</summary>
+              <ul>
+                {items.map(({ key, item }) => (
+                  <li key={key}>
+                    <label className="check-line">
+                      <input type="checkbox" checked={mine.has(key)} onChange={(e) => setMine((current) => { const next = new Set(current); if (e.target.checked) next.add(key); else next.delete(key); return next })} />
+                      <span>{item.quantity}× {item.product_name}</span>
+                      <strong>{formatMoney(item.total_price)}</strong>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <button className="btn primary block" disabled={sending || myShare <= 0} onClick={() => void startPix(myShare)}>
+                {myShare > 0 ? `Pagar minha parte · ${formatMoney(myShare)}` : 'Marque o que você consumiu'}
+              </button>
+              {myShare > 0 && Number(tab.totals.service_fee) > 0 && <small className="muted">Inclui a taxa de serviço proporcional.</small>}
+            </details>
+          )
+        })()}
 
         {pixAvailable && remaining > 0 && (
           <div className="pay-now">

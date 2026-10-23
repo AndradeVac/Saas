@@ -837,3 +837,21 @@ a.landing-logo { text-decoration: none; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--brand); font-weight: 650; text-decoration: underline; cursor: pointer; font-size: inherit; }
 .check-line { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--text-2); margin: 12px 0; cursor: pointer; }
 .check-line input { margin-top: 2px; width: 17px; height: 17px; flex: none; }
+
+/* Cart suggestions, ETA, pay by item */
+.suggest h4 { margin-bottom: 8px; }
+.suggest-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.suggest-card { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); text-align: left; cursor: pointer; font-size: 12.5px; color: var(--text); }
+.suggest-card img, .suggest-ph { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; color: var(--brand); }
+.suggest-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-card strong { color: var(--brand); }
+.eta { margin: 6px 0 0; font-size: 13.5px; }
+.by-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin: 12px 0; }
+.by-item summary { font-weight: 700; cursor: pointer; }
+.by-item ul { list-style: none; padding: 0; margin: 8px 0; }
+.by-item .check-line { margin: 6px 0; align-items: center; }
+.by-item .check-line span { flex: 1; }
+.zones { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.zone-row { display: grid; grid-template-columns: 1fr 140px auto; gap: 8px; align-items: end; }
+.zone-row .field { margin-bottom: 8px; }
+.zone-row > .input { margin-bottom: 8px; height: 42px; }

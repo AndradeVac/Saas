@@ -10,7 +10,7 @@ export type TabOrder = {
   customer_name: string | null
   total: string
   created_at: string
-  items: Array<{ product_id: string; product_name: string; quantity: number; options: Array<{ group: string; name: string; price: string }>; notes: string | null }>
+  items: Array<{ product_id: string; product_name: string; quantity: number; options: Array<{ group: string; name: string; price: string }>; notes: string | null; total_price: string }>
 }
 
 export type TabTotals = {

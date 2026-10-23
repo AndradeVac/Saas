@@ -20,6 +20,7 @@ class TabOrderItem(BaseModel):
     quantity: int
     options: list[dict] = []
     notes: str | None = None
+    total_price: Decimal = Decimal("0")  # lets each person pay only what they ate
 
 
 class TabOrder(BaseModel):

@@ -15,7 +15,7 @@ import { useSearchParams } from 'react-router-dom'
 import { writeJson } from '../../lib/storage'
 import { getTableQrCodes } from '../../services/tabs'
 import { getMediaUsage, getPixPreview, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
-import type { BusinessType, DayKey, OpeningHours, ServiceType, TenantSettings } from '../../types'
+import type { BusinessType, DayKey, DeliveryZone, OpeningHours, ServiceType, TenantSettings } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 
 type Tab = 'business' | 'look' | 'hours' | 'orders' | 'tables' | 'account'
@@ -36,7 +36,27 @@ const editable = (s: TenantSettings) => ({
   enabled_services: s.enabled_services, accepted_payments: s.accepted_payments,
   delivery_fee: s.delivery_fee, min_order_value: s.min_order_value, service_fee_percent: s.service_fee_percent,
   tabs_enabled: s.tabs_enabled, tabs_auto_approve: s.tabs_auto_approve, tab_idle_minutes: s.tab_idle_minutes,
+  prep_minutes: s.prep_minutes, delivery_minutes: s.delivery_minutes, delivery_zones: s.delivery_zones, require_pix_delivery: s.require_pix_delivery,
 })
+
+/** Neighbourhoods served and the fee of each (empty list = one flat fee for any address). */
+function DeliveryZones({ zones, onChange }: { zones: DeliveryZone[]; onChange: (zones: DeliveryZone[]) => void }) {
+  const update = (index: number, data: Partial<DeliveryZone>) => onChange(zones.map((z, i) => (i === index ? { ...z, ...data } : z)))
+  return (
+    <div className="zones">
+      <h4>Bairros atendidos (opcional)</h4>
+      <p className="card-sub">Com a lista, o cliente escolhe o bairro e paga a taxa dele. Sem lista, vale a taxa de entrega única.</p>
+      {zones.map((zone, index) => (
+        <div className="zone-row" key={index}>
+          <input className="input" value={zone.name} placeholder="Bairro" maxLength={60} onChange={(e) => update(index, { name: e.target.value })} aria-label="Bairro" />
+          <MoneyInput label="Taxa" value={zone.fee} onChange={(v) => update(index, { fee: v || '0.00' })} />
+          <button type="button" className="icon-btn" aria-label={`Remover ${zone.name || 'bairro'}`} onClick={() => onChange(zones.filter((_, i) => i !== index))}><Trash2 size={16} /></button>
+        </div>
+      ))}
+      <button type="button" className="btn small" onClick={() => onChange([...zones, { name: '', fee: '5.00' }])}><Plus size={14} /> Adicionar bairro</button>
+    </div>
+  )
+}
 
 function toggleIn<T>(list: T[], item: T, on: boolean) {
   return on ? [...list.filter((x) => x !== item), item] : list.filter((x) => x !== item)
@@ -268,6 +288,9 @@ export function SettingsPage() {
               <>
                 <label className="field" style={{ marginTop: 12 }}><span>Chave PIX</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Com a chave, cada pedido pago por PIX (retirada, entrega e a conta da mesa) mostra um <strong>QR Code com o valor exato</strong>. O dinheiro cai direto na sua conta; você confere no banco e marca como pago.</small></label>
                 {form.pix_key && <PixTest pixKey={form.pix_key} />}
+                {form.enabled_services.includes('DELIVERY') && (
+                  <Toggle label="Entrega só com PIX antecipado" hint="Contra trote: o pedido de entrega só vai para a cozinha depois que o PIX é confirmado." checked={form.require_pix_delivery} onChange={(on) => set('require_pix_delivery', on)} />
+                )}
               </>
             )}
           </div>
@@ -276,8 +299,13 @@ export function SettingsPage() {
             <div className="grid-3">
               <MoneyInput label="Pedido mínimo" value={form.min_order_value} onChange={(v) => set('min_order_value', v || '0.00')} hint="0 = sem mínimo" />
               <MoneyInput label="Taxa de entrega" value={form.delivery_fee} onChange={(v) => set('delivery_fee', v || '0.00')} />
-              <label className="field"><span>Taxa de serviço (%)</span><input type="number" min={0} max={30} step="0.5" value={form.service_fee_percent} onChange={(e) => set('service_fee_percent', e.target.value)} /><small className="muted">Só pedidos na mesa.</small></label>
+              <label className="field"><span>Taxa de serviço (%)</span><input type="number" min={0} max={30} step="0.5" value={form.service_fee_percent} onChange={(e) => set('service_fee_percent', e.target.value)} /><small className="muted">Só pedidos na mesa. É opcional para o cliente (por lei, gorjeta não é obrigatória).</small></label>
             </div>
+            <div className="grid-2">
+              <label className="field"><span>Tempo de preparo (min)</span><input type="number" min={5} max={240} value={form.prep_minutes} onChange={(e) => set('prep_minutes', Number(e.target.value))} /><small className="muted">Aparece para o cliente: “pronto em ~{form.prep_minutes} min”.</small></label>
+              {form.enabled_services.includes('DELIVERY') && <label className="field"><span>Tempo de entrega (min)</span><input type="number" min={10} max={300} value={form.delivery_minutes} onChange={(e) => set('delivery_minutes', Number(e.target.value))} /></label>}
+            </div>
+            {form.enabled_services.includes('DELIVERY') && <DeliveryZones zones={form.delivery_zones} onChange={(zones) => set('delivery_zones', zones)} />}
           </div>
         </>
       )}

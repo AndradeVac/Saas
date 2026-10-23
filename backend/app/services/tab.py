@@ -318,7 +318,7 @@ class TabService:
                 id=order.id, order_number=order.order_number, status=order.status.value, customer_name=order.customer_name,
                 total=order.total, created_at=order.created_at,
                 items=[
-                    TabOrderItem(product_id=i.product_id, product_name=i.product_name, quantity=i.quantity, options=i.options or [], notes=i.notes)
+                    TabOrderItem(product_id=i.product_id, product_name=i.product_name, quantity=i.quantity, options=i.options or [], notes=i.notes, total_price=i.total_price)
                     for i in order.items
                 ],
             )

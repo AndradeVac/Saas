@@ -78,6 +78,11 @@ class SlugAvailability(BaseModel):
     reason: str | None = None
 
 
+class DeliveryZone(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    fee: Decimal = Field(ge=0, le=1000, max_digits=7, decimal_places=2)
+
+
 class PublicTenant(BaseModel):
     """What anyone visiting <slug>.<domain> may know about the business."""
 
@@ -108,6 +113,10 @@ class PublicTenant(BaseModel):
     # Comanda: dine-in orders go to the table's open bill, paid at the end.
     tabs_enabled: bool = False
     tab_idle_minutes: int = 20
+    prep_minutes: int = 20
+    delivery_minutes: int = 45
+    delivery_zones: list[DeliveryZone] = []
+    require_pix_delivery: bool = False
     # "Cardápio digital por Mesa Digital" footer; hidden on plans with white label.
     show_platform_badge: bool = True
 
@@ -146,6 +155,19 @@ class TenantSettingsUpdate(BaseModel):
     tabs_enabled: bool | None = None
     tabs_auto_approve: bool | None = None
     tab_idle_minutes: int | None = Field(default=None, ge=5, le=180)
+    prep_minutes: int | None = Field(default=None, ge=5, le=240)
+    delivery_minutes: int | None = Field(default=None, ge=10, le=300)
+    delivery_zones: list[DeliveryZone] | None = Field(default=None, max_length=80)
+    require_pix_delivery: bool | None = None
+
+    @field_validator("delivery_zones")
+    @classmethod
+    def _unique_zones(cls, value: list[DeliveryZone] | None) -> list[DeliveryZone] | None:
+        if value is not None:
+            names = [zone.name.strip().lower() for zone in value]
+            if len(set(names)) != len(names):
+                raise ValueError("Há bairros repetidos na área de entrega.")
+        return value
 
     @field_validator("logo_url", "cover_url")
     @classmethod

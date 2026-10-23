@@ -139,6 +139,7 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
             notes=data.notes,
             coupon_code=data.coupon_code,
             waive_service_fee=data.waive_service_fee,
+            delivery_zone=data.delivery_zone,
             items=[
                 OrderItemCreate(product_id=i.product_id, quantity=i.quantity, notes=i.notes, options=i.options)
                 for i in data.items
@@ -208,6 +209,11 @@ def report_tab_pix(token: UUID, data: PixReport, tenant: Tenant = Depends(get_te
     """"Já paguei": the waiter gets an alert to check the bank and confirm."""
     service = TabService(db, tenant.id)
     return service.to_public(service.report_pix(token, tenant, data.amount, data.payer_name))
+
+
+@router.post("/orders/{public_token}/cancel", status_code=204, dependencies=[Depends(public_order_rate_limit)])
+def cancel_public_order(public_token: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    OrderService(db, tenant.id).cancel_by_customer(public_token)
 
 
 @router.get("/orders/{public_token}/pix", response_model=PixCode, dependencies=[Depends(public_lookup_rate_limit)])

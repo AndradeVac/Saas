@@ -52,6 +52,7 @@ export type PublicOrderPayload = {
   notes?: string
   coupon_code?: string
   waive_service_fee?: boolean
+  delivery_zone?: string
   marketing_opt_in?: boolean
   items: Array<{ product_id: string; quantity: number; notes?: string; options: Array<{ group_id: string; option_id: string }> }>
 }
@@ -62,6 +63,7 @@ export async function createPublicOrder(payload: PublicOrderPayload) {
 }
 
 export const trackOrder = async (token: string) => (await api.get<Tracking>(`/public/orders/${token}`)).data
+export const cancelPublicOrder = async (token: string) => { await api.post(`/public/orders/${token}/cancel`) }
 export const getOrderPix = async (token: string) => (await api.get<{ code: string; amount: string }>(`/public/orders/${token}/pix`)).data
 
 export async function checkCoupon(code: string, subtotal: number) {

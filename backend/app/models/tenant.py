@@ -88,6 +88,13 @@ class Tenant(Base):
     tabs_auto_approve: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Automation: a table with nothing new for this long is flagged ("offer another round").
     tab_idle_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    # Shown to the customer: "pronto em ~20 min" / "entrega em ~45 min".
+    prep_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    delivery_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=45, server_default="45")
+    # [{"name": "Centro", "fee": "5.00"}]: when set, delivery only to these neighbourhoods, each with its fee.
+    delivery_zones: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
+    # Anti-prank: deliveries only with PIX paid before the kitchen starts.
+    require_pix_delivery: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

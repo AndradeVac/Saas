@@ -28,9 +28,11 @@ _CENTS = Decimal("0.01")
 
 
 def awaiting_pix(order: Order, tenant: Tenant) -> bool:
-    """Takeaway paid by PIX (with the QR Code on the order screen): the kitchen only starts once the PIX is in."""
+    """Takeaway paid by PIX (and deliveries, when the store requires PIX up front): the kitchen only starts once
+    the PIX is in."""
+    prepaid = order.service_type is ServiceType.TAKEAWAY or (order.service_type is ServiceType.DELIVERY and tenant.require_pix_delivery)
     return (
-        order.service_type is ServiceType.TAKEAWAY and order.payment_method is PaymentMethod.PIX
+        prepaid and order.payment_method is PaymentMethod.PIX
         and order.payment_status is not PaymentStatus.PAID and order.status is OrderStatus.RECEIVED
         and order.tab_id is None and bool(normalize_pix_key(tenant.pix_key or ""))
     )
@@ -122,13 +124,21 @@ class OrderService:
                 raise BusinessRuleError("Esta forma de pagamento não está disponível.")
         if data.service_type is ServiceType.DELIVERY and not data.delivery_address:
             raise BusinessRuleError("Informe o endereço de entrega.")
+        zone = None
+        if data.service_type is ServiceType.DELIVERY and tenant.delivery_zones:
+            zone = next((z for z in tenant.delivery_zones if z["name"].lower() == (data.delivery_zone or "").strip().lower()), None)
+            if zone is None:
+                raise BusinessRuleError("Escolha o seu bairro. Só entregamos nos bairros da lista.")
+        if public and data.service_type is ServiceType.DELIVERY and tenant.require_pix_delivery and data.payment_method is not PaymentMethod.PIX:
+            raise BusinessRuleError("Para entrega, o pagamento é pelo PIX, antes do preparo.")
 
         order = Order(
             customer_id=customer.id,
             payment_method=PaymentMethod.TAB if on_tab else data.payment_method,
             service_type=data.service_type,
             table_label=data.table_label if data.service_type is ServiceType.DINE_IN else None,
-            delivery_address=data.delivery_address if data.service_type is ServiceType.DELIVERY else None,
+            delivery_address=(f"{data.delivery_address.strip()} · {zone['name']}" if zone else data.delivery_address)
+            if data.service_type is ServiceType.DELIVERY else None,
             notes=data.notes,
             status=OrderStatus.RECEIVED,
             subtotal=Decimal("0.00"),
@@ -173,7 +183,9 @@ class OrderService:
         service_fee = Decimal("0.00")
         if data.service_type is ServiceType.DINE_IN and tenant.service_fee_percent > 0 and not data.waive_service_fee:
             service_fee = (taxable * tenant.service_fee_percent / 100).quantize(_CENTS, rounding=ROUND_HALF_UP)
-        delivery_fee = tenant.delivery_fee if data.service_type is ServiceType.DELIVERY else Decimal("0.00")
+        delivery_fee = Decimal("0.00")
+        if data.service_type is ServiceType.DELIVERY:
+            delivery_fee = Decimal(zone["fee"]) if zone else tenant.delivery_fee
 
         order.subtotal = subtotal
         order.discount = discount
@@ -266,6 +278,20 @@ class OrderService:
             setattr(order, field, getattr(data, field) or None)
         record_audit(self.db, self.tenant_id, actor, "ORDER_EDITED", "ORDER", order.id, f"#{order.order_number}")
         self.repository.update(order)
+        self.db.commit()
+        return order
+
+    def cancel_by_customer(self, public_token: UUID) -> Order:
+        """The customer gives up before the kitchen starts (and before paying): no phone call needed."""
+        order = self.repository.get_by_public_token(public_token)
+        if order is None:
+            raise NotFoundError("Pedido não encontrado.")
+        if order.status is not OrderStatus.RECEIVED or order.payment_status is PaymentStatus.PAID or order.tab_id:
+            raise BusinessRuleError("Este pedido já está em preparo. Fale com o estabelecimento.")
+        order.status = OrderStatus.CANCELLED
+        order.status_history.append(OrderStatusHistory(status=OrderStatus.CANCELLED, reason="Cancelado pelo cliente"))
+        self.coupons.release(order.coupon_code)
+        record_audit(self.db, self.tenant_id, None, "ORDER_STATUS_CHANGED", "ORDER", order.id, f"#{order.order_number} cancelado pelo cliente")
         self.db.commit()
         return order
 

@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { BusinessType, OpeningHours, PaymentMethod, PublicTenant, ServiceType, TenantSettings } from '../types'
+import type { BusinessType, DeliveryZone, OpeningHours, PaymentMethod, PublicTenant, ServiceType, TenantSettings } from '../types'
 
 export const getTenant = async () => (await api.get<PublicTenant>('/tenant')).data
 export const getTenantSettings = async () => (await api.get<TenantSettings>('/tenant/settings')).data
@@ -24,6 +24,13 @@ export type SettingsUpdate = Partial<{
   delivery_fee: string
   min_order_value: string
   service_fee_percent: string
+  tabs_enabled: boolean
+  tabs_auto_approve: boolean
+  tab_idle_minutes: number
+  prep_minutes: number
+  delivery_minutes: number
+  delivery_zones: DeliveryZone[]
+  require_pix_delivery: boolean
 }>
 
 export const updateTenantSettings = async (payload: SettingsUpdate) =>
