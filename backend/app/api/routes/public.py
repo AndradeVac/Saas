@@ -1,5 +1,6 @@
 """Endpoints used by the customer-facing menu (no authentication, scoped by the X-Tenant header)."""
 import time
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -30,7 +31,7 @@ from app.schemas.public import (
 )
 from app.core.plans import public_tenant
 from app.core.tables import normalize_table_label, valid_table_code
-from app.schemas.tab import PixCode, PixReport, PublicTab, TabCloseRequest
+from app.schemas.tab import PixCode, PixReport, PublicTab, ServiceFeeChoice, TabCloseRequest
 from app.services.coupon import CouponService
 from app.services.tab import TabService
 from app.services.order import OrderService
@@ -125,6 +126,8 @@ def check_coupon(data: CouponCheckRequest, tenant: Tenant = Depends(get_tenant),
 )
 def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
     customer = CustomerRepository(db, tenant.id).get_or_create_by_phone(data.customer_name, data.customer_phone)
+    if data.marketing_opt_in and not customer.marketing_opt_in:
+        customer.marketing_opt_in, customer.marketing_opt_in_at = True, datetime.now(timezone.utc)
     order = OrderService(db, tenant.id).create(
         OrderCreate(
             customer_id=customer.id,
@@ -135,6 +138,7 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
             delivery_address=data.delivery_address,
             notes=data.notes,
             coupon_code=data.coupon_code,
+            waive_service_fee=data.waive_service_fee,
             items=[
                 OrderItemCreate(product_id=i.product_id, quantity=i.quantity, notes=i.notes, options=i.options)
                 for i in data.items
@@ -179,6 +183,13 @@ def request_tab_close(token: UUID, data: TabCloseRequest, tenant: Tenant = Depen
     """The customer asks for the bill: the table lights up on the staff's Mesas screen."""
     service = TabService(db, tenant.id)
     return service.to_public(service.request_close(token, tenant, data.payment_method, data.split_count))
+
+
+@router.post("/tabs/{token}/service-fee", response_model=PublicTab, dependencies=[Depends(public_order_rate_limit)])
+def tab_service_fee(token: UUID, data: ServiceFeeChoice, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """The service fee is optional (tip): the table can take it out of the bill, or put it back."""
+    service = TabService(db, tenant.id)
+    return service.to_public(service.set_service_fee(service.get_by_token(token), tenant, data.waived))
 
 
 @router.get("/tabs/{token}/pix", response_model=PixCode, dependencies=[Depends(public_lookup_rate_limit)])

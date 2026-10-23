@@ -118,11 +118,12 @@ export function LandingPage() {
           <div className="plan-card">
             <h3>Degustação</h3>
             <div className="plan-price"><strong>Grátis</strong><span>/{trialDays} dias</span></div>
-            <p className="muted plan-tagline">Experimente o cardápio digital com a sua marca, sem compromisso.</p>
+            <p className="muted plan-tagline">O sistema inteiro, com tudo liberado, para você testar com clientes de verdade.</p>
             <ul className="plan-list">
-              <li><Check size={15} /> Até {catalog?.plans.find((p) => p.key === 'trial')?.max_products ?? 10} produtos com foto</li>
-              <li><Check size={15} /> QR Code por mesa</li>
-              <li><Check size={15} /> Pedidos de teste</li>
+              <li><Check size={15} /> Produtos e pedidos ilimitados</li>
+              <li><Check size={15} /> Equipe, cupons e relatórios</li>
+              <li><Check size={15} /> Análises e clientes para reconquistar</li>
+              <li><Check size={15} /> Sem cartão de crédito</li>
             </ul>
             <Link className="btn block" to="/cadastro">Começar grátis</Link>
           </div>

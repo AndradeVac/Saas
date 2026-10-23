@@ -16,6 +16,8 @@ class CustomerUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=30)
     notes: str | None = Field(default=None, max_length=1000)
     active: bool | None = None
+    # Staff can only withdraw the consent (customer asked to stop); only the customer gives it, at checkout.
+    marketing_opt_in: bool | None = None
 
 
 class CustomerResponse(BaseModel):
@@ -26,6 +28,7 @@ class CustomerResponse(BaseModel):
     phone: str | None
     notes: str | None
     active: bool
+    marketing_opt_in: bool = False
     created_at: datetime
     updated_at: datetime
 

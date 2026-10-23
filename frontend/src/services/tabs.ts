@@ -28,6 +28,7 @@ export type PublicTab = {
   status: TabStatus
   requested_payment_method: PaymentMethod | null
   split_count: number | null
+  service_fee_waived: boolean
   last_order_at: string | null
   totals: TabTotals
   orders: TabOrder[]
@@ -81,6 +82,10 @@ export const getTableQrCodes = async (labels: string[]) =>
   (await api.get<TableQr[]>('/tabs/qr-codes', { params: { labels }, paramsSerializer: { indexes: null } })).data
 
 // PIX straight to the restaurant's key (whole bill or one person's share)
+export const setTabServiceFee = async (token: string, waived: boolean) =>
+  (await api.post<PublicTab>(`/public/tabs/${token}/service-fee`, { waived })).data
+export const setStaffTabServiceFee = async (tabId: string, waived: boolean) =>
+  (await api.post<unknown>(`/tabs/${tabId}/service-fee`, { waived })).data
 export const getTabPix = async (token: string, amount?: string) =>
   (await api.get<{ code: string; amount: string }>(`/public/tabs/${token}/pix`, { params: amount ? { amount } : {} })).data
 export const reportTabPix = async (token: string, amount: string, payer_name?: string) =>

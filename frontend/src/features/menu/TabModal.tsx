@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { formatMoney, formatTime, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
 import { readJson } from '../../lib/storage'
-import { getTabPix, reportTabPix, requestTabClose, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
+import { getTabPix, reportTabPix, requestTabClose, setTabServiceFee, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod, PublicTenant } from '../../types'
 
 type Props = {
@@ -34,6 +34,27 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
   const total = Number(tab.totals.total)
   const canOrder = tab.status === 'OPEN' || tab.status === 'CLOSING' || tab.status === 'PENDING'
   const pixAvailable = Boolean(tenant.pix_key) && tenant.accepted_payments.includes('PIX')
+
+  const feeRate = Number(tenant.service_fee_percent)
+  async function toggleFee() {
+    try {
+      onUpdated(await setTabServiceFee(tab.public_token, !tab.service_fee_waived))
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível alterar a taxa de serviço.'))
+    }
+  }
+  // The service fee is optional by law (a tip): the table decides.
+  const feeLine = feeRate > 0 && live.length > 0 && (
+    <div className="total-row sub fee-toggle">
+      <span>
+        Taxa de serviço ({feeRate}%, opcional){' '}
+        {(tab.status === 'OPEN' || tab.status === 'CLOSING' || tab.status === 'PENDING') && (
+          <button className="link-btn" onClick={() => void toggleFee()}>{tab.service_fee_waived ? 'incluir' : 'retirar'}</button>
+        )}
+      </span>
+      <span>{tab.service_fee_waived ? 'Sem taxa' : formatMoney(tab.totals.service_fee)}</span>
+    </div>
+  )
 
   async function startPix(amount: number) {
     setSending(true)
@@ -120,6 +141,7 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
     return (
       <Modal title="Fechar a conta" onClose={() => setView('bill')} footer={<button className="btn large block" onClick={() => setView('bill')}>Voltar</button>}>
         <div className="card flat">
+          {feeLine}
           <div className="total-row sub"><span>Total da mesa</span><span>{formatMoney(total)}</span></div>
           {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>−{formatMoney(tab.totals.paid)}</span></div>}
           <div className="total-row"><span>Falta pagar</span><strong>{formatMoney(remaining)}</strong></div>
@@ -222,7 +244,7 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
       <div className="card flat">
         <div className="total-row sub"><span>Consumo</span><span>{formatMoney(tab.totals.subtotal)}</span></div>
         {Number(tab.totals.discount) > 0 && <div className="total-row sub discount"><span>Descontos</span><span>−{formatMoney(tab.totals.discount)}</span></div>}
-        {Number(tab.totals.service_fee) > 0 && <div className="total-row sub"><span>Taxa de serviço</span><span>{formatMoney(tab.totals.service_fee)}</span></div>}
+        {feeLine}
         <div className="total-row"><span>Total da mesa</span><strong>{formatMoney(tab.totals.total)}</strong></div>
         {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>{formatMoney(tab.totals.paid)}</span></div>}
         {Number(tab.totals.reported) > 0 && <div className="total-row sub"><span>PIX aguardando o garçom confirmar</span><span>{formatMoney(tab.totals.reported)}</span></div>}

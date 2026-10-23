@@ -141,6 +141,7 @@ def make_tenant(client, created_slugs):
             "business_type": business_type,
             "slug": slug,
             "admin_name": "Dono do Negócio",
+            "phone": "11987654321",
             "email": email,
             "password": PASSWORD,
             "accept_terms": True,

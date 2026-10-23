@@ -75,4 +75,5 @@ class InsightsResponse(BaseModel):
     tickets_by_service: list[ServiceTicket]
     top_customers: list[CustomerRow]
     at_risk: list[CustomerRow]
+    lapsed_without_consent: int = 0  # lapsed regulars who never agreed to receive promotions (not listed)
     cancellation_reasons: list[ReasonCount]

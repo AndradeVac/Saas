@@ -13,7 +13,7 @@ from app.core.tables import normalize_table_label, table_code
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
 from app.models.user import User
-from app.schemas.tab import TableQr, TabClose, TabPaymentCreate, TabReason, TabResponse
+from app.schemas.tab import ServiceFeeChoice, TableQr, TabClose, TabPaymentCreate, TabReason, TabResponse
 from app.services.tab import TabService
 
 router = APIRouter(prefix="/tabs", tags=["Tabs"])
@@ -52,6 +52,14 @@ def get_tab(tab_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session = De
 def approve_tab(tab_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(staff_only)):
     service = TabService(db, tenant.id)
     return service.to_response(service.approve(tab_id, actor), tenant)
+
+
+@router.post("/{tab_id}/service-fee", response_model=TabResponse)
+def tab_service_fee(
+    tab_id: UUID, data: ServiceFeeChoice, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), _: User = Depends(staff_only),
+):
+    service = TabService(db, tenant.id)
+    return service.to_response(service.set_service_fee(service.get(tab_id), tenant, data.waived), tenant)
 
 
 @router.post("/{tab_id}/close", response_model=TabResponse)

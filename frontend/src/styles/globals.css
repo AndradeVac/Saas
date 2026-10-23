@@ -830,3 +830,10 @@ a.landing-logo { text-decoration: none; }
 .grade-B { background: var(--warn-bg); color: var(--warn); }
 .grade-C { background: var(--danger-bg); color: var(--danger); }
 .winback-message { width: 100%; min-height: 70px; }
+
+/* Optional service fee and marketing consent */
+.fee-toggle { cursor: pointer; align-items: center; }
+.fee-toggle input { margin-right: 6px; vertical-align: middle; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--brand); font-weight: 650; text-decoration: underline; cursor: pointer; font-size: inherit; }
+.check-line { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--text-2); margin: 12px 0; cursor: pointer; }
+.check-line input { margin-top: 2px; width: 17px; height: 17px; flex: none; }

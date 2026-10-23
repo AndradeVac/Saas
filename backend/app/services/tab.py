@@ -271,6 +271,20 @@ class TabService:
         self.db.commit()
         return tab
 
+    def set_service_fee(self, tab: Tab, tenant: Tenant, waived: bool) -> Tab:
+        """Takes the (optional) service fee out of the whole bill, or puts it back, round by round."""
+        if tab.status not in ACTIVE_TAB_STATUSES:
+            raise BusinessRuleError("Esta comanda não está aberta.")
+        tab.service_fee_waived = waived
+        for order in tab.orders:
+            if order.status is OrderStatus.CANCELLED:
+                continue
+            fee = Decimal("0.00") if waived else ((order.subtotal - order.discount) * tenant.service_fee_percent / 100).quantize(_CENTS, rounding=ROUND_HALF_UP)
+            order.total = order.total - order.service_fee + fee
+            order.service_fee = fee
+        self.db.commit()
+        return tab
+
     # ---- views --------------------------------------------------------------------------------
     @staticmethod
     def totals(tab: Tab) -> TabTotals:
@@ -333,7 +347,7 @@ class TabService:
         return TabResponse(
             id=tab.id, number=tab.number, public_token=tab.public_token, table_label=tab.table_label, status=tab.status,
             opened_by=tab.opened_by, requested_payment_method=tab.requested_payment_method, split_count=tab.split_count,
-            payment_method=tab.payment_method, created_at=tab.created_at, last_order_at=tab.last_order_at,
+            service_fee_waived=tab.service_fee_waived, payment_method=tab.payment_method, created_at=tab.created_at, last_order_at=tab.last_order_at,
             close_requested_at=tab.close_requested_at, closed_at=tab.closed_at,
             totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab), alerts=self.alerts(tab, tenant),
         )
@@ -342,5 +356,5 @@ class TabService:
         return PublicTab(
             number=tab.number, public_token=tab.public_token, table_label=tab.table_label, status=tab.status,
             requested_payment_method=tab.requested_payment_method, split_count=tab.split_count,
-            last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab),
+            service_fee_waived=tab.service_fee_waived, last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab),
         )

@@ -31,6 +31,8 @@ class OrderCreate(BaseModel):
     delivery_address: str | None = Field(default=None, max_length=300)
     notes: str | None = Field(default=None, max_length=500)
     coupon_code: str | None = Field(default=None, max_length=40)
+    # The service fee (tip) is optional: the customer can take it out.
+    waive_service_fee: bool = False
     items: list[OrderItemCreate] = Field(min_length=1, max_length=60)
 
     @field_validator("table_label")

@@ -46,6 +46,7 @@ export type Insights = {
   tickets_by_service: { service_type: string; orders: number; average_ticket: string; revenue: string }[]
   top_customers: CustomerRow[]
   at_risk: CustomerRow[]
+  lapsed_without_consent: number
   cancellation_reasons: { reason: string; count: number }[]
 }
 

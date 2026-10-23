@@ -179,7 +179,7 @@ function UpgradeModal({ reason, onClose }: { reason?: string; onClose: () => voi
   return (
     <Modal title="Libere o Mesa Digital completo" onClose={onClose} size="lg">
       {reason && <div className="alert warn"><span><Lock size={15} /> {reason}</span></div>}
-      <p className="muted">Você está usando a degustação. Escolha um plano para vender sem limites e usar todas as ferramentas.</p>
+      <p className="muted">Escolha o plano que cabe no seu negócio. Você continua com todos os seus produtos, pedidos e clientes.</p>
       <div className="plan-grid compact">
         {catalog && plans.map((plan) => (
           <div key={plan.key} className={`plan-card ${plan.highlight ? 'highlight' : ''}`}>

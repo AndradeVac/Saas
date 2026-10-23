@@ -171,7 +171,7 @@ class OrderService:
 
         taxable = subtotal - discount
         service_fee = Decimal("0.00")
-        if data.service_type is ServiceType.DINE_IN and tenant.service_fee_percent > 0:
+        if data.service_type is ServiceType.DINE_IN and tenant.service_fee_percent > 0 and not data.waive_service_fee:
             service_fee = (taxable * tenant.service_fee_percent / 100).quantize(_CENTS, rounding=ROUND_HALF_UP)
         delivery_fee = tenant.delivery_fee if data.service_type is ServiceType.DELIVERY else Decimal("0.00")
 
@@ -186,6 +186,9 @@ class OrderService:
             if on_tab:
                 tab = TabService(self.db, self.tenant_id).attach(tenant, data.table_label, customer.name, by_staff=not public)
                 order.tab_id = tab.id
+                if tab.service_fee_waived and order.service_fee:
+                    order.total -= order.service_fee
+                    order.service_fee = Decimal("0.00")
             order.order_number = self.tenant_repository.next_order_number(self.tenant_id)
             self.repository.create(order)
             self.db.commit()

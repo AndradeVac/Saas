@@ -1,4 +1,4 @@
-"""The trial is a taste: core flow works, volume is capped and premium tools answer 402."""
+"""Plans: the trial shows everything for 14 days; paid plans cap volume and lock tools (402)."""
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
@@ -9,45 +9,39 @@ from tests.conftest import set_plan
 TRIAL = PLANS["trial"]
 
 
-def test_trial_locks_premium_tools(make_tenant):
+def test_trial_unlocks_everything_but_white_label(make_tenant):
     shop = make_tenant(plan=None)
-    for path in ("/coupons", "/audit", "/customers/export", "/orders/export", "/analytics/dashboard/export"):
-        response = shop.get(path)
-        assert response.status_code == 402, path
-        assert response.json()["code"] == "PLAN_LIMIT"
-
+    for path in ("/coupons", "/audit", "/customers/export", "/orders/export", "/analytics/dashboard/export", "/analytics/insights"):
+        assert shop.get(path).status_code == 200, path
     status = shop.get("/tenant/plan").json()
-    assert status["plan"]["key"] == "trial"
-    assert status["trial_days_left"] >= 13
-    assert status["usage"] == {"products": 0, "users": 1, "orders": 0}
-    assert shop.public_get("/tenant").json()["show_platform_badge"] is True
+    assert status["plan"]["key"] == "trial" and status["trial_days_left"] >= 13
+    assert status["plan"]["max_products"] is None and status["plan"]["max_orders"] is None
+    assert shop.public_get("/tenant").json()["show_platform_badge"] is True  # the badge stays while testing
 
 
-def test_trial_caps_products_and_team(make_tenant):
+def test_paid_plan_caps_products_and_team(make_tenant):
+    shop = make_tenant(plan="essencial")
+    essencial = PLANS["essencial"]
+    PLANS["essencial"] = replace(essencial, max_products=3, max_users=1)
+    try:
+        products = [shop.add_product(name=f"Produto {i}") for i in range(3)]
+        response = shop.post("/products", {"category_id": shop.category_id(), "name": "Um a mais", "price": "1.00"})
+        assert response.status_code == 402 and response.json()["feature"] == "max_products"
+        # Freeing a slot allows a new one; reactivating the old one is capped again.
+        assert shop.delete(f"/products/{products[0]['id']}").status_code == 200
+        shop.add_product(name="Substituto")
+        assert shop.patch(f"/products/{products[0]['id']}", {"active": True}).status_code == 402
+        response = shop.post("/users", {"name": "Operador", "email": f"op@{shop.slug}.com", "password": "senha-segura-123", "role": "OPERATOR"})
+        assert response.status_code == 402
+    finally:
+        PLANS["essencial"] = essencial
+
+
+def test_coupons_work_while_on_trial(make_tenant):
     shop = make_tenant(plan=None)
-    products = [shop.add_product(name=f"Produto {i}") for i in range(TRIAL.max_products)]
-    response = shop.post("/products", {"category_id": shop.category_id(), "name": "Um a mais", "price": "1.00"})
-    assert response.status_code == 402
-    assert response.json()["feature"] == "max_products"
-
-    # Freeing a slot allows a new one; reactivating the old one is capped again.
-    assert shop.delete(f"/products/{products[0]['id']}").status_code == 200
-    shop.add_product(name="Substituto")
-    assert shop.patch(f"/products/{products[0]['id']}", {"active": True}).status_code == 402
-
-    response = shop.post("/users", {"name": "Operador", "email": f"op@{shop.slug}.com", "password": "senha-segura-123", "role": "OPERATOR"})
-    assert response.status_code == 402
-
-
-def test_coupons_are_ignored_while_on_trial(make_tenant):
-    shop = make_tenant()
     assert shop.post("/coupons", {"code": "BEMVINDO", "kind": "PERCENT", "value": "10"}).status_code == 201
     product = shop.add_product(price="10.00")
-    set_plan(shop.slug, "trial", TenantStatus.TRIAL)
-
-    check = shop.public_post("/public/coupons/check", {"code": "BEMVINDO", "subtotal": "10.00"})
-    assert check.status_code == 422
-    assert shop.public_order(product["id"], quantity=1, coupon_code="BEMVINDO").status_code == 422
+    assert shop.public_order(product["id"], quantity=1, coupon_code="BEMVINDO").status_code == 201
 
 
 def test_trial_order_cap_closes_the_menu(make_tenant):

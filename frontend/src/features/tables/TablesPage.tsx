@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { EmptyState, PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatMoney, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { addTabPayment, approveTab, cancelTab, closeTab, resolveTabPayment, tabStatusLabels, type StaffTab } from '../../services/tabs'
+import { addTabPayment, approveTab, cancelTab, closeTab, resolveTabPayment, setStaffTabServiceFee, tabStatusLabels, type StaffTab } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 import { useTablesLive } from './TablesLive'
@@ -169,13 +169,14 @@ export function TablesPage() {
         </div>
       )}
 
-      {closing && <CloseTabModal tab={closing} accepted={tenant.accepted_payments} onClose={() => setClosing(null)} onDone={refresh} />}
+      {closing && <CloseTabModal tab={closing} accepted={tenant.accepted_payments} feeRate={Number(tenant.service_fee_percent)} onClose={() => setClosing(null)} onDone={refresh} />}
       {cancelling && <CancelTabModal tab={cancelling} onClose={() => setCancelling(null)} onDone={refresh} />}
     </section>
   )
 }
 
-function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; accepted: PaymentMethod[]; onClose: () => void; onDone: () => Promise<void> }) {
+function CloseTabModal({ tab: initial, accepted, feeRate, onClose, onDone }: { tab: StaffTab; accepted: PaymentMethod[]; feeRate: number; onClose: () => void; onDone: () => Promise<void> }) {
+  const [tab, setTab] = useState(initial)
   const [method, setMethod] = useState<PaymentMethod>(tab.requested_payment_method ?? accepted[0])
   const [saving, setSaving] = useState(false)
   const [share, setShare] = useState('')
@@ -196,6 +197,15 @@ function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; acce
       toast.error(apiErrorMessage(err, 'Não foi possível registrar o pagamento.'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function toggleFee() {
+    try {
+      setTab((await setStaffTabServiceFee(tab.id, !tab.service_fee_waived)) as StaffTab)
+      await onDone()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível alterar a taxa de serviço.'))
     }
   }
 
@@ -224,7 +234,12 @@ function CloseTabModal({ tab, accepted, onClose, onDone }: { tab: StaffTab; acce
       <div className="card flat">
         <div className="total-row sub"><span>Consumo</span><span>{formatMoney(tab.totals.subtotal)}</span></div>
         {Number(tab.totals.discount) > 0 && <div className="total-row sub discount"><span>Descontos</span><span>−{formatMoney(tab.totals.discount)}</span></div>}
-        {Number(tab.totals.service_fee) > 0 && <div className="total-row sub"><span>Taxa de serviço</span><span>{formatMoney(tab.totals.service_fee)}</span></div>}
+        {feeRate > 0 && (
+          <div className="total-row sub fee-toggle">
+            <span>Taxa de serviço ({feeRate}%, opcional) <button className="link-btn" onClick={() => void toggleFee()}>{tab.service_fee_waived ? 'incluir' : 'retirar'}</button></span>
+            <span>{tab.service_fee_waived ? 'Sem taxa' : formatMoney(tab.totals.service_fee)}</span>
+          </div>
+        )}
         <div className="total-row"><span>Total</span><strong>{formatMoney(tab.totals.total)}</strong></div>
         {Number(tab.totals.paid) > 0 && <div className="total-row sub"><span>Já pago</span><span>−{formatMoney(tab.totals.paid)}</span></div>}
         {Number(tab.totals.paid) > 0 && <div className="total-row"><span>Falta</span><strong>{formatMoney(remaining)}</strong></div>}

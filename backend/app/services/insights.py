@@ -137,12 +137,24 @@ class InsightsService:
         at_risk = self._customers(
             select(Customer.id, Customer.name, Customer.phone, func.count(Order.id), func.sum(Order.total), func.max(Order.created_at))
             .join(Order, Order.customer_id == Customer.id)
-            .where(Order.tenant_id == tenant_id, Order.status != OrderStatus.CANCELLED, Customer.active.is_(True))
+            .where(Order.tenant_id == tenant_id, Order.status != OrderStatus.CANCELLED, Customer.active.is_(True),
+                   Customer.marketing_opt_in.is_(True))  # LGPD: promotions only with consent
             .group_by(Customer.id)
             .having(func.count(Order.id) >= 2,
                     func.max(Order.created_at) < now - timedelta(days=AT_RISK_FROM_DAYS),
                     func.max(Order.created_at) >= now - timedelta(days=AT_RISK_UNTIL_DAYS))
             .order_by(func.sum(Order.total).desc()).limit(30), now)
+        lapsed_without_consent = int(self.db.scalar(
+            select(func.count()).select_from(
+                select(Customer.id).join(Order, Order.customer_id == Customer.id)
+                .where(Order.tenant_id == tenant_id, Order.status != OrderStatus.CANCELLED, Customer.active.is_(True),
+                       Customer.marketing_opt_in.is_(False))
+                .group_by(Customer.id)
+                .having(func.count(Order.id) >= 2,
+                        func.max(Order.created_at) < now - timedelta(days=AT_RISK_FROM_DAYS),
+                        func.max(Order.created_at) >= now - timedelta(days=AT_RISK_UNTIL_DAYS)).subquery()
+            )
+        ) or 0)
 
         return InsightsResponse(
             period_start=period_start.isoformat() if period_start else "",
@@ -163,6 +175,7 @@ class InsightsService:
                                               revenue=Decimal(r[3])) for r in tickets],
             top_customers=top,
             at_risk=at_risk,
+            lapsed_without_consent=lapsed_without_consent,
             cancellation_reasons=[ReasonCount(reason=r[0] or "Sem motivo informado", count=int(r[1])) for r in reasons],
         )
 
