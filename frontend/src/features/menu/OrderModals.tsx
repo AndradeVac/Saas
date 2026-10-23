@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
-import { getOrderPix, trackOrder, type Tracking } from '../../services/publicMenu'
+import { cancelPublicOrder, getOrderPix, trackOrder, type Tracking } from '../../services/publicMenu'
+import { apiErrorMessage } from '../../services/api'
 import type { OrderStatus, PublicTenant } from '../../types'
 
 const STEPS: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'FINISHED']
@@ -46,6 +47,7 @@ const stepHints: Record<string, string> = {
 export function TrackModal({ token, tenant, isNew, onClose }: { token: string; tenant: PublicTenant; isNew: boolean; onClose: () => void }) {
   const [order, setOrder] = useState<Tracking | null>(null)
   const [missing, setMissing] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -63,6 +65,17 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
 
   if (missing) return <Modal title="Pedido" onClose={onClose}><div className="empty">Pedido não encontrado.</div></Modal>
   if (!order) return <Modal title="Pedido" onClose={onClose}><Skeleton lines={5} height={20} /></Modal>
+
+  async function cancel() {
+    if (!confirmCancel) return setConfirmCancel(true)
+    try {
+      await cancelPublicOrder(token)
+      setOrder((current) => (current ? { ...current, status: 'CANCELLED' } : current))
+      toast.success('Pedido cancelado.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível cancelar.'))
+    }
+  }
 
   const status = order.status as OrderStatus
   const index = STEPS.indexOf(status)
@@ -96,6 +109,11 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
             ))}
           </ol>
           <p className="alert info">{waitingPix ? 'Pague o PIX abaixo. Assim que o pagamento for confirmado, seu pedido entra em preparo.' : stepHints[status]}</p>
+          {(status === 'RECEIVED' || status === 'PREPARING') && (
+            <p className="muted eta">⏱ {order.service_type === 'DELIVERY'
+              ? `Previsão de entrega: cerca de ${tenant.delivery_minutes} min após o pedido.`
+              : `Previsão: pronto em cerca de ${tenant.prep_minutes} min.`}</p>
+          )}
         </>
       )}
 
@@ -119,6 +137,9 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
         : <p className="muted">
             {order.payment_status === 'PAID' ? `✔ Pagamento confirmado (${paymentMethodLabels[order.payment_method]}).` : `Pagamento no caixa (${paymentMethodLabels[order.payment_method]}).`}
           </p>}
+      {status === 'RECEIVED' && order.payment_status !== 'PAID' && !order.table_label && (
+        <button className={`btn block ${confirmCancel ? 'danger' : 'ghost'}`} onClick={() => void cancel()}>{confirmCancel ? 'Toque de novo para confirmar o cancelamento' : 'Cancelar pedido'}</button>
+      )}
       {whatsapp && <a className="btn block" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Falar com o estabelecimento</a>}
     </Modal>
   )

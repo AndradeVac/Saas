@@ -23,7 +23,8 @@ def site(tmp_path, monkeypatch):
 def test_spa_routes_assets_and_api(site):
     for path in ("/", "/login", "/painel/produtos", "/../../etc/passwd"):
         response = site.get(path)
-        assert response.status_code == 200 and "<title>app</title>" in response.text
+        # The shell comes back with the link-preview tags (platform title on the bare domain).
+        assert response.status_code == 200 and "og:title" in response.text and "<!doctype html>" in response.text
         assert response.headers["cache-control"] == "no-cache"
     assert site.get("/robots.txt").text == "User-agent: *"
     assert site.head("/").status_code == 200 and site.head("/painel").status_code == 200

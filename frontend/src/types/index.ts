@@ -1,3 +1,5 @@
+export type DeliveryZone = { name: string; fee: string }
+
 export type OrderStatus = 'RECEIVED' | 'PREPARING' | 'READY' | 'FINISHED' | 'CANCELLED'
 export type PaymentMethod = 'PIX' | 'CARD' | 'CASH' | 'TAB'
 export type PaymentStatus = 'PENDING' | 'PAID'
@@ -43,6 +45,10 @@ export type PublicTenant = {
   /** Comanda por mesa: dine-in orders go to the table's open bill, paid at the end. */
   tabs_enabled: boolean
   tab_idle_minutes: number
+  prep_minutes: number
+  delivery_minutes: number
+  delivery_zones: DeliveryZone[]
+  require_pix_delivery: boolean
 }
 
 export type TenantSettings = PublicTenant & {

@@ -7,14 +7,20 @@ subdomain and calls /api on the same origin, so there is no CORS round-trip in p
 Locally keep using `uvicorn app.main:app` + Vite.
 """
 import os
+import re
+import time
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.database import SessionLocal
+from app.core.og import meta_tags, og_image
 from app.main import app as api
+from app.models.tenant import Tenant, TenantStatus
 
 FRONTEND_DIR = Path(os.getenv("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
 
@@ -55,11 +61,56 @@ if (FRONTEND_DIR / "index.html").exists():
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
+    INDEX = (FRONTEND_DIR / "index.html").read_text()
+    _HEAD = re.compile(r"\s*(<title>.*?</title>|<meta name=\"description\"[^>]*>)", re.S)
+    BASE = _HEAD.sub("", INDEX)  # the shell without its generic title/description
+    PLATFORM_DESCRIPTION = "Cardápio digital com QR Code, pedidos pelo celular e comanda por mesa. Sem comissão por pedido. Teste grátis por 14 dias."
+    _pages: dict[str, tuple[float, str]] = {}
+
+    def _slug(request: Request) -> str | None:
+        host = (request.headers.get("host") or "").split(":")[0].lower()
+        suffix = f".{settings.root_domain}"
+        return host[: -len(suffix)] if host.endswith(suffix) and host.count(".") >= settings.root_domain.count(".") + 1 else None
+
+    def _page(request: Request) -> str:
+        """index.html with the link-preview tags of the store (or of the platform)."""
+        slug = _slug(request)
+        cached = _pages.get(slug or "")
+        if cached and time.monotonic() - cached[0] < 60:
+            return cached[1]
+        base = f"https://{request.headers.get('host', settings.root_domain)}"
+        tags = meta_tags("Mesa Digital · Cardápio digital e pedidos para restaurantes", PLATFORM_DESCRIPTION, f"https://{settings.root_domain}/og-image.jpg", base + "/")
+        if slug:
+            with SessionLocal() as db:
+                tenant = db.scalar(select(Tenant).where(Tenant.slug == slug))
+            if tenant is not None and tenant.status is not TenantStatus.SUSPENDED:
+                name = tenant.name.strip()
+                description = (tenant.description or f"Veja o cardápio de {name} e peça pelo celular.").strip()
+                version = int(tenant.updated_at.timestamp()) if tenant.updated_at else 0
+                tags = meta_tags(f"{name} · Cardápio digital", description, f"{base}/og/{slug}.jpg?v={version}", base + "/")
+        page = BASE.replace("</head>", f"    {tags}\n  </head>", 1) if "</head>" in BASE else tags + BASE
+        if len(_pages) > 1000:
+            _pages.clear()
+        _pages[slug or ""] = (time.monotonic(), page)
+        return page
+
+    @web.get("/og/{slug}.jpg", include_in_schema=False)
+    def store_preview_image(slug: str) -> Response:
+        with SessionLocal() as db:
+            tenant = db.scalar(select(Tenant).where(Tenant.slug == slug))
+            if tenant is None:
+                return Response(status_code=404)
+            data = og_image(db, tenant)
+        return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=3600"})
+
     # HEAD too: uptime monitors and link previews probe pages with it.
     @web.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
-    def spa(path: str) -> Response:
+    def spa(path: str, request: Request) -> Response:
         """Files from the build (favicon, robots.txt…) or the app shell for client-side routes."""
         candidate = (FRONTEND_DIR / path).resolve()
         if path and candidate.is_file() and FRONTEND_DIR.resolve() in candidate.parents:
             return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+        try:
+            return HTMLResponse(_page(request), headers={"Cache-Control": "no-cache"})
+        except Exception:  # a database hiccup must never take the site down
+            return FileResponse(FRONTEND_DIR / "index.html", headers={"Cache-Control": "no-cache"})

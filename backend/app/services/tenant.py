@@ -31,7 +31,7 @@ TAB_BUSINESSES = {BusinessType.RESTAURANT, BusinessType.SNACK_BAR, BusinessType.
 _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
-    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes",
+    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes", "prep_minutes", "delivery_minutes", "require_pix_delivery",
 )
 # Can be cleared by sending null explicitly.
 _NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url")
@@ -102,6 +102,10 @@ class TenantService:
                 if field in ("logo_url", "cover_url") and getattr(tenant, field) != getattr(data, field):
                     replaced_images.append(getattr(tenant, field))
                 setattr(tenant, field, getattr(data, field) or None)
+        if data.delivery_zones is not None:
+            tenant.delivery_zones = [{"name": zone.name.strip(), "fee": str(zone.fee)} for zone in data.delivery_zones]
+        if tenant.require_pix_delivery and ("PIX" not in tenant.accepted_payments or not tenant.pix_key):
+            raise BusinessRuleError("Para exigir PIX antecipado na entrega, ative o PIX e cadastre a chave PIX.")
 
         turning_off_tabs = not tenant.tabs_enabled or "DINE_IN" not in tenant.enabled_services
         if turning_off_tabs:

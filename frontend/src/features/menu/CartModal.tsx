@@ -5,7 +5,8 @@ import { Modal } from '../../components/ui/Modal'
 import { formatMoney, maskPhone, paymentMethodLabels, serviceLabels } from '../../lib/format'
 import { readJson, writeJson } from '../../lib/storage'
 import { apiErrorMessage } from '../../services/api'
-import { checkCoupon, createPublicOrder } from '../../services/publicMenu'
+import { checkCoupon, createPublicOrder, type MenuProduct } from '../../services/publicMenu'
+import { mediaUrl } from '../../lib/media'
 import type { PaymentMethod, PublicTenant, ServiceType } from '../../types'
 import { cartSubtotal, type CartLine } from './cart'
 
@@ -13,6 +14,8 @@ type Props = {
   tenant: PublicTenant
   lines: CartLine[]
   setLines: Dispatch<SetStateAction<CartLine[]>>
+  suggestions: MenuProduct[]
+  onSuggest: (product: MenuProduct) => void
   tableFromQr: string
   /** Code from the table's QR Code; without it the customer cannot order on a table's bill. */
   tableCode: string
@@ -20,7 +23,7 @@ type Props = {
   onOrdered: (order: { token: string; tabToken: string | null; number: number }) => void
 }
 
-export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onClose, onOrdered }: Props) {
+export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tableFromQr, tableCode, onClose, onOrdered }: Props) {
   const customerKey = `mesa:${tenant.slug}:customer`
   const saved = useMemo(() => readJson<{ name?: string; phone?: string }>(customerKey, {}), [customerKey])
   const services = tenant.enabled_services
@@ -31,6 +34,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
   const [service, setService] = useState<ServiceType>(tableFromQr && services.includes('DINE_IN') ? 'DINE_IN' : services[0])
   const [table, setTable] = useState(tableFromQr)
   const [address, setAddress] = useState('')
+  const [zone, setZone] = useState('')
   const [payment, setPayment] = useState<PaymentMethod>(payments[0])
   const [notes, setNotes] = useState('')
   const [couponInput, setCouponInput] = useState('')
@@ -48,7 +52,12 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
   const feeRate = service === 'DINE_IN' ? Number(tenant.service_fee_percent) : 0
   // The service fee is optional (a tip): off the order here, or off the whole bill when closing the table.
   const serviceFee = feeRate > 0 && (onTab || withFee) ? ((subtotal - discount) * feeRate) / 100 : 0
-  const deliveryFee = service === 'DELIVERY' ? Number(tenant.delivery_fee) : 0
+  const zones = tenant.delivery_zones
+  const zoneFee = zones.find((z) => z.name === zone)?.fee
+  const deliveryFee = service === 'DELIVERY' ? Number(zones.length > 0 ? zoneFee ?? 0 : tenant.delivery_fee) : 0
+  // Anti-prank: some stores only deliver with PIX paid up front.
+  const allowedPayments = service === 'DELIVERY' && tenant.require_pix_delivery ? payments.filter((m) => m === 'PIX') : payments
+  useEffect(() => { if (allowedPayments.length && !allowedPayments.includes(payment)) setPayment(allowedPayments[0]) }, [allowedPayments, payment])
   const total = subtotal - discount + serviceFee + deliveryFee
   const minOrder = onTab ? 0 : Number(tenant.min_order_value)
   const belowMinimum = subtotal < minOrder
@@ -91,6 +100,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
     if (phone.replace(/\D/g, '').length < 10) return setError('Informe um telefone com DDD.')
     if (service === 'DINE_IN' && !table.trim()) return setError('Informe o número da mesa.')
     if (onTab && !tableCode) return setError('Para pedir na mesa, leia o QR Code que está nela.')
+    if (service === 'DELIVERY' && zones.length > 0 && !zone) return setError('Escolha o seu bairro.')
     if (service === 'DELIVERY' && address.trim().length < 6) return setError('Informe o endereço de entrega.')
     if (belowMinimum) return setError(`O pedido mínimo é de ${formatMoney(minOrder)}.`)
     setSending(true)
@@ -102,6 +112,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
         table_label: service === 'DINE_IN' ? table : undefined,
         table_code: onTab ? tableCode : undefined,
         delivery_address: service === 'DELIVERY' ? address : undefined,
+        delivery_zone: service === 'DELIVERY' && zones.length > 0 ? zone : undefined,
         payment_method: onTab ? 'TAB' : payment,
         notes: notes || undefined,
         coupon_code: coupon?.code,
@@ -157,6 +168,21 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
         </div>
       ))}
 
+      {suggestions.length > 0 && (
+        <div className="suggest">
+          <h4>Que tal acompanhar?</h4>
+          <div className="suggest-row">
+            {suggestions.map((product) => (
+              <button key={product.id} className="suggest-card" onClick={() => onSuggest(product)}>
+                {product.image_url ? <img src={mediaUrl(product.image_url)} alt="" loading="lazy" /> : <span className="suggest-ph">{product.name[0]}</span>}
+                <span className="suggest-name">{product.name}</span>
+                <strong>+ {formatMoney(product.price)}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h4>Como você quer receber?</h4>
       <div className="segmented choice" role="radiogroup" aria-label="Tipo de atendimento">
         {services.map((type) => (
@@ -176,10 +202,23 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
         <div className="alert warn"><span>Para pedir na mesa, <strong>leia o QR Code que está nela</strong> com a câmera do celular. Se preferir, escolha “Para levar”.</span></div>
       )}
       {service === 'DELIVERY' && (
-        <label className="field" style={{ marginTop: 12 }}>
-          <span>Endereço de entrega</span>
-          <textarea rows={2} maxLength={300} placeholder="Rua, número, bairro e complemento" value={address} onChange={(e) => setAddress(e.target.value)} />
-        </label>
+        <>
+          {zones.length > 0 && (
+            <label className="field" style={{ marginTop: 12 }}>
+              <span>Bairro</span>
+              <select value={zone} onChange={(e) => setZone(e.target.value)}>
+                <option value="">Escolha o seu bairro</option>
+                {zones.map((z) => <option key={z.name} value={z.name}>{z.name} · entrega {formatMoney(z.fee)}</option>)}
+              </select>
+              <small className="muted">Não achou o seu bairro? Ainda não entregamos aí.</small>
+            </label>
+          )}
+          <label className="field" style={{ marginTop: 12 }}>
+            <span>Endereço de entrega</span>
+            <textarea rows={2} maxLength={300} placeholder={zones.length > 0 ? 'Rua, número e complemento' : 'Rua, número, bairro e complemento'} value={address} onChange={(e) => setAddress(e.target.value)} />
+          </label>
+          <small className="muted">Entrega em cerca de {tenant.delivery_minutes} minutos.</small>
+        </>
       )}
 
       <h4>Seus dados</h4>
@@ -193,9 +232,9 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
           <span><strong>Comanda aberta:</strong> peça quantas vezes quiser. Você paga tudo de uma vez quando fechar a conta.</span>
         </div>
       ) : (<>
-      <h4>Pagamento (no caixa)</h4>
+      <h4>Pagamento</h4>
       <div className="pay-grid">
-        {payments.map((method) => (
+        {allowedPayments.map((method) => (
           <button key={method} className={`pay-option ${payment === method ? 'active' : ''}`} onClick={() => setPayment(method)}>{paymentMethodLabels[method]}</button>
         ))}
       </div>
