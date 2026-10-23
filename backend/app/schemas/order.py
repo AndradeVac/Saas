@@ -34,6 +34,7 @@ class OrderCreate(BaseModel):
     # The service fee (tip) is optional: the customer can take it out.
     waive_service_fee: bool = False
     delivery_zone: str | None = Field(default=None, max_length=60)  # neighbourhood, when the store set delivery zones
+    scheduled_for: datetime | None = None  # encomenda
     items: list[OrderItemCreate] = Field(min_length=1, max_length=60)
 
     @field_validator("table_label")
@@ -82,6 +83,7 @@ class OrderResponse(BaseModel):
     payment_method: PaymentMethod
     payment_status: PaymentStatus
     paid_at: datetime | None
+    scheduled_for: datetime | None = None
     notes: str | None
     coupon_code: str | None
     subtotal: Decimal

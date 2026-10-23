@@ -32,9 +32,10 @@ _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
     "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes", "prep_minutes", "delivery_minutes", "require_pix_delivery",
+    "loyalty_enabled", "loyalty_goal", "scheduling_enabled",
 )
 # Can be cleared by sending null explicitly.
-_NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url")
+_NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url", "loyalty_reward", "google_review_url")
 
 
 class TenantService:
@@ -104,6 +105,8 @@ class TenantService:
                 setattr(tenant, field, getattr(data, field) or None)
         if data.delivery_zones is not None:
             tenant.delivery_zones = [{"name": zone.name.strip(), "fee": str(zone.fee)} for zone in data.delivery_zones]
+        if tenant.loyalty_enabled and not tenant.loyalty_reward:
+            raise BusinessRuleError("Diga qual é o prêmio do cartão fidelidade (ex.: 1 hambúrguer Clássico grátis).")
         if tenant.require_pix_delivery and ("PIX" not in tenant.accepted_payments or not tenant.pix_key):
             raise BusinessRuleError("Para exigir PIX antecipado na entrega, ative o PIX e cadastre a chave PIX.")
 

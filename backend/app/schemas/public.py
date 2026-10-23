@@ -17,6 +17,8 @@ class PublicCategory(BaseModel):
     id: UUID
     name: str
     image_url: str | None = None
+    available_from: str | None = None  # "07:00": the category is only on sale inside this window
+    available_until: str | None = None
 
 
 class PublicProduct(BaseModel):
@@ -56,6 +58,7 @@ class PublicOrderCreate(BaseModel):
     coupon_code: str | None = Field(default=None, max_length=40)
     waive_service_fee: bool = False  # the service fee is optional (tip)
     delivery_zone: str | None = Field(default=None, max_length=60)
+    scheduled_for: datetime | None = None  # encomenda: when the customer wants it
     marketing_opt_in: bool = False  # LGPD: "quero receber novidades e promoções"
     items: list[PublicOrderItem] = Field(min_length=1, max_length=30)
 
@@ -117,7 +120,15 @@ class PublicOrderTracking(BaseModel):
     table_label: str | None
     delivery_address: str | None
     items: list[PublicHistoryItem]
+    scheduled_for: datetime | None = None
+    loyalty: dict | None = None  # {stamps, goal, reward, rewards_available} when the store has a loyalty card
+    review_stars: int | None = None  # the customer's rating, once given
+    google_review_url: str | None = None
 
+
+class ReviewCreate(BaseModel):
+    stars: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=500)
 
 
 class CouponCheckRequest(BaseModel):

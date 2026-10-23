@@ -13,6 +13,7 @@ from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.customer import CustomerCreate, CustomerListItem, CustomerResponse, CustomerUpdate
+from app.services import loyalty
 from app.services.customer import CustomerService
 from app.services.reports import XLSX_TYPE, customers_xlsx
 
@@ -62,6 +63,20 @@ def export_customers(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=clientes.csv"},
     )
+
+
+@router.get("/{customer_id}/loyalty")
+def customer_loyalty(customer_id: UUID, db: Session = Depends(get_db), actor: User = Depends(staff_only)):
+    tenant = db.get(Tenant, actor.tenant_id)
+    current = loyalty.card(db, tenant, CustomerService(db, actor.tenant_id).get_by_id(customer_id))
+    return current.model_dump() if current else None
+
+
+@router.post("/{customer_id}/loyalty/redeem")
+def redeem_loyalty(customer_id: UUID, db: Session = Depends(get_db), actor: User = Depends(staff_only)):
+    """The customer took the reward: starts a new card."""
+    tenant = db.get(Tenant, actor.tenant_id)
+    return loyalty.redeem(db, tenant, CustomerService(db, actor.tenant_id).get_by_id(customer_id)).model_dump()
 
 
 @router.get("/{customer_id}", response_model=CustomerResponse)

@@ -26,6 +26,7 @@ type Draft = {
   description: string
   image_url: string | null
   price: string
+  cost: string
   featured: boolean
   available: boolean
   active: boolean
@@ -33,7 +34,7 @@ type Draft = {
 }
 
 const blank = (category_id: string): Draft => ({
-  category_id, name: '', description: '', image_url: null, price: '', featured: false, available: true, active: true, options: [],
+  category_id, name: '', description: '', image_url: null, price: '', cost: '', featured: false, available: true, active: true, options: [],
 })
 
 export function ProductsPage() {
@@ -91,7 +92,7 @@ export function ProductsPage() {
     setTab('details'); setFormError('')
     setDraft({
       id: p.id, category_id: p.category_id, name: p.name, description: p.description ?? '', image_url: p.image_url,
-      price: p.price, featured: p.featured, available: p.available, active: p.active, options: p.options,
+      price: p.price, cost: p.cost ?? '', featured: p.featured, available: p.available, active: p.active, options: p.options,
     })
   }
 
@@ -111,6 +112,7 @@ export function ProductsPage() {
       description: draft.description.trim() || null,
       image_url: draft.image_url,
       price: draft.price,
+      cost: draft.cost === '' ? null : draft.cost,
       featured: draft.featured,
       available: draft.available,
       active: draft.active,
@@ -264,6 +266,8 @@ export function ProductsPage() {
                   <label className="field"><span>Nome</span><input required autoFocus maxLength={160} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
                   <MoneyInput label="Preço" required value={draft.price} onChange={(price) => setDraft({ ...draft, price })} hint="Se tiver opções, este é o preço base." />
                 </div>
+                <MoneyInput label="Custo para fazer (opcional)" value={draft.cost} onChange={(cost) => setDraft({ ...draft, cost })}
+                  hint={draft.cost && draft.price ? `Margem: ${Math.round((1 - Number(draft.cost) / Number(draft.price)) * 100)}% · lucro de ${formatMoney(Number(draft.price) - Number(draft.cost))} por unidade` : 'Com o custo, as Análises mostram o lucro de cada produto.'} />
                 <label className="field"><span>Categoria</span>
                   <select value={draft.category_id} onChange={(e) => setDraft({ ...draft, category_id: e.target.value })}>
                     {activeCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

@@ -227,7 +227,15 @@ export function MenuPage() {
   }
 
   const { tenant } = menu
-  const canOrder = tenant.is_open
+  // Closed but taking encomendas: the cart only accepts scheduled orders.
+  const canOrder = tenant.is_open || tenant.scheduling_enabled
+  const nowHm = new Date().toTimeString().slice(0, 5)
+  const categoryOpen = (c: { available_from: string | null; available_until: string | null }) => {
+    if (!c.available_from || !c.available_until) return true
+    const [from, until] = [c.available_from.slice(0, 5), c.available_until.slice(0, 5)]
+    return from < until ? nowHm >= from && nowHm < until : nowHm >= from || nowHm < until
+  }
+  const closedCategories = new Set(menu.categories.filter((c) => !categoryOpen(c)).map((c) => c.id))
   const count = cartCount(lines)
   const hasCart = count > 0 && modal === null
   const tabOrders = tab?.orders.filter((o) => o.status !== 'CANCELLED') ?? []
@@ -277,7 +285,7 @@ export function MenuPage() {
             {!product.available && <span className="product-flag">Esgotado</span>}
           </div>
         </button>
-        {canOrder && product.available && (
+        {canOrder && product.available && !closedCategories.has(product.category_id) && (
           <button className="quick-add" onClick={() => quickAdd(product)} aria-label={`Adicionar ${product.name}`}><Plus size={18} /></button>
         )}
       </div>
@@ -323,6 +331,9 @@ export function MenuPage() {
         </div>
       </section>
 
+      {!tenant.is_open && tenant.scheduling_enabled && (
+        <div className="alert info menu-closed">Estamos fechados agora, mas você já pode <strong>agendar uma encomenda</strong> para outro dia ou horário.</div>
+      )}
       {!canOrder && (
         <div className="alert warn menu-closed">
           {tenant.accepting_orders ? 'Estamos fora do horário de atendimento. Você pode ver o cardápio, mas ainda não é possível pedir.' : 'No momento não estamos aceitando pedidos pelo cardápio digital.'}
@@ -371,7 +382,7 @@ export function MenuPage() {
           if (items.length === 0) return null
           return (
             <section key={c.id} className="menu-section" data-cat={c.id} ref={(el) => { if (el) sections.current.set(c.id, el); else sections.current.delete(c.id) }}>
-              <h2 className="section-title">{c.name}</h2>
+              <h2 className="section-title">{c.name}{c.available_from && c.available_until && <span className={`chip ${closedCategories.has(c.id) ? 'off' : ''}`}>{closedCategories.has(c.id) ? 'Disponível' : 'Até'} {closedCategories.has(c.id) ? `das ${c.available_from.slice(0, 5)} às ${c.available_until.slice(0, 5)}` : c.available_until.slice(0, 5)}</span>}</h2>
               <div className="product-list">{items.map(productCard)}</div>
             </section>
           )
@@ -417,9 +428,9 @@ export function MenuPage() {
         </button>
       )}
 
-      {modal?.kind === 'product' && <ProductModal product={modal.product} canOrder={canOrder && modal.product.available} onClose={() => setModal(null)} onAdd={addLine} />}
+      {modal?.kind === 'product' && <ProductModal product={modal.product} canOrder={canOrder && modal.product.available && !closedCategories.has(modal.product.category_id)} onClose={() => setModal(null)} onAdd={addLine} />}
       {modal?.kind === 'cart' && (
-        <CartModal tenant={tenant} lines={lines} setLines={setLines} suggestions={suggestions} onSuggest={suggest} tableFromQr={tableFromQr} tableCode={tableCode || tabTableCode} onClose={() => setModal(null)} onOrdered={onOrdered} />
+        <CartModal tenant={tenant} closedNow={!tenant.is_open} lines={lines} setLines={setLines} suggestions={suggestions} onSuggest={suggest} tableFromQr={tableFromQr} tableCode={tableCode || tabTableCode} onClose={() => setModal(null)} onOrdered={onOrdered} />
       )}
       {modal?.kind === 'orders' && <OrdersModal tokens={tokens} onClose={() => setModal(null)} onOpen={(token) => setModal({ kind: 'track', token, isNew: false })} />}
       {modal?.kind === 'tab' && tab && (

@@ -6,13 +6,37 @@ import { Pagination } from '../../components/ui/Pagination'
 import { EmptyState, ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { useDebounced } from '../../hooks/useDebounced'
 import { formatDate, formatMoney, formatPhone, maskPhone } from '../../lib/format'
-import { apiErrorMessage, isPlanLimitError } from '../../services/api'
+import { api, apiErrorMessage, isPlanLimitError } from '../../services/api'
 import { downloadCsv } from '../../services/orders'
 import { createCustomer, getCustomers, updateCustomer, type Customer } from '../../services/people'
 import { usePlan } from '../plans/PlanProvider'
 
 const PAGE_SIZE = 25
 type Draft = { id?: string; name: string; phone: string; notes: string; active: boolean }
+
+/** The customer's loyalty card, with the button to give the reward. */
+function LoyaltyPanel({ customerId }: { customerId: string }) {
+  const [card, setCard] = useState<{ stamps: number; goal: number; reward: string; rewards_available: number } | null>(null)
+  useEffect(() => { api.get(`/customers/${customerId}/loyalty`).then((r) => setCard(r.data)).catch(() => setCard(null)) }, [customerId])
+  if (!card) return null
+  async function redeem() {
+    try {
+      setCard((await api.post(`/customers/${customerId}/loyalty/redeem`)).data)
+      toast.success('Prêmio entregue. Novo cartão começou.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível resgatar.'))
+    }
+  }
+  return (
+    <div className="card flat loyalty" style={{ marginTop: 12 }}>
+      <strong>Cartão fidelidade: {card.stamps} de {card.goal}</strong>
+      <div className="stamps">{Array.from({ length: card.goal }, (_, i) => <span key={i} className={i < card.stamps ? 'on' : ''}>{i < card.stamps ? '★' : ''}</span>)}</div>
+      {card.rewards_available > 0
+        ? <button type="button" className="btn primary" onClick={() => void redeem()}>Entregar prêmio: {card.reward}</button>
+        : <small className="muted">Faltam {card.goal - card.stamps} pedidos para ganhar {card.reward}.</small>}
+    </div>
+  )
+}
 
 export function CustomersPage() {
   const { guard } = usePlan()
@@ -120,6 +144,7 @@ export function CustomersPage() {
             <label className="field"><span>Observações</span><textarea rows={3} maxLength={1000} placeholder="Preferências, alergias…" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></label>
             {draft.id && <label className="check"><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Cliente ativo</label>}
           </form>
+          {draft.id && <LoyaltyPanel customerId={draft.id} />}
         </Modal>
       )}
     </section>

@@ -14,8 +14,11 @@ from app.models.order import Order, OrderStatus, ServiceType
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.tenant import Tenant
+from app.models.order_review import OrderReview
+from app.models.product import Product
 from app.schemas.insights import (
-    AbcProduct, ComparisonPoint, CustomerRow, HeatCell, InsightKpis, InsightsResponse, ReasonCount, ServiceTicket,
+    AbcProduct, ComparisonPoint, CustomerRow, HeatCell, InsightKpis, InsightsResponse, ReasonCount, ReviewRow, ReviewSummary,
+    ServiceTicket,
 )
 from app.services.analytics import AnalyticsService
 
@@ -117,13 +120,25 @@ class InsightsService:
 
         dashboard = self.analytics.dashboard(period, start, end, product_limit=None)
         by_revenue = sorted(dashboard.products, key=lambda p: -p.revenue)
+        # Margin: quantity x cost of the products that have a cost (the owner fills it in Produtos).
+        costs = {row[0]: Decimal(row[1]) for row in self.db.execute(
+            select(Product.name, func.sum(OrderItem.quantity * Product.cost))
+            .join(Order, Order.id == OrderItem.order_id).join(Product, Product.id == OrderItem.product_id)
+            .where(*conditions, Product.cost.is_not(None)).group_by(Product.name)
+        )}
         abc, running = [], Decimal(0)
         for product in by_revenue:
             share = float(product.revenue / revenue) if revenue else 0.0
             before = float(running / revenue) if revenue else 0.0
             running += product.revenue
+            cost = costs.get(product.product_name)
+            profit = (product.revenue - cost) if cost is not None else None
             abc.append(AbcProduct(product_name=product.product_name, quantity=product.quantity, revenue=product.revenue, share=share,
-                                  cumulative=float(running / revenue) if revenue else 0.0, grade="A" if before < 0.8 else "B" if before < 0.95 else "C"))
+                                  cumulative=float(running / revenue) if revenue else 0.0, grade="A" if before < 0.8 else "B" if before < 0.95 else "C",
+                                  profit=profit, margin=float(profit / product.revenue) if profit is not None and product.revenue else None))
+        with_cost = [a for a in abc if a.profit is not None]
+        gross_profit = sum((a.profit for a in with_cost), Decimal(0)) if with_cost else None
+        cost_coverage = float(sum((a.revenue for a in with_cost), Decimal(0)) / revenue) if with_cost and revenue else 0.0
 
         tickets = self.db.execute(
             select(Order.service_type, func.count(Order.id), func.avg(Order.total), func.sum(Order.total))
@@ -166,7 +181,7 @@ class InsightsService:
                 cancellation_rate=cancelled / (orders + cancelled) if orders + cancelled else 0.0, cancelled_orders=cancelled,
                 avg_prep_minutes=_minutes(prep), avg_delivery_minutes=_minutes(delivery),
                 coupon_orders=int(coupon_orders), coupon_revenue=Decimal(coupon_revenue), discount_total=Decimal(discount_total),
-                projected_revenue=projected, revenue_so_far=revenue,
+                projected_revenue=projected, revenue_so_far=revenue, gross_profit=gross_profit, cost_coverage=cost_coverage,
             ),
             heatmap=[HeatCell(weekday=int(r[0]) - 1, hour=int(r[1]), orders=int(r[2]), revenue=Decimal(r[3])) for r in heat_rows],
             comparison=comparison,
@@ -177,6 +192,26 @@ class InsightsService:
             at_risk=at_risk,
             lapsed_without_consent=lapsed_without_consent,
             cancellation_reasons=[ReasonCount(reason=r[0] or "Sem motivo informado", count=int(r[1])) for r in reasons],
+            reviews=self._reviews(period_start, period_end),
+        )
+
+    def _reviews(self, period_start, period_end) -> ReviewSummary:
+        conditions = [OrderReview.tenant_id == self.tenant.id]
+        if period_start is not None:
+            conditions.append(OrderReview.created_at >= period_start)
+        if period_end is not None:
+            conditions.append(OrderReview.created_at < period_end)
+        counts = dict(self.db.execute(select(OrderReview.stars, func.count()).where(*conditions).group_by(OrderReview.stars)).all())
+        total = sum(counts.values())
+        latest = self.db.execute(
+            select(OrderReview.stars, OrderReview.comment, Customer.name, OrderReview.created_at)
+            .join(Order, Order.id == OrderReview.order_id).join(Customer, Customer.id == Order.customer_id)
+            .where(*conditions, OrderReview.comment.is_not(None)).order_by(OrderReview.created_at.desc()).limit(6)
+        ).all()
+        return ReviewSummary(
+            count=total, average=round(sum(s * n for s, n in counts.items()) / total, 2) if total else None,
+            distribution=[int(counts.get(star, 0)) for star in range(1, 6)],
+            latest=[ReviewRow(stars=r[0], comment=r[1], customer=r[2].split(" ")[0], created_at=r[3]) for r in latest],
         )
 
     def _customers(self, statement, now: datetime) -> list[CustomerRow]:

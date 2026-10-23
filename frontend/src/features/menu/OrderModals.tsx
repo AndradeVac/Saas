@@ -1,11 +1,11 @@
 import QRCode from 'qrcode'
-import { Check, Copy, MessageCircle } from 'lucide-react'
+import { Check, Copy, MessageCircle, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
-import { cancelPublicOrder, getOrderPix, trackOrder, type Tracking } from '../../services/publicMenu'
+import { cancelPublicOrder, getOrderPix, reviewOrder, trackOrder, type Tracking } from '../../services/publicMenu'
 import { apiErrorMessage } from '../../services/api'
 import type { OrderStatus, PublicTenant } from '../../types'
 
@@ -33,6 +33,54 @@ function OrderPix({ token, tenantName }: { token: string; tenantName: string }) 
         <button className="btn small" onClick={() => { void navigator.clipboard?.writeText(pix.code); toast.success('PIX copiado. Cole no app do seu banco.') }}><Copy size={14} /> Copiar</button>
       </div>
       <p className="muted"><small>O estabelecimento confere o pagamento e confirma. Esta tela atualiza sozinha.</small></p>
+    </div>
+  )
+}
+
+/** Loyalty card: stamps toward the reward ("a cada 10 pedidos, 1 grátis"). */
+function LoyaltyCard({ card }: { card: NonNullable<Tracking['loyalty']> }) {
+  return (
+    <div className="card flat loyalty">
+      <strong>{card.rewards_available > 0 ? '🎉 Você ganhou: ' + card.reward : 'Cartão fidelidade'}</strong>
+      <div className="stamps">{Array.from({ length: card.goal }, (_, i) => <span key={i} className={i < card.stamps ? 'on' : ''}>{i < card.stamps ? '★' : ''}</span>)}</div>
+      <small className="muted">{card.rewards_available > 0 ? 'Mostre esta tela no balcão para resgatar.' : `Faltam ${card.goal - card.stamps} pedidos para ganhar ${card.reward}.`}</small>
+    </div>
+  )
+}
+
+/** 1-5 stars after delivery; 5 stars invites the customer to review the store on Google. */
+function ReviewBox({ token, given, googleUrl }: { token: string; given: number | null; googleUrl: string | null }) {
+  const [stars, setStars] = useState(given ?? 0)
+  const [comment, setComment] = useState('')
+  const [sent, setSent] = useState(given !== null)
+  const [google, setGoogle] = useState<string | null>(given === 5 ? googleUrl : null)
+  async function send() {
+    try {
+      const result = await reviewOrder(token, stars, comment || undefined)
+      setSent(true)
+      setGoogle(result.google_review_url)
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível enviar a avaliação.'))
+    }
+  }
+  if (sent) {
+    return (
+      <div className="card flat review">
+        <strong>Obrigado pela avaliação!</strong>
+        {google && <a className="btn primary block" href={google} target="_blank" rel="noreferrer"><Star size={16} /> Avaliar também no Google</a>}
+      </div>
+    )
+  }
+  return (
+    <div className="card flat review">
+      <strong>Como foi o seu pedido?</strong>
+      <div className="stars" role="radiogroup" aria-label="Nota">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} role="radio" aria-checked={stars === n} aria-label={`${n} estrela${n > 1 ? 's' : ''}`} className={n <= stars ? 'on' : ''} onClick={() => setStars(n)}>★</button>
+        ))}
+      </div>
+      {stars > 0 && stars < 5 && <textarea rows={2} maxLength={500} placeholder="O que podemos melhorar? (opcional)" value={comment} onChange={(e) => setComment(e.target.value)} />}
+      {stars > 0 && <button className="btn primary block" onClick={() => void send()}>Enviar avaliação</button>}
     </div>
   )
 }
@@ -95,6 +143,7 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
         {serviceLabels[order.service_type]}{order.table_label ? ` · Mesa ${order.table_label}` : ''} · {formatDateTime(order.created_at)}
       </p>
       {order.delivery_address && <p className="muted">Entrega em: {order.delivery_address}</p>}
+      {order.scheduled_for && <p className="alert info">📅 Encomenda para <strong>{formatDateTime(order.scheduled_for)}</strong></p>}
 
       {status === 'CANCELLED' ? (
         <div className="alert error">Este pedido foi cancelado. Fale com a equipe se tiver dúvidas.</div>
@@ -137,6 +186,8 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
         : <p className="muted">
             {order.payment_status === 'PAID' ? `✔ Pagamento confirmado (${paymentMethodLabels[order.payment_method]}).` : `Pagamento no caixa (${paymentMethodLabels[order.payment_method]}).`}
           </p>}
+      {status === 'FINISHED' && <ReviewBox token={token} given={order.review_stars} googleUrl={order.google_review_url} />}
+      {order.loyalty && status !== 'CANCELLED' && <LoyaltyCard card={order.loyalty} />}
       {status === 'RECEIVED' && order.payment_status !== 'PAID' && !order.table_label && (
         <button className={`btn block ${confirmCancel ? 'danger' : 'ghost'}`} onClick={() => void cancel()}>{confirmCancel ? 'Toque de novo para confirmar o cancelamento' : 'Cancelar pedido'}</button>
       )}

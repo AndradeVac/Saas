@@ -14,6 +14,7 @@ from app.api.routes import (
     categories,
     coupons,
     customers,
+    marketing,
     media,
     menu_import,
     orders,
@@ -56,7 +57,7 @@ app.add_middleware(
 register_exception_handlers(app)
 
 for module in (
-    platform, auth, billing, tenant, users, categories, products, menu_import, customers, coupons, media, orders, tabs, public, push, analytics, audit,
+    platform, auth, billing, tenant, users, categories, products, menu_import, marketing, customers, coupons, media, orders, tabs, public, push, analytics, audit,
 ):
     app.include_router(module.router)
 

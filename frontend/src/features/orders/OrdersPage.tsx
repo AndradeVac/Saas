@@ -130,6 +130,7 @@ export function OrdersPage() {
                       <div className="order-card-top">
                         <strong>#{order.order_number}</strong>
                         <span className={`order-age ${late ? 'late' : ''}`}>{formatTime(order.created_at)} · {timeAgo(order.created_at, now)}</span>
+                        {order.scheduled_for && <span className="badge info" title="Encomenda">📅 {new Date(order.scheduled_for).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                       </div>
                       <div className="order-card-who">
                         <span>{order.customer_name ?? 'Cliente'}</span>

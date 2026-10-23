@@ -1,4 +1,6 @@
-import { Copy, Plus, Printer, Trash2 } from 'lucide-react'
+import { Copy, Download, Plus, Printer, Trash2 } from 'lucide-react'
+import { downloadCsv } from '../../services/orders'
+import { usePlan } from '../plans/PlanProvider'
 import QRCode from 'qrcode'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -37,6 +39,8 @@ const editable = (s: TenantSettings) => ({
   delivery_fee: s.delivery_fee, min_order_value: s.min_order_value, service_fee_percent: s.service_fee_percent,
   tabs_enabled: s.tabs_enabled, tabs_auto_approve: s.tabs_auto_approve, tab_idle_minutes: s.tab_idle_minutes,
   prep_minutes: s.prep_minutes, delivery_minutes: s.delivery_minutes, delivery_zones: s.delivery_zones, require_pix_delivery: s.require_pix_delivery,
+  loyalty_enabled: s.loyalty_enabled, loyalty_goal: s.loyalty_goal, loyalty_reward: s.loyalty_reward || null,
+  google_review_url: s.google_review_url || null, scheduling_enabled: s.scheduling_enabled,
 })
 
 /** Neighbourhoods served and the fee of each (empty list = one flat fee for any address). */
@@ -92,6 +96,7 @@ function PixTest({ pixKey }: { pixKey: string }) {
 
 export function SettingsPage() {
   const { setTenant } = useTenant()
+  const plan = usePlan()
   const [saved, setSaved] = useState<TenantSettings | null>(null)
   const [form, setForm] = useState<TenantSettings | null>(null)
   // ?aba=tables (etc.) opens a tab directly, e.g. from the dashboard's first steps.
@@ -307,6 +312,24 @@ export function SettingsPage() {
             </div>
             {form.enabled_services.includes('DELIVERY') && <DeliveryZones zones={form.delivery_zones} onChange={(zones) => set('delivery_zones', zones)} />}
           </div>
+          <div className="card">
+            <h3>Fidelidade, avaliações e encomendas</h3>
+            {plan.has('loyalty') ? (
+              <>
+                <Toggle label="Cartão fidelidade" hint="A cada X pedidos entregues, o cliente ganha um prêmio. Ele acompanha os carimbos pela tela do pedido." checked={form.loyalty_enabled} onChange={(on) => set('loyalty_enabled', on)} />
+                {form.loyalty_enabled && (
+                  <div className="grid-2">
+                    <label className="field"><span>Pedidos para ganhar</span><input type="number" min={2} max={50} value={form.loyalty_goal} onChange={(e) => set('loyalty_goal', Number(e.target.value))} /></label>
+                    <label className="field"><span>Prêmio</span><input maxLength={120} placeholder="Ex.: 1 hambúrguer Clássico grátis" value={form.loyalty_reward ?? ''} onChange={(e) => set('loyalty_reward', e.target.value)} /></label>
+                  </div>
+                )}
+              </>
+            ) : (
+              <button type="button" className="toggle disabled" onClick={() => plan.openUpgrade('O cartão fidelidade é do plano Profissional.')}><span className="toggle-text"><strong>Cartão fidelidade</strong><small>Disponível no plano Profissional.</small></span></button>
+            )}
+            <label className="field" style={{ marginTop: 12 }}><span>Link de avaliação do Google (opcional)</span><input value={form.google_review_url ?? ''} placeholder="https://g.page/r/..." onChange={(e) => set('google_review_url', e.target.value)} /><small className="muted">Quem der 5 estrelas no pedido é convidado a avaliar você no Google. Pegue o link no seu Perfil da Empresa no Google → “Pedir avaliações”.</small></label>
+            <Toggle label="Aceitar encomendas (pedido agendado)" hint="O cliente escolhe dia e hora para retirar ou receber, mesmo com a loja fechada. Ótimo para bolos e salgados de festa." checked={form.scheduling_enabled} onChange={(on) => set('scheduling_enabled', on)} />
+          </div>
         </>
       )}
 
@@ -378,6 +401,20 @@ function TablesTab({ menuUrl, slugForFlag }: { menuUrl: string; slugForFlag: str
 
   useEffect(() => { void QRCode.toDataURL(menuUrl, { margin: 1, width: 360 }).then(setMenuQr) }, [menuUrl])
 
+  const tableLabels = () => {
+    const params = new URLSearchParams()
+    Array.from({ length: Math.min(Math.max(1, count), 200) }, (_, i) => `${prefix ? `${prefix} ` : ''}${i + 1}`).forEach((l) => params.append('labels', l))
+    return params
+  }
+  async function download(path: string, params: URLSearchParams | undefined, name: string) {
+    try {
+      await downloadCsv(path, params, name)
+      writeJson(`mesa:${slugForFlag}:qr-generated`, true)
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível gerar o material.'))
+    }
+  }
+
   async function generate() {
     const total = Math.min(Math.max(1, count), 200)
     const labels = Array.from({ length: total }, (_, i) => `${prefix ? `${prefix} ` : ''}${i + 1}`)
@@ -422,6 +459,15 @@ function TablesTab({ menuUrl, slugForFlag }: { menuUrl: string; slugForFlag: str
         </div>
         <div className="qr-grid">
           {qrs.map((q) => <figure key={q.label}><img src={q.src} alt={`QR da mesa ${q.label}`} /><figcaption>{q.label}</figcaption></figure>)}
+        </div>
+      </div>
+      <div className="card no-print">
+        <h3>Material de divulgação</h3>
+        <p className="card-sub">Pronto para imprimir e postar, com a sua logo e a sua cor.</p>
+        <div className="row">
+          <button className="btn" onClick={() => void download('/marketing/table-cards.pdf', tableLabels(), 'qr-mesas.pdf')}><Download size={16} /> Displays de mesa ({Math.min(Math.max(1, count), 200)} mesas, PDF)</button>
+          <button className="btn" onClick={() => void download('/marketing/poster.pdf', undefined, 'cartaz.pdf')}><Download size={16} /> Cartaz para a vitrine (PDF)</button>
+          <button className="btn" onClick={() => void download('/marketing/instagram.png', undefined, 'post-instagram.png')}><Download size={16} /> Post para o Instagram</button>
         </div>
       </div>
     </>

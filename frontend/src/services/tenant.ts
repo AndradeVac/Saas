@@ -31,6 +31,11 @@ export type SettingsUpdate = Partial<{
   delivery_minutes: number
   delivery_zones: DeliveryZone[]
   require_pix_delivery: boolean
+  loyalty_enabled: boolean
+  loyalty_goal: number
+  loyalty_reward: string | null
+  google_review_url: string | null
+  scheduling_enabled: boolean
 }>
 
 export const updateTenantSettings = async (payload: SettingsUpdate) =>

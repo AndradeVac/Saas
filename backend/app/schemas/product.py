@@ -54,6 +54,7 @@ class ProductCreate(BaseModel):
     description: str | None = Field(default=None, max_length=1000)
     image_url: str | None = Field(default=None, max_length=300)
     price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    cost: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     featured: bool = False
     available: bool = True
     sort_order: int = Field(default=0, ge=0, le=100000)
@@ -76,6 +77,7 @@ class ProductUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=1000)
     image_url: str | None = Field(default=None, max_length=300)
     price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    cost: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     featured: bool | None = None
     available: bool | None = None
     active: bool | None = None
@@ -102,6 +104,7 @@ class ProductResponse(BaseModel):
     description: str | None
     image_url: str | None = None
     price: Decimal
+    cost: Decimal | None = None
     featured: bool
     available: bool
     active: bool

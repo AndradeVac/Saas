@@ -140,6 +140,8 @@ export function InsightsPage() {
               ? <article className="card kpi"><span>Previsão do mês</span><strong>{formatMoney(k.projected_revenue)}</strong><small>No ritmo atual · até agora {formatMoney(k.revenue_so_far)}</small></article>
               : <article className="card kpi"><span>Faturamento</span><strong>{formatMoney(k.revenue_so_far)}</strong><small>No período</small></article>}
             <article className="card kpi"><span>Tempo de preparo</span><strong>{minutes(k.avg_prep_minutes)}</strong><small>{k.avg_delivery_minutes !== null ? `Entrega completa: ${minutes(k.avg_delivery_minutes)}` : 'Do pedido até ficar pronto'}</small></article>
+            {k.gross_profit !== null && <article className="card kpi"><span>Lucro bruto estimado</span><strong>{formatMoney(k.gross_profit)}</strong><small>{k.cost_coverage < 0.99 ? `Sobre ${percent(k.cost_coverage)} das vendas (produtos com custo)` : 'Faturamento menos o custo dos produtos'}</small></article>}
+            {data.reviews && data.reviews.count > 0 && <article className="card kpi"><span>Avaliação dos clientes</span><strong>★ {data.reviews.average?.toFixed(1).replace('.', ',')}</strong><small>{data.reviews.count} {data.reviews.count === 1 ? 'avaliação' : 'avaliações'} no período</small></article>}
             <article className="card kpi"><span>Itens por pedido</span><strong>{k.items_per_order.toFixed(1).replace('.', ',')}</strong><small>Média de itens em cada pedido</small></article>
             <article className="card kpi"><span>Cancelamentos</span><strong>{percent(k.cancellation_rate)}</strong><small>{k.cancelled_orders} pedidos cancelados</small></article>
             <article className="card kpi"><span>Vendas com cupom</span><strong>{formatMoney(k.coupon_revenue)}</strong><small>{k.coupon_orders} pedidos · {formatMoney(k.discount_total)} em descontos</small></article>
@@ -167,10 +169,11 @@ export function InsightsPage() {
               )}
               <div className="table-wrap">
                 <table className="table">
-                  <thead><tr><th /><th>Produto</th><th className="num">Faturamento</th><th className="num">% </th></tr></thead>
+                  <thead><tr><th /><th>Produto</th><th className="num">Faturamento</th><th className="num">{data.abc.some((p) => p.profit !== null) ? 'Lucro' : '%'}</th></tr></thead>
                   <tbody>
                     {data.abc.slice(0, 12).map((p) => (
-                      <tr key={p.product_name}><td><span className={`grade grade-${p.grade}`}>{p.grade}</span></td><td>{p.product_name}<span className="sub">{p.quantity} vendidos</span></td><td className="num">{formatMoney(p.revenue)}</td><td className="num">{percent(p.share)}</td></tr>
+                      <tr key={p.product_name}><td><span className={`grade grade-${p.grade}`}>{p.grade}</span></td><td>{p.product_name}<span className="sub">{p.quantity} vendidos</span></td><td className="num">{formatMoney(p.revenue)}</td>
+                        <td className="num">{p.profit !== null ? <>{formatMoney(p.profit)}<span className="sub">margem {percent(p.margin ?? 0)}</span></> : data.abc.some((x) => x.profit !== null) ? <span className="muted">sem custo</span> : percent(p.share)}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -194,6 +197,13 @@ export function InsightsPage() {
               <h3>Ticket médio por atendimento</h3>
               <Bars rows={data.tickets_by_service.map((t) => ({ label: `${SERVICE[t.service_type] ?? t.service_type} (${t.orders})`, value: Number(t.average_ticket), text: formatMoney(t.average_ticket) }))} />
             </article>
+            {data.reviews && data.reviews.count > 0 && (
+              <article className="card">
+                <h3>O que os clientes dizem</h3>
+                <Bars rows={[5, 4, 3, 2, 1].map((star) => ({ label: `${'★'.repeat(star)}`, value: data.reviews!.distribution[star - 1] }))} />
+                {data.reviews.latest.map((r, i) => <p key={i} className="review-quote">“{r.comment}” <small className="muted">— {r.customer}, {'★'.repeat(r.stars)}</small></p>)}
+              </article>
+            )}
             <article className="card">
               <h3>Por que os pedidos são cancelados</h3>
               <Bars rows={data.cancellation_reasons.map((r) => ({ label: r.reason, value: r.count }))} />
