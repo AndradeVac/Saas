@@ -51,6 +51,8 @@ export type PublicOrderPayload = {
   payment_method: PaymentMethod
   notes?: string
   coupon_code?: string
+  waive_service_fee?: boolean
+  marketing_opt_in?: boolean
   items: Array<{ product_id: string; quantity: number; notes?: string; options: Array<{ group_id: string; option_id: string }> }>
 }
 

@@ -36,16 +36,20 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
   const [couponInput, setCouponInput] = useState('')
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null)
   const [couponError, setCouponError] = useState('')
+  const [withFee, setWithFee] = useState(true)
+  const [optIn, setOptIn] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
   const subtotal = cartSubtotal(lines)
   const discount = coupon ? Math.min(coupon.discount, subtotal) : 0
-  const serviceFee = service === 'DINE_IN' ? ((subtotal - discount) * Number(tenant.service_fee_percent)) / 100 : 0
-  const deliveryFee = service === 'DELIVERY' ? Number(tenant.delivery_fee) : 0
-  const total = subtotal - discount + serviceFee + deliveryFee
   // Comanda: dine-in orders go to the table's bill; payment and the minimum order are settled at the end.
   const onTab = tenant.tabs_enabled && service === 'DINE_IN'
+  const feeRate = service === 'DINE_IN' ? Number(tenant.service_fee_percent) : 0
+  // The service fee is optional (a tip): off the order here, or off the whole bill when closing the table.
+  const serviceFee = feeRate > 0 && (onTab || withFee) ? ((subtotal - discount) * feeRate) / 100 : 0
+  const deliveryFee = service === 'DELIVERY' ? Number(tenant.delivery_fee) : 0
+  const total = subtotal - discount + serviceFee + deliveryFee
   const minOrder = onTab ? 0 : Number(tenant.min_order_value)
   const belowMinimum = subtotal < minOrder
 
@@ -101,6 +105,8 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
         payment_method: onTab ? 'TAB' : payment,
         notes: notes || undefined,
         coupon_code: coupon?.code,
+        waive_service_fee: feeRate > 0 && !onTab && !withFee,
+        marketing_opt_in: optIn,
         items: lines.map((line) => ({
           product_id: line.productId,
           quantity: line.quantity,
@@ -216,9 +222,19 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
       <div className="card flat">
         <div className="total-row sub"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
         {discount > 0 && <div className="total-row sub discount"><span>Desconto</span><span>−{formatMoney(discount)}</span></div>}
-        {serviceFee > 0 && <div className="total-row sub"><span>Taxa de serviço ({Number(tenant.service_fee_percent)}%)</span><span>{formatMoney(serviceFee)}</span></div>}
+        {feeRate > 0 && (onTab
+          ? <div className="total-row sub"><span>Taxa de serviço ({feeRate}%, opcional)</span><span>{formatMoney(serviceFee)}</span></div>
+          : <label className="total-row sub fee-toggle">
+              <span><input type="checkbox" checked={withFee} onChange={(e) => setWithFee(e.target.checked)} /> Taxa de serviço ({feeRate}%, opcional)</span>
+              <span>{formatMoney(serviceFee)}</span>
+            </label>)}
         {deliveryFee > 0 && <div className="total-row sub"><span>Entrega</span><span>{formatMoney(deliveryFee)}</span></div>}
       </div>
+      {onTab && feeRate > 0 && <p className="muted"><small>A taxa de serviço é opcional: você pode retirar ao fechar a conta.</small></p>}
+      <label className="check-line">
+        <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
+        <span>Quero receber novidades e promoções de {tenant.name.trim()} pelo WhatsApp.</span>
+      </label>
       {belowMinimum && minOrder > 0 && <div className="alert warn">Pedido mínimo de {formatMoney(minOrder)}. Faltam {formatMoney(minOrder - subtotal)}.</div>}
       {error && <div className="alert error" role="alert">{error}</div>}
     </Modal>

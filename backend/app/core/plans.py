@@ -1,8 +1,7 @@
 """Subscription plans: what each plan unlocks and how much of it.
 
-The trial is a *taste* of the product: everything is visible, the core flow (menu, photos, orders) works,
-but volume is capped and premium tools are locked behind an upgrade prompt. An expired trial keeps the
-panel editable (so the owner stays invested) but stops taking new orders.
+The trial is the whole product for 14 days (no limits, every tool except white label). An expired trial keeps
+the panel editable (so the owner stays invested) but stops taking new orders until a plan is chosen.
 
 Limits are enforced here, in the API; the frontend only mirrors them to show locks and usage meters.
 """
@@ -52,10 +51,13 @@ class Plan:
 
 
 PLANS: dict[str, Plan] = {
+    # The trial shows the whole product (a half-locked trial does not convince a real restaurant): no limits and
+    # every tool for 14 days. Only the "Mesa Digital" badge stays on the menu while testing.
     "trial": Plan(
         key="trial", name="Degustação", price=Decimal("0"),
-        tagline="Experimente o cardápio digital por 14 dias, sem cartão.",
-        max_products=10, max_users=1, max_orders=30, features=frozenset(), public=False,
+        tagline="14 dias com tudo liberado, sem cartão.",
+        max_products=None, max_users=None, max_orders=None,
+        features=frozenset({COUPONS, EXPORTS, AUDIT, INSIGHTS}), public=False,
     ),
     "essencial": Plan(
         key="essencial", name="Essencial", price=Decimal("79.90"),

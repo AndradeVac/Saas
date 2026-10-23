@@ -61,8 +61,11 @@ def test_read_is_hidden_without_api_key(make_tenant, client, monkeypatch):
     assert read(client, shop, png()).status_code == 422
 
 
-def test_apply_respects_the_trial_limit_by_hiding_the_extra_products(make_tenant, client):
-    shop = make_tenant(plan=None)  # trial: 10 active products
+def test_apply_respects_the_plan_limit_by_hiding_the_extra_products(make_tenant, client, monkeypatch):
+    from dataclasses import replace
+    from app.core.plans import PLANS
+    monkeypatch.setitem(PLANS, "essencial", replace(PLANS["essencial"], max_products=10))
+    shop = make_tenant(plan="essencial")  # 10 active products
     shop.add_product(name="Já existia")
     products = [{"name": f"Espetinho {i}", "price": "9.00"} for i in range(11)]
     payload = {"categories": [

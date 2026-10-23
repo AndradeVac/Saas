@@ -90,7 +90,7 @@ export function CustomersPage() {
                 <tbody>
                   {data.items.map((c) => (
                     <tr key={c.id} style={{ opacity: c.active ? 1 : 0.5 }}>
-                      <td><strong>{c.name}</strong>{c.notes && <span className="sub">{c.notes}</span>}</td>
+                      <td><strong>{c.name}</strong>{c.marketing_opt_in && <> <span className="badge ok" title="Autorizou receber promoções pelo WhatsApp">Aceita promoções</span></>}{c.notes && <span className="sub">{c.notes}</span>}</td>
                       <td>{c.phone ? <a href={`https://wa.me/55${c.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{formatPhone(c.phone)}</a> : '—'}</td>
                       <td className="num">{c.orders_count}</td>
                       <td className="num">{formatMoney(c.total_spent)}</td>

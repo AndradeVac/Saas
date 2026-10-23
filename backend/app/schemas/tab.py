@@ -77,6 +77,7 @@ class TabResponse(BaseModel):
     opened_by: str | None
     requested_payment_method: PaymentMethod | None
     split_count: int | None
+    service_fee_waived: bool = False
     payment_method: PaymentMethod | None
     created_at: datetime
     last_order_at: datetime | None
@@ -95,10 +96,15 @@ class PublicTab(BaseModel):
     status: TabStatus
     requested_payment_method: PaymentMethod | None
     split_count: int | None
+    service_fee_waived: bool = False
     last_order_at: datetime | None
     totals: TabTotals
     orders: list[TabOrder]
     payments: list[TabPaymentOut] = []
+
+
+class ServiceFeeChoice(BaseModel):
+    waived: bool
 
 
 class TabCloseRequest(BaseModel):

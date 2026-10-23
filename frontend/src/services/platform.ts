@@ -5,7 +5,7 @@ export type SignupPayload = {
   business_name: string
   business_type: BusinessType
   slug: string
-  phone?: string
+  phone: string
   admin_name: string
   email: string
   password: string

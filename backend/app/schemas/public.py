@@ -54,6 +54,8 @@ class PublicOrderCreate(BaseModel):
     payment_method: PaymentMethod = PaymentMethod.CASH
     notes: str | None = Field(default=None, max_length=500)
     coupon_code: str | None = Field(default=None, max_length=40)
+    waive_service_fee: bool = False  # the service fee is optional (tip)
+    marketing_opt_in: bool = False  # LGPD: "quero receber novidades e promoções"
     items: list[PublicOrderItem] = Field(min_length=1, max_length=30)
 
     @field_validator("customer_name")

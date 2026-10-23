@@ -27,6 +27,9 @@ class Customer(Base):
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     phone_digits: Mapped[str | None] = mapped_column(String(15), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # LGPD: promotions (e.g. the win-back WhatsApp) only for customers who said yes at checkout.
+    marketing_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    marketing_opt_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

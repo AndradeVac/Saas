@@ -25,7 +25,7 @@ def test_signup_creates_tenant_admin_and_starter_categories(make_tenant, client)
 def test_signup_rejects_taken_reserved_and_malformed_slugs(make_tenant, client):
     taken = make_tenant()
     payload = {
-        "business_name": "Outro", "slug": taken.slug, "admin_name": "Fulano",
+        "business_name": "Outro", "slug": taken.slug, "admin_name": "Fulano", "phone": "11987654321",
         "email": "x@y.com", "password": PASSWORD, "accept_terms": True,
     }
     assert client.post("/platform/signup", json=payload).status_code == 422
@@ -48,7 +48,7 @@ def test_same_email_can_exist_in_two_tenants(make_tenant, client, created_slugs)
     first = make_tenant()
     slug = f"outro-{uuid.uuid4().hex[:8]}"
     response = client.post("/platform/signup", json={
-        "business_name": "Segundo", "slug": slug, "admin_name": "Mesma Pessoa",
+        "business_name": "Segundo", "slug": slug, "admin_name": "Mesma Pessoa", "phone": "11987654321",
         "email": first.email, "password": PASSWORD, "accept_terms": True,
     })
     created_slugs.append(slug)
@@ -62,7 +62,7 @@ def test_signup_requires_accepting_the_terms_and_records_it(client, created_slug
     from sqlalchemy import select
 
     slug = f"termos-{uuid.uuid4().hex[:8]}"
-    payload = {"business_name": "Com Termos", "slug": slug, "admin_name": "Dona", "email": "dona@termos.com", "password": PASSWORD}
+    payload = {"business_name": "Com Termos", "slug": slug, "admin_name": "Dona", "phone": "11987654321", "email": "dona@termos.com", "password": PASSWORD}
     refused = client.post("/platform/signup", json=payload)
     assert refused.status_code == 422 and "Termos de Uso" in str(refused.json())
     signup_rate_limit.reset()

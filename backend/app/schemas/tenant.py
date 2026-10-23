@@ -31,7 +31,8 @@ class SignupRequest(BaseModel):
     business_name: str = Field(min_length=2, max_length=120)
     business_type: BusinessType = BusinessType.RESTAURANT
     slug: str = Field(min_length=3, max_length=40)
-    phone: str | None = Field(default=None, max_length=30)
+    # Owner's WhatsApp: onboarding help and billing notices go there.
+    phone: str = Field(min_length=10, max_length=30)
     admin_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
@@ -50,6 +51,13 @@ class SignupRequest(BaseModel):
     @classmethod
     def _validate_slug(cls, value: str) -> str:
         return validate_slug(value)
+
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        if len(re.sub(r"\D", "", value)) not in (10, 11, 12, 13):
+            raise ValueError("Informe o WhatsApp com DDD.")
+        return value.strip()
 
     @field_validator("business_name", "admin_name")
     @classmethod

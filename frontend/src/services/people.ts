@@ -7,6 +7,7 @@ export type Customer = {
   phone: string | null
   notes: string | null
   active: boolean
+  marketing_opt_in: boolean
   created_at: string
   orders_count: number
   total_spent: string

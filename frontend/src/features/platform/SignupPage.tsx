@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
-import { businessTypeLabels, slugify } from '../../lib/format'
+import { businessTypeLabels, maskPhone, slugify } from '../../lib/format'
 import { APP_NAME, ROOT_DOMAIN, tenantUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
 import { checkSlug, signup } from '../../services/platform'
@@ -14,6 +14,7 @@ const schema = z.object({
   business_type: z.enum(['RESTAURANT', 'BAKERY', 'CAFE', 'SNACK_BAR', 'PIZZERIA', 'OTHER']),
   slug: z.string().min(3, 'Mínimo de 3 caracteres.'),
   admin_name: z.string().min(2, 'Informe seu nome.'),
+  phone: z.string().refine((v) => v.replace(/\D/g, '').length >= 10, 'Informe seu WhatsApp com DDD.'),
   email: z.email('Informe um e-mail válido.'),
   password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.'),
   accept_terms: z.boolean().refine((v) => v, 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.'),
@@ -96,6 +97,11 @@ export function SignupPage() {
             <span>Seu nome</span>
             <input autoComplete="name" {...register('admin_name')} />
             {errors.admin_name && <small className="field-error">{errors.admin_name.message}</small>}
+          </label>
+          <label className="field">
+            <span>WhatsApp</span>
+            <input type="tel" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" {...register('phone', { onChange: (e) => { e.target.value = maskPhone(e.target.value) } })} />
+            {errors.phone && <small className="field-error">{errors.phone.message}</small>}
           </label>
           <label className="field">
             <span>E-mail</span>

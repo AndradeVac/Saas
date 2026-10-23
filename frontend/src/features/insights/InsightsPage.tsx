@@ -21,7 +21,7 @@ function whatsappLink(phone: string | null, text: string) {
 }
 
 /** "Clientes para reconquistar": regulars who stopped coming, with a ready WhatsApp message. */
-function WinBack({ customers, storeName, slug }: { customers: CustomerRow[]; storeName: string; slug: string }) {
+function WinBack({ customers, storeName, slug, withoutConsent }: { customers: CustomerRow[]; storeName: string; slug: string; withoutConsent: number }) {
   const messageKey = `mesa:${slug}:winback-message`
   const sentKey = `mesa:${slug}:winback-sent`
   const [message, setMessage] = useState(() => readJson(messageKey, DEFAULT_MESSAGE))
@@ -40,10 +40,13 @@ function WinBack({ customers, storeName, slug }: { customers: CustomerRow[]; sto
       <div className="row between">
         <div>
           <h3>Clientes para reconquistar</h3>
-          <p className="card-sub" style={{ margin: 0 }}>Clientes que compraram 2 vezes ou mais e não voltam há mais de 3 semanas.</p>
+          <p className="card-sub" style={{ margin: 0 }}>Clientes que compraram 2 vezes ou mais, não voltam há mais de 3 semanas e aceitaram receber promoções.</p>
         </div>
         {customers.length > 0 && <span className="badge brand" title="Soma do ticket médio de cada um: o que entra se todos voltarem uma vez">{customers.length} clientes · {formatMoney(lostRevenue)} se cada um voltar 1 vez</span>}
       </div>
+      {withoutConsent > 0 && (
+        <p className="insight-note">Mais <strong>{withoutConsent} {withoutConsent === 1 ? 'cliente sumido não aparece' : 'clientes sumidos não aparecem'}</strong> porque não {withoutConsent === 1 ? 'autorizou' : 'autorizaram'} promoções (LGPD). Eles passam a aparecer quando marcarem “Quero receber novidades” num próximo pedido.</p>
+      )}
       {customers.length === 0 ? (
         <EmptyState icon={<CheckCheck size={24} />} title="Ninguém sumido por enquanto" hint="Quando um cliente frequente parar de pedir, ele aparece aqui para você chamar de volta." />
       ) : (
@@ -142,7 +145,7 @@ export function InsightsPage() {
             <article className="card kpi"><span>Vendas com cupom</span><strong>{formatMoney(k.coupon_revenue)}</strong><small>{k.coupon_orders} pedidos · {formatMoney(k.discount_total)} em descontos</small></article>
           </div>
 
-          <WinBack customers={data.at_risk} storeName={tenant.name.trim()} slug={tenant.slug} />
+          <WinBack customers={data.at_risk} storeName={tenant.name.trim()} slug={tenant.slug} withoutConsent={data.lapsed_without_consent} />
 
           <div className="grid-2 top">
             <article className="card">

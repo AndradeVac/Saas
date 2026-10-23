@@ -63,6 +63,10 @@ class CustomerService:
             customer.notes = data.notes
         if data.active is not None:
             customer.active = data.active
+        if data.marketing_opt_in is True and not customer.marketing_opt_in:
+            raise BusinessRuleError("Só o próprio cliente pode autorizar promoções (ao fazer um pedido).")
+        if data.marketing_opt_in is False:
+            customer.marketing_opt_in, customer.marketing_opt_in_at = False, None
 
         self.repository.update(customer)
         self.db.commit()

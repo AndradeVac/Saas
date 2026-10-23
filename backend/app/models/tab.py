@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, SmallInteger, String, UniqueConstraint, func, text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, SmallInteger, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,8 @@ class Tab(Base):
     # What the customer chose when asking for the bill, and how many people will split it (informative).
     requested_payment_method: Mapped[PaymentMethod | None] = mapped_column(Enum(PaymentMethod, native_enum=False, length=20), nullable=True)
     split_count: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    # Service fee is optional by law (tip): the customer or the staff can remove it from the whole bill.
+    service_fee_waived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     payment_method: Mapped[PaymentMethod | None] = mapped_column(Enum(PaymentMethod, native_enum=False, length=20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
