@@ -26,6 +26,7 @@ EXPORTS = "exports"
 AUDIT = "audit"
 WHITE_LABEL = "white_label"  # hides "Cardápio digital por Mesa Digital" on the customer menu
 INSIGHTS = "insights"  # advanced analytics and the customers-to-win-back list
+LOYALTY = "loyalty"  # digital loyalty card ("a cada 10 pedidos, 1 grátis")
 
 FEATURE_NAMES = {
     COUPONS: "Cupons de desconto",
@@ -33,6 +34,7 @@ FEATURE_NAMES = {
     AUDIT: "Auditoria de ações da equipe",
     WHITE_LABEL: "Cardápio sem a marca Mesa Digital",
     INSIGHTS: "Análises avançadas e clientes para reconquistar",
+    LOYALTY: "Cartão fidelidade digital",
 }
 
 
@@ -57,7 +59,7 @@ PLANS: dict[str, Plan] = {
         key="trial", name="Degustação", price=Decimal("0"),
         tagline="14 dias com tudo liberado, sem cartão.",
         max_products=None, max_users=None, max_orders=None,
-        features=frozenset({COUPONS, EXPORTS, AUDIT, INSIGHTS}), public=False,
+        features=frozenset({COUPONS, EXPORTS, AUDIT, INSIGHTS, LOYALTY}), public=False,
     ),
     "essencial": Plan(
         key="essencial", name="Essencial", price=Decimal("79.90"),
@@ -68,7 +70,7 @@ PLANS: dict[str, Plan] = {
         key="pro", name="Profissional", price=Decimal("149.90"),
         tagline="Controle total, equipe ilimitada e sua marca em primeiro lugar.",
         max_products=None, max_users=None, max_orders=None,
-        features=frozenset({COUPONS, EXPORTS, AUDIT, WHITE_LABEL, INSIGHTS}), highlight=True,
+        features=frozenset({COUPONS, EXPORTS, AUDIT, WHITE_LABEL, INSIGHTS, LOYALTY}), highlight=True,
     ),
 }
 DEFAULT_PAID_PLAN = "pro"
@@ -230,4 +232,5 @@ def public_tenant(db: Session, tenant: Tenant):
     data = PublicTenant.model_validate(tenant)
     data.is_open = data.is_open and can_take_orders(db, tenant)
     data.show_platform_badge = not has_feature(tenant, WHITE_LABEL)
+    data.loyalty_enabled = tenant.loyalty_enabled and has_feature(tenant, LOYALTY)
     return data

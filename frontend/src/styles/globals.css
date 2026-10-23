@@ -884,3 +884,15 @@ a.landing-logo { text-decoration: none; }
 .order-card > * { min-width: 0; }
 .order-card .btn { white-space: normal; height: auto; min-height: 34px; line-height: 1.2; }
 .order-card-foot { flex-wrap: wrap; gap: 6px; }
+
+/* Loyalty card and reviews (order screen) */
+.loyalty { display: grid; gap: 8px; }
+.stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+.stamps span { width: 30px; height: 30px; border-radius: 50%; border: 2px dashed var(--brand-line, var(--border)); display: grid; place-items: center; color: #fff; font-size: 15px; }
+.stamps span.on { background: var(--brand); border: 2px solid var(--brand); }
+.review { display: grid; gap: 10px; }
+.stars { display: flex; gap: 6px; }
+.stars button { background: none; border: 0; font-size: 34px; line-height: 1; color: var(--border); cursor: pointer; padding: 0 2px; }
+.stars button.on { color: #f59e0b; }
+.review textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); padding: 10px; font: inherit; }
+.review-quote { margin: 8px 0 0; font-size: 14px; }

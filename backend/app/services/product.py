@@ -43,6 +43,7 @@ class ProductService:
             description=data.description,
             image_url=data.image_url,
             price=data.price,
+            cost=data.cost,
             featured=data.featured,
             available=data.available,
             sort_order=data.sort_order,
@@ -77,6 +78,8 @@ class ProductService:
             product.image_url = data.image_url
         if data.price is not None:
             product.price = data.price
+        if "cost" in data.model_fields_set:
+            product.cost = data.cost
         if data.featured is not None:
             product.featured = data.featured
         if data.available is not None:

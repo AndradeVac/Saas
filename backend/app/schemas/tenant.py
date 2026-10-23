@@ -117,6 +117,11 @@ class PublicTenant(BaseModel):
     delivery_minutes: int = 45
     delivery_zones: list[DeliveryZone] = []
     require_pix_delivery: bool = False
+    loyalty_enabled: bool = False
+    loyalty_goal: int = 10
+    loyalty_reward: str | None = None
+    google_review_url: str | None = None
+    scheduling_enabled: bool = False
     # "Cardápio digital por Mesa Digital" footer; hidden on plans with white label.
     show_platform_badge: bool = True
 
@@ -159,6 +164,18 @@ class TenantSettingsUpdate(BaseModel):
     delivery_minutes: int | None = Field(default=None, ge=10, le=300)
     delivery_zones: list[DeliveryZone] | None = Field(default=None, max_length=80)
     require_pix_delivery: bool | None = None
+    loyalty_enabled: bool | None = None
+    loyalty_goal: int | None = Field(default=None, ge=2, le=50)
+    loyalty_reward: str | None = Field(default=None, max_length=120)
+    google_review_url: str | None = Field(default=None, max_length=300)
+    scheduling_enabled: bool | None = None
+
+    @field_validator("google_review_url")
+    @classmethod
+    def _review_url(cls, value: str | None) -> str | None:
+        if value and not value.strip().startswith("https://"):
+            raise ValueError("Cole o link completo da sua página de avaliação do Google (começa com https://).")
+        return value.strip() if value else value
 
     @field_validator("delivery_zones")
     @classmethod

@@ -19,6 +19,8 @@ class InsightKpis(BaseModel):
     discount_total: Decimal
     projected_revenue: Decimal | None  # month-to-date pace extended to the whole month (current month only)
     revenue_so_far: Decimal
+    gross_profit: Decimal | None = None  # over the products that have a cost
+    cost_coverage: float = 0.0  # share of the revenue from products with a cost
 
 
 class HeatCell(BaseModel):
@@ -41,6 +43,8 @@ class AbcProduct(BaseModel):
     share: float
     cumulative: float
     grade: str  # A: first 80% of revenue, B: next 15%, C: the rest
+    profit: Decimal | None = None  # revenue - quantity x cost, when the product has a cost
+    margin: float | None = None
 
 
 class ServiceTicket(BaseModel):
@@ -65,6 +69,20 @@ class ReasonCount(BaseModel):
     count: int
 
 
+class ReviewRow(BaseModel):
+    stars: int
+    comment: str | None
+    customer: str
+    created_at: datetime
+
+
+class ReviewSummary(BaseModel):
+    count: int
+    average: float | None
+    distribution: list[int]  # how many 1..5 stars
+    latest: list[ReviewRow]
+
+
 class InsightsResponse(BaseModel):
     period_start: str
     period_end: str
@@ -77,3 +95,4 @@ class InsightsResponse(BaseModel):
     at_risk: list[CustomerRow]
     lapsed_without_consent: int = 0  # lapsed regulars who never agreed to receive promotions (not listed)
     cancellation_reasons: list[ReasonCount]
+    reviews: ReviewSummary | None = None

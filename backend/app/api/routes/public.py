@@ -5,14 +5,16 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.services import push
-from app.core.exceptions import NotFoundError
+from app.services import loyalty, push
+from app.core.exceptions import BusinessRuleError, NotFoundError
 from app.core.rate_limit import public_lookup_rate_limit, public_order_rate_limit
 from app.core.tenancy import get_tenant
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
+from app.models.order_review import OrderReview
 from app.models.tenant import Tenant
 from app.repositories.category import CategoryRepository
 from app.repositories.customer import CustomerRepository
@@ -20,6 +22,7 @@ from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 from app.schemas.order import OrderCreate, OrderItemCreate
 from app.schemas.public import (
+    ReviewCreate,
     CouponCheckRequest,
     CouponCheckResponse,
     PublicCategory,
@@ -90,7 +93,10 @@ def get_menu(response: Response, tenant: Tenant = Depends(get_tenant), db: Sessi
     ]
     menu = PublicMenu(
         tenant=public_tenant(db, tenant),
-        categories=[PublicCategory(id=c.id, name=c.name, image_url=c.image_url) for c in categories],
+        categories=[PublicCategory(id=c.id, name=c.name, image_url=c.image_url,
+                                   available_from=c.available_from.strftime("%H:%M") if c.available_from else None,
+                                   available_until=c.available_until.strftime("%H:%M") if c.available_until else None)
+                    for c in categories],
         products=[
             PublicProduct(
                 id=p.id,
@@ -143,6 +149,7 @@ def create_public_order(
             coupon_code=data.coupon_code,
             waive_service_fee=data.waive_service_fee,
             delivery_zone=data.delivery_zone,
+            scheduled_for=data.scheduled_for,
             items=[
                 OrderItemCreate(product_id=i.product_id, quantity=i.quantity, notes=i.notes, options=i.options)
                 for i in data.items
@@ -251,4 +258,23 @@ def track_public_order(public_token: UUID, tenant: Tenant = Depends(get_tenant),
         table_label=order.table_label,
         delivery_address=order.delivery_address,
         items=_items(order),
+        scheduled_for=order.scheduled_for,
+        loyalty=(card.model_dump() if (card := loyalty.card(db, tenant, order.customer)) else None),
+        review_stars=review.stars if (review := db.scalar(select(OrderReview).where(OrderReview.order_id == order.id))) else None,
+        google_review_url=tenant.google_review_url,
     )
+
+
+@router.post("/orders/{public_token}/review", status_code=201, dependencies=[Depends(public_order_rate_limit)])
+def review_order(public_token: UUID, data: ReviewCreate, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """1-5 stars after delivery, once per order."""
+    order = OrderRepository(db, tenant.id).get_by_public_token(public_token)
+    if order is None:
+        raise NotFoundError("Pedido não encontrado.")
+    if order.status is not OrderStatus.FINISHED:
+        raise BusinessRuleError("Você pode avaliar depois que o pedido for entregue.")
+    if db.scalar(select(OrderReview).where(OrderReview.order_id == order.id)):
+        raise BusinessRuleError("Este pedido já foi avaliado. Obrigado!")
+    db.add(OrderReview(tenant_id=tenant.id, order_id=order.id, stars=data.stars, comment=(data.comment or "").strip() or None))
+    db.commit()
+    return {"google_review_url": tenant.google_review_url if data.stars == 5 else None}

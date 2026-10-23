@@ -30,7 +30,8 @@ class CategoryService:
             self.db.commit()
             return existing
 
-        category = Category(name=data.name, image_url=data.image_url, sort_order=data.sort_order)
+        category = Category(name=data.name, image_url=data.image_url, sort_order=data.sort_order,
+                            available_from=data.available_from, available_until=data.available_until)
         self.repository.create(category)
         record_audit(self.db, self.tenant_id, actor, "CATEGORY_CREATED", "CATEGORY", category.id, data.name)
         self.db.commit()
@@ -57,6 +58,8 @@ class CategoryService:
             category.image_url = data.image_url
         if data.sort_order is not None:
             category.sort_order = data.sort_order
+        if "available_from" in data.model_fields_set or "available_until" in data.model_fields_set:
+            category.available_from, category.available_until = data.available_from, data.available_until
         if data.active is not None:
             category.active = data.active
 

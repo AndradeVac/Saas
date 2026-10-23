@@ -31,6 +31,7 @@ export const FEATURE_PITCH: Record<FeatureKey, string> = {
   exports: 'Leve suas vendas, pedidos e clientes para o Excel, PDF ou para o seu contador com um clique.',
   audit: 'Saiba quem mudou um preço, cancelou um pedido ou alterou as configurações, com data e hora.',
   white_label: 'Seu cardápio só com a sua marca, sem o selo da plataforma.',
+  loyalty: 'Cartão fidelidade digital pelo telefone do cliente: a cada X pedidos ele ganha um prêmio, sem app e sem cartão de papel. É o que faz o cliente voltar.',
   insights: 'Descubra quais clientes sumiram e chame cada um no WhatsApp com um toque, veja a previsão de faturamento do mês, os horários que a casa enche, a curva ABC dos produtos e o tempo de preparo da cozinha.',
 }
 

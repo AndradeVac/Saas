@@ -1,7 +1,7 @@
 import { api } from './api'
 import type { OptionGroup } from '../types'
 
-export type Category = { id: string; name: string; image_url: string | null; sort_order: number; active: boolean }
+export type Category = { id: string; name: string; image_url: string | null; sort_order: number; active: boolean; available_from: string | null; available_until: string | null }
 export type Product = {
   id: string
   category_id: string
@@ -9,6 +9,7 @@ export type Product = {
   description: string | null
   image_url: string | null
   price: string
+  cost: string | null
   featured: boolean
   available: boolean
   active: boolean
@@ -18,7 +19,7 @@ export type Product = {
 export type ProductPayload = Partial<Omit<Product, 'id'>> & { category_id: string; name: string; price: string }
 
 export const getCategories = async () => (await api.get<Category[]>('/categories')).data
-export const createCategory = async (payload: { name: string; image_url?: string | null; sort_order?: number }) =>
+export const createCategory = async (payload: { name: string; image_url?: string | null; sort_order?: number; available_from?: string | null; available_until?: string | null }) =>
   (await api.post<Category>('/categories', payload)).data
 export const updateCategory = async (id: string, payload: Partial<Omit<Category, 'id'>>) =>
   (await api.patch<Category>(`/categories/${id}`, payload)).data

@@ -95,6 +95,14 @@ class Tenant(Base):
     delivery_zones: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
     # Anti-prank: deliveries only with PIX paid before the kitchen starts.
     require_pix_delivery: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Loyalty card: every `loyalty_goal` delivered orders earn `loyalty_reward` (plan Profissional).
+    loyalty_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    loyalty_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    loyalty_reward: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Happy customers (5 stars) are invited to review the store on Google.
+    google_review_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # Encomendas: customers may schedule an order for later (cakes, party snacks...).
+    scheduling_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

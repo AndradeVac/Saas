@@ -1,7 +1,7 @@
 import { api } from './api'
 import type { OptionGroup, PaymentMethod, PublicTenant, ServiceType } from '../types'
 
-export type MenuCategory = { id: string; name: string; image_url: string | null }
+export type MenuCategory = { id: string; name: string; image_url: string | null; available_from: string | null; available_until: string | null }
 export type MenuProduct = {
   id: string
   category_id: string
@@ -37,6 +37,10 @@ export type Tracking = {
   table_label: string | null
   delivery_address: string | null
   items: TrackedItem[]
+  scheduled_for: string | null
+  loyalty: { stamps: number; goal: number; reward: string; rewards_available: number } | null
+  review_stars: number | null
+  google_review_url: string | null
 }
 
 export const getMenu = async () => (await api.get<Menu>('/public/menu')).data
@@ -53,6 +57,7 @@ export type PublicOrderPayload = {
   coupon_code?: string
   waive_service_fee?: boolean
   delivery_zone?: string
+  scheduled_for?: string
   marketing_opt_in?: boolean
   items: Array<{ product_id: string; quantity: number; notes?: string; options: Array<{ group_id: string; option_id: string }> }>
 }
@@ -64,6 +69,8 @@ export async function createPublicOrder(payload: PublicOrderPayload) {
 
 export const trackOrder = async (token: string) => (await api.get<Tracking>(`/public/orders/${token}`)).data
 export const cancelPublicOrder = async (token: string) => { await api.post(`/public/orders/${token}/cancel`) }
+export const reviewOrder = async (token: string, stars: number, comment?: string) =>
+  (await api.post<{ google_review_url: string | null }>(`/public/orders/${token}/review`, { stars, comment })).data
 export const getOrderPix = async (token: string) => (await api.get<{ code: string; amount: string }>(`/public/orders/${token}/pix`)).data
 
 export async function checkCoupon(code: string, subtotal: number) {

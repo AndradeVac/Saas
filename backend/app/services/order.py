@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
@@ -25,6 +26,15 @@ from app.services.coupon import CouponService
 from app.services.tab import TabService
 
 _CENTS = Decimal("0.01")
+
+
+def _category_open(category, tenant: Tenant, at: datetime | None = None) -> bool:
+    """Menu by time of day: a category with a window is only sold inside it (window may cross midnight)."""
+    if category is None or not (category.available_from and category.available_until):
+        return True
+    moment = (at or datetime.now(timezone.utc)).astimezone(ZoneInfo(tenant.timezone)).time()
+    start, end = category.available_from, category.available_until
+    return start <= moment < end if start < end else moment >= start or moment < end
 
 
 def awaiting_pix(order: Order, tenant: Tenant) -> bool:
@@ -115,8 +125,18 @@ class OrderService:
         if data.payment_method is PaymentMethod.TAB and not on_tab:
             raise BusinessRuleError("Escolha a forma de pagamento.")
 
+        scheduled_for = None
+        if data.scheduled_for is not None:
+            # Encomenda: at least 30 minutes ahead, at most 30 days; may be placed while the store is closed.
+            if not tenant.scheduling_enabled:
+                raise BusinessRuleError("Este estabelecimento não aceita pedidos agendados.")
+            when = data.scheduled_for if data.scheduled_for.tzinfo else data.scheduled_for.replace(tzinfo=ZoneInfo(tenant.timezone))
+            now = datetime.now(timezone.utc)
+            if when < now + timedelta(minutes=30) or when > now + timedelta(days=30):
+                raise BusinessRuleError("Agende para pelo menos 30 minutos a partir de agora (até 30 dias).")
+            scheduled_for = when
         if public:
-            if not tenant.is_open:
+            if not tenant.is_open and scheduled_for is None:
                 raise BusinessRuleError("O estabelecimento não está aceitando pedidos no momento.")
             if data.service_type.value not in tenant.enabled_services:
                 raise BusinessRuleError("Este tipo de atendimento não está disponível.")
@@ -140,6 +160,7 @@ class OrderService:
             delivery_address=(f"{data.delivery_address.strip()} · {zone['name']}" if zone else data.delivery_address)
             if data.service_type is ServiceType.DELIVERY else None,
             notes=data.notes,
+            scheduled_for=scheduled_for,
             status=OrderStatus.RECEIVED,
             subtotal=Decimal("0.00"),
             total=Decimal("0.00"),
@@ -152,6 +173,8 @@ class OrderService:
                 raise NotFoundError("Um dos produtos do pedido não está mais disponível.")
             if not product.available:
                 raise BusinessRuleError(f"“{product.name}” está esgotado no momento.")
+            if public and not _category_open(product.category, tenant, scheduled_for):
+                raise BusinessRuleError(f"“{product.name}” só está disponível das {product.category.available_from:%H:%M} às {product.category.available_until:%H:%M}.")
 
             options, extra = resolve_options(product, item_data)
             unit_price = (product.price + extra).quantize(_CENTS)

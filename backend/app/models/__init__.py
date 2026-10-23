@@ -6,6 +6,7 @@ from app.models.customer import Customer
 from app.models.media import Media
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
 from app.models.order_item import OrderItem
+from app.models.order_review import OrderReview
 from app.models.order_status_history import OrderStatusHistory
 from app.models.password_reset import PasswordResetToken
 from app.models.product import Product
@@ -26,6 +27,7 @@ __all__ = [
     "Media",
     "Order",
     "OrderItem",
+    "OrderReview",
     "OrderStatus",
     "OrderStatusHistory",
     "PaymentMethod",

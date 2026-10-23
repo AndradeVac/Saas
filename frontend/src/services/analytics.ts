@@ -39,14 +39,16 @@ export type Insights = {
     avg_prep_minutes: number | null; avg_delivery_minutes: number | null
     coupon_orders: number; coupon_revenue: string; discount_total: string
     projected_revenue: string | null; revenue_so_far: string
+    gross_profit: string | null; cost_coverage: number
   }
   heatmap: { weekday: number; hour: number; orders: number; revenue: string }[]
   comparison: { day: number; current: string | null; previous: string | null }[]
-  abc: { product_name: string; quantity: number; revenue: string; share: number; cumulative: number; grade: 'A' | 'B' | 'C' }[]
+  abc: { product_name: string; quantity: number; revenue: string; share: number; cumulative: number; grade: 'A' | 'B' | 'C'; profit: string | null; margin: number | null }[]
   tickets_by_service: { service_type: string; orders: number; average_ticket: string; revenue: string }[]
   top_customers: CustomerRow[]
   at_risk: CustomerRow[]
   lapsed_without_consent: number
+  reviews: { count: number; average: number | null; distribution: number[]; latest: { stars: number; comment: string | null; customer: string; created_at: string }[] } | null
   cancellation_reasons: { reason: string; count: number }[]
 }
 

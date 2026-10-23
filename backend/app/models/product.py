@@ -29,6 +29,8 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    # What one unit costs to make (optional): turns the sales ranking into a profit ranking.
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     # Sold out for now: stays on the menu but cannot be ordered.
     available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

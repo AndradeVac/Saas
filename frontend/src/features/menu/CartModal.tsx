@@ -12,6 +12,8 @@ import { cartSubtotal, type CartLine } from './cart'
 
 type Props = {
   tenant: PublicTenant
+  /** The store is closed now: only encomendas (scheduled orders) are possible. */
+  closedNow: boolean
   lines: CartLine[]
   setLines: Dispatch<SetStateAction<CartLine[]>>
   suggestions: MenuProduct[]
@@ -23,7 +25,7 @@ type Props = {
   onOrdered: (order: { token: string; tabToken: string | null; number: number }) => void
 }
 
-export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tableFromQr, tableCode, onClose, onOrdered }: Props) {
+export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onSuggest, tableFromQr, tableCode, onClose, onOrdered }: Props) {
   const customerKey = `mesa:${tenant.slug}:customer`
   const saved = useMemo(() => readJson<{ name?: string; phone?: string }>(customerKey, {}), [customerKey])
   const services = tenant.enabled_services
@@ -35,6 +37,9 @@ export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tab
   const [table, setTable] = useState(tableFromQr)
   const [address, setAddress] = useState('')
   const [zone, setZone] = useState('')
+  const [schedule, setSchedule] = useState(closedNow)
+  const [when, setWhen] = useState('')
+  const minWhen = new Date(Date.now() + 40 * 60_000 - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
   const [payment, setPayment] = useState<PaymentMethod>(payments[0])
   const [notes, setNotes] = useState('')
   const [couponInput, setCouponInput] = useState('')
@@ -100,6 +105,7 @@ export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tab
     if (phone.replace(/\D/g, '').length < 10) return setError('Informe um telefone com DDD.')
     if (service === 'DINE_IN' && !table.trim()) return setError('Informe o número da mesa.')
     if (onTab && !tableCode) return setError('Para pedir na mesa, leia o QR Code que está nela.')
+    if (schedule && !when) return setError('Escolha o dia e o horário da encomenda.')
     if (service === 'DELIVERY' && zones.length > 0 && !zone) return setError('Escolha o seu bairro.')
     if (service === 'DELIVERY' && address.trim().length < 6) return setError('Informe o endereço de entrega.')
     if (belowMinimum) return setError(`O pedido mínimo é de ${formatMoney(minOrder)}.`)
@@ -113,6 +119,7 @@ export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tab
         table_code: onTab ? tableCode : undefined,
         delivery_address: service === 'DELIVERY' ? address : undefined,
         delivery_zone: service === 'DELIVERY' && zones.length > 0 ? zone : undefined,
+        scheduled_for: schedule && when ? new Date(when).toISOString() : undefined,
         payment_method: onTab ? 'TAB' : payment,
         notes: notes || undefined,
         coupon_code: coupon?.code,
@@ -218,6 +225,23 @@ export function CartModal({ tenant, lines, setLines, suggestions, onSuggest, tab
             <textarea rows={2} maxLength={300} placeholder={zones.length > 0 ? 'Rua, número e complemento' : 'Rua, número, bairro e complemento'} value={address} onChange={(e) => setAddress(e.target.value)} />
           </label>
           <small className="muted">Entrega em cerca de {tenant.delivery_minutes} minutos.</small>
+        </>
+      )}
+
+      {tenant.scheduling_enabled && !onTab && (
+        <>
+          <h4>Quando?</h4>
+          <div className="segmented choice" role="radiogroup" aria-label="Quando">
+            <button className={!schedule ? 'active' : ''} disabled={closedNow} onClick={() => setSchedule(false)} role="radio" aria-checked={!schedule}>Agora</button>
+            <button className={schedule ? 'active' : ''} onClick={() => setSchedule(true)} role="radio" aria-checked={schedule}>Agendar</button>
+          </div>
+          {schedule && (
+            <label className="field" style={{ marginTop: 12 }}>
+              <span>Dia e horário</span>
+              <input type="datetime-local" min={minWhen} value={when} onChange={(e) => setWhen(e.target.value)} />
+              <small className="muted">{closedNow ? 'Estamos fechados agora: escolha quando quer retirar ou receber.' : 'Com pelo menos 40 minutos de antecedência.'}</small>
+            </label>
+          )}
         </>
       )}
 

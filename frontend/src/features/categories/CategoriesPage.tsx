@@ -8,7 +8,7 @@ import { Toggle } from '../../components/ui/Toggle'
 import { apiErrorMessage } from '../../services/api'
 import { createCategory, getCategories, getProducts, updateCategory, type Category } from '../../services/catalog'
 
-type Draft = { id?: string; name: string; image_url: string | null; active: boolean }
+type Draft = { id?: string; name: string; image_url: string | null; active: boolean; available_from: string; available_until: string }
 
 export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -35,8 +35,10 @@ export function CategoriesPage() {
     setSaving(true)
     setFormError('')
     try {
-      if (draft.id) await updateCategory(draft.id, { name: draft.name.trim(), image_url: draft.image_url, active: draft.active })
-      else await createCategory({ name: draft.name.trim(), image_url: draft.image_url, sort_order: categories.length })
+      if (Boolean(draft.available_from) !== Boolean(draft.available_until)) { setSaving(false); return setFormError('Preencha os dois horários (de e até) ou deixe os dois vazios.') }
+      const window = { available_from: draft.available_from || null, available_until: draft.available_until || null }
+      if (draft.id) await updateCategory(draft.id, { name: draft.name.trim(), image_url: draft.image_url, active: draft.active, ...window })
+      else await createCategory({ name: draft.name.trim(), image_url: draft.image_url, sort_order: categories.length, ...window })
       setDraft(null)
       toast.success('Categoria salva')
       await load()
@@ -65,7 +67,7 @@ export function CategoriesPage() {
       <PageHeader
         title="Categorias"
         subtitle="As seções do cardápio, na ordem em que aparecem para o cliente."
-        actions={<button className="btn primary" onClick={() => { setFormError(''); setDraft({ name: '', image_url: null, active: true }) }}><Plus size={16} /> Nova categoria</button>}
+        actions={<button className="btn primary" onClick={() => { setFormError(''); setDraft({ name: '', image_url: null, active: true, available_from: '', available_until: '' }) }}><Plus size={16} /> Nova categoria</button>}
       />
       <ErrorBanner message={error} onRetry={() => void load()} />
       <div className="card" style={{ padding: '4px 20px' }}>
@@ -80,7 +82,7 @@ export function CategoriesPage() {
             <div className="row-actions">
               <button className="icon-btn" disabled={i === 0} onClick={() => void move(i, -1)} aria-label="Subir"><ArrowUp size={16} /></button>
               <button className="icon-btn" disabled={i === categories.length - 1} onClick={() => void move(i, 1)} aria-label="Descer"><ArrowDown size={16} /></button>
-              <button className="btn small" onClick={() => { setFormError(''); setDraft({ id: c.id, name: c.name, image_url: c.image_url, active: c.active }) }}><Pencil size={14} /> Editar</button>
+              <button className="btn small" onClick={() => { setFormError(''); setDraft({ id: c.id, name: c.name, image_url: c.image_url, active: c.active, available_from: c.available_from?.slice(0, 5) ?? '', available_until: c.available_until?.slice(0, 5) ?? '' }) }}><Pencil size={14} /> Editar</button>
             </div>
           </div>
         ))}
@@ -97,6 +99,11 @@ export function CategoriesPage() {
             {formError && <div className="alert error" role="alert">{formError}</div>}
             <label className="field"><span>Nome</span><input required autoFocus maxLength={80} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
             <ImageUpload label="Imagem (opcional)" value={draft.image_url} onChange={(image_url) => setDraft({ ...draft, image_url })} />
+            <div className="grid-2">
+              <label className="field"><span>Vende a partir de (opcional)</span><input type="time" value={draft.available_from} onChange={(e) => setDraft({ ...draft, available_from: e.target.value })} /></label>
+              <label className="field"><span>Até</span><input type="time" value={draft.available_until} onChange={(e) => setDraft({ ...draft, available_until: e.target.value })} /></label>
+            </div>
+            <small className="muted">Ex.: café da manhã das 07:00 às 11:00. Fora do horário, aparece no cardápio mas não pode ser pedido.</small>
             {draft.id && <Toggle label="Visível no cardápio" hint="Ocultar esconde a categoria e todos os produtos dela." checked={draft.active} onChange={(active) => setDraft({ ...draft, active })} />}
           </form>
         </Modal>
