@@ -3,5 +3,6 @@ const apiBaseUrl = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 
 export function mediaUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined
-  return url.startsWith('/media/') ? `${apiBaseUrl}${url}` : url
+  // The .webp suffix lets the CDN (Cloudflare) cache the photo at the edge; the API serves both forms.
+  return url.startsWith('/media/') ? `${apiBaseUrl}${url}.webp` : url
 }

@@ -48,6 +48,7 @@ async def start_background_jobs() -> None:
 
     from fastapi.concurrency import run_in_threadpool
 
+    from app.core.rate_limit import purge_old_counters
     from app.services import lifecycle
 
     enabled = settings.background_jobs if settings.background_jobs is not None else settings.is_production
@@ -59,6 +60,7 @@ async def start_background_jobs() -> None:
         while True:
             try:
                 await run_in_threadpool(lifecycle.run)
+                await run_in_threadpool(purge_old_counters)
             except Exception:  # never let the loop die
                 import logging
 

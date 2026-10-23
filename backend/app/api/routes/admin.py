@@ -31,8 +31,10 @@ def overview(db: Session = Depends(get_db)):
     last_order = dict(db.execute(select(Order.tenant_id, func.max(Order.created_at)).group_by(Order.tenant_id)).all())
     owners = {row[0]: row for row in db.execute(select(User.tenant_id, User.name, User.email).where(User.role == UserRole.ADMIN).order_by(User.created_at))}
     stores, mrr = [], Decimal(0)
+    demos = {slug.strip() for slug in settings.demo_slugs.split(",") if slug.strip()}
     for tenant in db.scalars(select(Tenant).order_by(Tenant.created_at.desc())):
-        paying = tenant.billing_status == "ACTIVE" or (tenant.status is TenantStatus.ACTIVE and tenant.billing_status == "NONE" and tenant.plan in PLANS and tenant.plan != "trial")
+        demo = tenant.slug in demos
+        paying = not demo and tenant.billing_status == "ACTIVE" or (tenant.status is TenantStatus.ACTIVE and tenant.billing_status == "NONE" and tenant.plan in PLANS and tenant.plan != "trial")
         price = PLANS.get(tenant.plan, PLANS["trial"]).price
         monthly = (price * 10 / 12 if tenant.billing_cycle == "YEARLY" else price) if paying else Decimal(0)
         mrr += monthly
@@ -44,15 +46,17 @@ def overview(db: Session = Depends(get_db)):
             "owner_name": owner[1] if owner else None, "owner_email": owner[2] if owner else None,
             "orders_7d": int(orders_week.get(tenant.id, 0)), "orders_total": int(orders_total.get(tenant.id, 0)),
             "last_order_at": last_order.get(tenant.id), "monthly_value": round(monthly, 2), "referred_by": tenant.referred_by,
+            "demo": demo,
         })
-    trials = [s for s in stores if s["status"] == "TRIAL"]
+    real = [s for s in stores if not s["demo"]]
+    trials = [s for s in real if s["status"] == "TRIAL"]
     return {
         "mrr": round(mrr, 2),
-        "stores": len(stores),
-        "paying": sum(1 for s in stores if s["monthly_value"] > 0),
+        "stores": len(real),
+        "paying": sum(1 for s in real if s["monthly_value"] > 0),
         "trials": len(trials),
         "trials_ending_3d": sum(1 for s in trials if s["trial_ends_at"] and now <= s["trial_ends_at"] <= now + timedelta(days=3)),
-        "no_orders_7d": sum(1 for s in stores if s["orders_7d"] == 0 and s["status"] != "SUSPENDED"),
-        "overdue": sum(1 for s in stores if s["billing_status"] == "OVERDUE"),
+        "no_orders_7d": sum(1 for s in real if s["orders_7d"] == 0 and s["status"] != "SUSPENDED"),
+        "overdue": sum(1 for s in real if s["billing_status"] == "OVERDUE"),
         "list": stores,
     }

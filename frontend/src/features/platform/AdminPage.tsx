@@ -8,7 +8,7 @@ type Store = {
   slug: string; name: string; status: string; plan: string; billing_status: string; billing_cycle: string
   paid_until: string | null; trial_ends_at: string | null; created_at: string; phone: string | null
   owner_name: string | null; owner_email: string | null; orders_7d: number; orders_total: number
-  last_order_at: string | null; monthly_value: string; referred_by: string | null
+  last_order_at: string | null; monthly_value: string; referred_by: string | null; demo: boolean
 }
 type Overview = { mrr: string; stores: number; paying: number; trials: number; trials_ending_3d: number; no_orders_7d: number; overdue: number; list: Store[] }
 
@@ -74,7 +74,7 @@ export function AdminPage() {
               const phone = s.phone?.replace(/\D/g, '')
               return (
                 <tr key={s.slug}>
-                  <td><a href={tenantUrl(s.slug, '/')} target="_blank" rel="noreferrer"><strong>{s.name}</strong></a><span className="sub">{s.slug} · desde {formatDate(s.created_at)}{s.referred_by ? ` · indicado por ${s.referred_by}` : ''}</span></td>
+                  <td><a href={tenantUrl(s.slug, '/')} target="_blank" rel="noreferrer"><strong>{s.name}</strong></a>{s.demo && <> <span className="badge">demo</span></>}<span className="sub">{s.slug} · desde {formatDate(s.created_at)}{s.referred_by ? ` · indicado por ${s.referred_by}` : ''}</span></td>
                   <td>{s.owner_name}<span className="sub">{s.owner_email}{phone ? <> · <a href={`https://wa.me/55${phone}`} target="_blank" rel="noreferrer">{formatPhone(s.phone)}</a></> : null}</span></td>
                   <td><span className={`badge ${s.status === 'TRIAL' ? 'info' : s.billing_status === 'OVERDUE' ? 'danger' : 'ok'}`}>{s.status === 'TRIAL' ? `Teste${trialDays !== null ? ` · ${trialDays}d` : ''}` : s.plan}</span>{s.billing_status !== 'NONE' && <span className="sub">{s.billing_status}{s.billing_cycle === 'YEARLY' ? ' · anual' : ''}</span>}</td>
                   <td className="num">{s.orders_7d}<span className="sub">{s.orders_total} no total</span></td>

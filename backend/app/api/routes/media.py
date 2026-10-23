@@ -39,6 +39,12 @@ def usage(db: Session = Depends(get_db), actor: User = Depends(admin_only)):
     return UploadResult(url="", size=0, used_bytes=service.used_bytes(), quota_bytes=service.quota_bytes())
 
 
+@router.get("/media/{media_id}.webp")
+def get_image_webp(media_id: UUID, db: Session = Depends(get_db)):
+    """Same image with a file extension: Cloudflare caches .webp at the edge, so photos stop hitting the database."""
+    return get_image(media_id, db)
+
+
 @router.get("/media/{media_id}")
 def get_image(media_id: UUID, db: Session = Depends(get_db)):
     """Public: <img> tags cannot send the tenant header, and the id is an unguessable UUID."""

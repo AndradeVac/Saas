@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     background_jobs: bool | None = None
     # Platform panel (/admin): only whoever has this token sees every store. Empty = panel off.
     platform_admin_token: str = ""
+    # Demo / showcase stores: listed in the platform panel but kept out of MRR and the counters.
+    demo_slugs: str = "demo,demo-essencial,demo-pro,hamburgueria-teste"
     # Error alerts (Sentry). Empty = off.
     sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.
