@@ -32,7 +32,7 @@ _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
     "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes", "prep_minutes", "delivery_minutes", "require_pix_delivery",
-    "loyalty_enabled", "loyalty_goal", "scheduling_enabled",
+    "loyalty_enabled", "loyalty_goal", "scheduling_enabled", "notify_customers",
 )
 # Can be cleared by sending null explicitly.
 _NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url", "loyalty_reward", "google_review_url")

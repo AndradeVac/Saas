@@ -161,6 +161,7 @@ class OrderService:
             if data.service_type is ServiceType.DELIVERY else None,
             notes=data.notes,
             scheduled_for=scheduled_for,
+            notify_whatsapp=data.notify_whatsapp,
             status=OrderStatus.RECEIVED,
             subtotal=Decimal("0.00"),
             total=Decimal("0.00"),

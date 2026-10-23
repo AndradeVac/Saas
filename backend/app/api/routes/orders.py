@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,7 @@ from app.schemas.order import (
     OrderResponse,
     OrderStatusUpdate,
 )
+from app.services import customer_notify
 from app.services.order import OrderService
 from app.services.reports import XLSX_TYPE, orders_xlsx
 
@@ -140,17 +141,26 @@ def edit_order(order_id: UUID, data: OrderEdit, db: Session = Depends(get_db), a
 def update_order_status(
     order_id: UUID,
     data: OrderStatusUpdate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     actor: User = Depends(staff_only),
 ):
-    return OrderService(db, actor.tenant_id).update_status(order_id, data, actor)
+    order = OrderService(db, actor.tenant_id).update_status(order_id, data, actor)
+    background.add_task(customer_notify.order_changed, order.id, order.status)  # "pronto!" on the customer's phone
+    return order
 
 
 @router.patch("/{order_id}/payment", response_model=OrderResponse)
 def update_order_payment(
     order_id: UUID,
     data: OrderPaymentUpdate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     actor: User = Depends(staff_only),
 ):
-    return OrderService(db, actor.tenant_id).update_payment(order_id, data, actor)
+    service = OrderService(db, actor.tenant_id)
+    before = service.get_by_id(order_id).status
+    order = service.update_payment(order_id, data, actor)
+    if order.status is not before:  # PIX confirmed sent it to the kitchen
+        background.add_task(customer_notify.order_changed, order.id, order.status)
+    return order

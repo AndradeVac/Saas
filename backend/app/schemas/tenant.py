@@ -123,6 +123,9 @@ class PublicTenant(BaseModel):
     loyalty_reward: str | None = None
     google_review_url: str | None = None
     scheduling_enabled: bool = False
+    notify_customers: bool = True
+    # True when the store tells customers on WhatsApp automatically (platform number configured + store setting on).
+    whatsapp_notifications: bool = False
     # "Cardápio digital por Mesa Digital" footer; hidden on plans with white label.
     show_platform_badge: bool = True
 
@@ -170,6 +173,7 @@ class TenantSettingsUpdate(BaseModel):
     loyalty_reward: str | None = Field(default=None, max_length=120)
     google_review_url: str | None = Field(default=None, max_length=300)
     scheduling_enabled: bool | None = None
+    notify_customers: bool | None = None
 
     @field_validator("google_review_url")
     @classmethod

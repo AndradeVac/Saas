@@ -60,6 +60,7 @@ class PublicOrderCreate(BaseModel):
     delivery_zone: str | None = Field(default=None, max_length=60)
     scheduled_for: datetime | None = None  # encomenda: when the customer wants it
     marketing_opt_in: bool = False  # LGPD: "quero receber novidades e promoções"
+    notify_whatsapp: bool = False  # "me avise pelo WhatsApp quando estiver pronto" (order updates only)
     items: list[PublicOrderItem] = Field(min_length=1, max_length=30)
 
     @field_validator("customer_name")
@@ -124,6 +125,16 @@ class PublicOrderTracking(BaseModel):
     loyalty: dict | None = None  # {stamps, goal, reward, rewards_available} when the store has a loyalty card
     review_stars: int | None = None  # the customer's rating, once given
     google_review_url: str | None = None
+
+
+class PushKeys(BaseModel):
+    p256dh: str = Field(max_length=200)
+    auth: str = Field(max_length=100)
+
+
+class OrderPushIn(BaseModel):
+    endpoint: str = Field(min_length=10, max_length=1000)
+    keys: PushKeys
 
 
 class ReviewCreate(BaseModel):

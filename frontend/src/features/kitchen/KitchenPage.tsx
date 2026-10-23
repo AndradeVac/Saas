@@ -7,6 +7,8 @@ import { awaitingPix, updateOrderPayment, updateOrderStatus, type Order } from '
 import type { OrderStatus } from '../../types'
 import { useLiveOrders } from '../orders/LiveOrders'
 import { useTenant } from '../tenant/TenantProvider'
+import { usePlan } from '../plans/PlanProvider'
+import { offerReadyWhatsapp } from '../../lib/notify'
 
 const COLUMNS: Array<{ status: OrderStatus; title: string; next: OrderStatus; action: string }> = [
   { status: 'RECEIVED', title: 'A fazer', next: 'PREPARING', action: 'Começar' },
@@ -19,6 +21,7 @@ const WHERE: Record<string, string> = { DINE_IN: 'Mesa', TAKEAWAY: 'Retirada', D
 export function KitchenPage() {
   const { orders, replace, refresh, offline } = useLiveOrders()
   const { tenant } = useTenant()
+  const { catalog } = usePlan()
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState<string | null>(null)
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 15_000); return () => window.clearInterval(timer) }, [])
@@ -26,7 +29,9 @@ export function KitchenPage() {
   async function advance(order: Order, next: OrderStatus) {
     setBusy(order.id)
     try {
-      replace(awaitingPix(order, Boolean(tenant.pix_key)) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next))
+      const updated = awaitingPix(order, Boolean(tenant.pix_key)) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
+      replace(updated)
+      if (updated.status === 'READY' && !catalog?.whatsapp_auto) offerReadyWhatsapp(updated, tenant.name.trim())
       void refresh()
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Não foi possível atualizar.'))

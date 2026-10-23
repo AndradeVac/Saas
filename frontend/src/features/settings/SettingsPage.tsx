@@ -40,7 +40,7 @@ const editable = (s: TenantSettings) => ({
   tabs_enabled: s.tabs_enabled, tabs_auto_approve: s.tabs_auto_approve, tab_idle_minutes: s.tab_idle_minutes,
   prep_minutes: s.prep_minutes, delivery_minutes: s.delivery_minutes, delivery_zones: s.delivery_zones, require_pix_delivery: s.require_pix_delivery,
   loyalty_enabled: s.loyalty_enabled, loyalty_goal: s.loyalty_goal, loyalty_reward: s.loyalty_reward || null,
-  google_review_url: s.google_review_url || null, scheduling_enabled: s.scheduling_enabled,
+  google_review_url: s.google_review_url || null, scheduling_enabled: s.scheduling_enabled, notify_customers: s.notify_customers,
 })
 
 /** Neighbourhoods served and the fee of each (empty list = one flat fee for any address). */
@@ -328,6 +328,7 @@ export function SettingsPage() {
               <button type="button" className="toggle disabled" onClick={() => plan.openUpgrade('O cartão fidelidade é do plano Profissional.')}><span className="toggle-text"><strong>Cartão fidelidade</strong><small>Disponível no plano Profissional.</small></span></button>
             )}
             <label className="field" style={{ marginTop: 12 }}><span>Link de avaliação do Google (opcional)</span><input value={form.google_review_url ?? ''} placeholder="https://g.page/r/..." onChange={(e) => set('google_review_url', e.target.value)} /><small className="muted">Quem der 5 estrelas no pedido é convidado a avaliar você no Google. Pegue o link no seu Perfil da Empresa no Google → “Pedir avaliações”.</small></label>
+            <Toggle label="Avisar o cliente automaticamente" hint={plan.catalog?.whatsapp_auto ? 'Mensagem no WhatsApp do cliente quando o pedido entra em preparo e quando fica pronto (ou sai para entrega).' : 'Notificação no celular do cliente quando o pedido fica pronto. Quando marcar “pronto”, aparece também um botão para avisar pelo WhatsApp com um toque.'} checked={form.notify_customers} onChange={(on) => set('notify_customers', on)} />
             <Toggle label="Aceitar encomendas (pedido agendado)" hint="O cliente escolhe dia e hora para retirar ou receber, mesmo com a loja fechada. Ótimo para bolos e salgados de festa." checked={form.scheduling_enabled} onChange={(on) => set('scheduling_enabled', on)} />
           </div>
         </>

@@ -107,6 +107,8 @@ class Tenant(Base):
     billing_cycle: Mapped[str] = mapped_column(String(10), nullable=False, default="MONTHLY", server_default="MONTHLY")
     # Slug of the store that recommended this one (referral: the owner earns a free month).
     referred_by: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Tell customers automatically (WhatsApp / phone notification) when the order is being prepared and is ready.
+    notify_customers: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

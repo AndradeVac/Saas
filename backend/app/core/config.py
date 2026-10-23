@@ -54,6 +54,13 @@ class Settings(BaseSettings):
     platform_admin_token: str = ""
     # Demo / showcase stores: listed in the platform panel but kept out of MRR and the counters.
     demo_slugs: str = "demo,demo-essencial,demo-pro,hamburgueria-teste"
+    # WhatsApp Cloud API (Meta) for automatic customer messages. Token + phone number id = on.
+    # Templates (category Utility, pt_BR) must be approved in Meta; see DEPLOY.md "Avisos pelo WhatsApp".
+    whatsapp_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_template_ready: str = "pedido_pronto"
+    whatsapp_template_preparing: str = "pedido_em_preparo"
+    whatsapp_language: str = "pt_BR"
     # Error alerts (Sentry). Empty = off.
     sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.

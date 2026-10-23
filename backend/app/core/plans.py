@@ -195,6 +195,7 @@ def plan_catalog():
         trial_days=settings.trial_days,
         online_billing=bool(settings.asaas_api_key),
         menu_import=bool(settings.anthropic_api_key),
+        whatsapp_auto=bool(settings.whatsapp_token and settings.whatsapp_phone_number_id),
         sales_whatsapp="".join(ch for ch in settings.sales_whatsapp if ch.isdigit()),
     )
 
@@ -234,4 +235,7 @@ def public_tenant(db: Session, tenant: Tenant):
     data.is_open = data.is_open and can_take_orders(db, tenant)
     data.show_platform_badge = not has_feature(tenant, WHITE_LABEL)
     data.loyalty_enabled = tenant.loyalty_enabled and has_feature(tenant, LOYALTY)
+    from app.services.customer_notify import whatsapp_enabled
+
+    data.whatsapp_notifications = tenant.notify_customers and whatsapp_enabled()
     return data

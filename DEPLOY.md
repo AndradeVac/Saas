@@ -190,6 +190,33 @@ Depois de restaurar num banco novo, aponte o `DATABASE_URL` do Fly para ele e ro
 
 Os eventos não levam dados pessoais: sem corpo das requisições, cookies, credenciais ou query strings.
 
+## 7d. Avisos automáticos pelo WhatsApp (API oficial da Meta)
+
+O cliente marca "Me avise pelo WhatsApp quando o pedido estiver pronto" no carrinho e recebe, do número do Mesa Digital,
+"em preparo" e "pronto" (ou "saiu para entrega"). Sem configurar, o sistema já funciona assim: notificação no celular do
+cliente (pela tela do pedido) e, no painel, um botão "Avisar no WhatsApp" com a mensagem pronta quando o pedido fica pronto.
+
+Passo a passo (uma vez, uns 20 minutos):
+
+1. Em https://business.facebook.com crie (ou use) o Gerenciador de Negócios do Mesa Digital e, em
+   https://developers.facebook.com, crie um app do tipo **Business** com o produto **WhatsApp**.
+2. Em WhatsApp → Configuração da API, adicione um número de telefone que **não** esteja em uso no WhatsApp do celular
+   (pode ser um chip novo) e verifique por SMS. Anote o **ID do número de telefone**.
+3. Crie um **usuário do sistema** (Configurações do negócio → Usuários do sistema), dê acesso ao app e gere um **token
+   permanente** com as permissões `whatsapp_business_messaging` e `whatsapp_business_management`.
+4. Em WhatsApp → Modelos de mensagem, crie dois modelos, categoria **Utilidade**, idioma **Português (BR)**:
+   - `pedido_em_preparo`: `Olá, {{1}}! Seu pedido #{{2}} da {{3}} já está sendo preparado. Avisamos quando estiver pronto.`
+   - `pedido_pronto`: `Olá, {{1}}! Seu pedido #{{2}} da {{3}} está pronto. {{4}}`
+   (exemplos para a Meta: `Joana`, `123`, `Hamburgueria do Zé`, `Pode retirar no balcão.`)
+5. Com os modelos aprovados, no Terminal do Mac (aspas simples):
+
+```bash
+fly secrets set -a mesa-digital WHATSAPP_TOKEN='...' WHATSAPP_PHONE_NUMBER_ID='...'
+```
+
+Custo: a Meta cobra por conversa de utilidade (centavos por pedido avisado). Cada loja pode desligar em Configurações →
+Pedidos e pagamento → "Avisar o cliente automaticamente".
+
 ## 8. Monitoramento (grátis)
 
 - **UptimeRobot**: monitor HTTP em `https://mesadig.com.br/api/health`, com aviso por e-mail ou WhatsApp.

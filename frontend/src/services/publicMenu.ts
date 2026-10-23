@@ -59,6 +59,7 @@ export type PublicOrderPayload = {
   delivery_zone?: string
   scheduled_for?: string
   marketing_opt_in?: boolean
+  notify_whatsapp?: boolean
   items: Array<{ product_id: string; quantity: number; notes?: string; options: Array<{ group_id: string; option_id: string }> }>
 }
 
