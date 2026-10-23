@@ -50,29 +50,37 @@ Cada estabelecimento (um *tenant*) ganha:
 | Área | O que faz |
 |---|---|
 | **Visão geral** | Faturamento, pedidos, ticket médio, gráficos por dia, horário e categoria, checklist de primeiros passos e relatório em **Excel** (5 abas com gráficos) e **PDF** (A4 com a marca da loja) |
-| **Pedidos** | Fila ao vivo (atualiza sozinha, com aviso sonoro e contador na aba), avanço de status, pagamento no caixa, cancelamento com motivo, edição e impressão da comanda |
+| **Pedidos** | Fila ao vivo que continua atualizando com a aba em segundo plano. Aviso sonoro com **lembrete a cada 30 s**, notificação no computador e **no celular mesmo com o painel fechado** (Web Push). **Impressão automática** da comanda, tela sempre acesa, avanço de status, pagamento, cancelamento com motivo e edição |
+| **Cozinha** | Tela da cozinha (KDS) em tela cheia: cartões grandes, minutos desde o pedido, cor de atraso e um toque para avançar |
+| **Caixa** | Fechamento do dia: total recebido por forma de pagamento (pedidos e comandas), cancelados, descontos, taxas e pendências. Imprimível |
 | **Mesas** | Mapa das mesas com a conta aberta de cada uma. Alertas: mesa nova esperando aprovação, pediu a conta, parada há X minutos, pedido atrasado, "já paguei" pelo PIX. Fechamento com forma de pagamento |
 | **Histórico** | Busca por número, cliente, telefone ou mesa, com filtros, paginação e exportação |
-| **Produtos** | Foto, preço, descrição, destaque, esgotado, ocultar, ordem e **grupos de opções** (tamanho, adicionais, ponto da carne…) com preço. Botão **Importar cardápio** |
-| **Categorias** | Criar, renomear, ordenar e ocultar |
+| **Produtos** | Foto, preço, **custo e margem**, descrição, destaque, esgotado, ocultar, ordem e **grupos de opções** (tamanho, adicionais, ponto da carne…) com preço. Botão **Importar cardápio** |
+| **Categorias** | Criar, renomear, ordenar, ocultar e **vender só em um horário** (ex.: café da manhã das 07:00 às 11:00) |
 | **Cupons** | Percentual ou valor fixo, pedido mínimo, limite de usos e validade. O uso volta se o pedido for cancelado |
-| **Clientes** | Total gasto, último pedido, observações e exportação |
+| **Clientes** | Total gasto, último pedido, observações, **quem aceita promoções** (LGPD), **cartão fidelidade** com botão de entregar o prêmio e exportação em Excel |
 | **Equipe** | Usuários com perfil **Administrador** (tudo) ou **Operador** (pedidos e mesas), redefinição de senha e desativação |
-| **Configurações** | Marca (logo, capa, cor), aberto manualmente ou **por horário**, tipos de atendimento (mesa, retirada, entrega), formas de pagamento, chave PIX, pedido mínimo, taxa de entrega e de serviço, QR Codes das mesas e senha |
+| **Configurações** | Marca (logo, capa, cor), horários, atendimento (mesa, retirada, entrega), **bairros de entrega com taxa por bairro**, formas de pagamento, chave PIX (validada, com **QR de teste de R$ 1**), **entrega só com PIX antecipado**, pedido mínimo, taxas, **tempo de preparo e de entrega**, **cartão fidelidade**, link de avaliação do Google, **encomendas**, QR Codes e **material de divulgação** (displays de mesa, cartaz, post de Instagram) |
 | **Auditoria** | Quem fez o quê e quando (plano Profissional) |
 | **Análises** (Profissional) | **Clientes para reconquistar** (frequentes que sumiram, com botão de WhatsApp e mensagem pronta), % de clientes que voltam, previsão do faturamento do mês, tempo de preparo e de entrega, mapa de calor dia × horário, curva ABC dos produtos, melhores clientes, ticket por atendimento e motivos de cancelamento |
-| **Meu plano** | Uso (produtos, equipe, pedidos), situação da assinatura, assinar, trocar de plano, pagar e cancelar |
+| **Meu plano** | Uso, situação da assinatura, assinar **mensal ou anual** (12 meses pelo preço de 10), trocar de plano, pagar, cancelar e **Indique e ganhe** |
 
 ### 1.3 O cliente final (no celular, sem instalar nada)
 
-- **Pelo link do restaurante:** vê capa, horários, categorias, destaques e produtos com opções e observações, monta o
-  carrinho, aplica cupom e escolhe mesa, retirada ou entrega. Depois acompanha o pedido em tempo real.
+- **Pelo link do restaurante:** vê capa, horários, **tempo estimado**, categorias, destaques e produtos com opções e
+  observações. Monta o carrinho com **sugestões de acompanhamento**, aplica cupom, escolhe mesa, retirada ou entrega
+  (com **bairro**), pode **agendar uma encomenda** e escolher se quer **receber promoções**. A **taxa de serviço é opcional**.
+  Depois acompanha o pedido em tempo real, paga pelo **QR Code PIX com o valor exato**, pode **cancelar** enquanto não
+  entrou em preparo, vê o **cartão fidelidade** e **avalia** o pedido (5 estrelas convidam a avaliar no Google).
+- **Prévia do link:** ao compartilhar o cardápio no WhatsApp ou no Instagram, aparece uma imagem com a capa, a logo e o
+  nome da loja.
 - **Pelo QR Code da mesa (comanda):**
   - entra na conta da mesa e pede quantas vezes quiser;
   - **repete a última rodada** com um toque;
   - recebe o convite "Mais uma rodada?" depois de um tempo sem pedir;
   - acompanha a conta ao vivo e pede para fechar;
-  - **divide a conta** entre as pessoas;
+  - **divide a conta** entre as pessoas ou **paga só o que consumiu**;
+  - **retira a taxa de serviço** se quiser (é opcional);
   - paga com **PIX copia e cola** (a conta inteira ou só a sua parte) e toca em "Já paguei". O garçom confirma no painel
     e a mesa fecha sozinha quando a conta está quitada.
 
@@ -85,16 +93,18 @@ Tudo é definido num lugar só: `backend/app/core/plans.py`. **A API aplica os l
 
 | | Degustação | Essencial | Profissional |
 |---|---|---|---|
-| Preço | grátis por 14 dias | **R$ 79,90/mês** | **R$ 149,90/mês** |
-| Produtos ativos | 10 | 80 | ilimitados |
-| Equipe | só o dono | 3 pessoas | ilimitada |
-| Pedidos | 30 no teste (cada mesa conta 1) | ilimitados | ilimitados |
-| Cupons e exportações (Excel, PDF, CSV) | — | ✓ | ✓ |
-| Auditoria e cardápio sem a marca Mesa Digital | — | — | ✓ |
-| **Análises avançadas e clientes para reconquistar** | — | — | ✓ |
+| Preço | grátis por 14 dias | **R$ 79,90/mês** ou R$ 799/ano | **R$ 149,90/mês** ou R$ 1.499/ano |
+| Produtos ativos | ilimitados | 80 | ilimitados |
+| Equipe | ilimitada | 3 pessoas | ilimitada |
+| Pedidos | ilimitados | ilimitados | ilimitados |
+| Cupons e exportações (Excel, PDF, CSV) | ✓ | ✓ | ✓ |
+| Auditoria | ✓ | — | ✓ |
+| **Análises avançadas e clientes para reconquistar** | ✓ | — | ✓ |
+| **Cartão fidelidade digital** | ✓ | — | ✓ |
+| Cardápio sem a marca Mesa Digital | — | — | ✓ |
 
-- **Degustação** é um "gostinho": o fluxo principal funciona, mas o volume é limitado e as ferramentas premium aparecem
-  bloqueadas, com a explicação do que liberam. Pedidos cancelados não contam no limite.
+- **Degustação**: 14 dias com tudo liberado (sem limites e com as ferramentas do Profissional); só o selo
+  "Mesa Digital" continua no cardápio.
 - **Teste vencido ou pedidos esgotados:** o cardápio continua no ar e o painel continua editável, mas não entram
   novos pedidos.
 - **Assinatura online (Asaas):** "Assinar" pede CPF ou CNPJ e e-mail e leva à página de pagamento do Asaas. O
@@ -277,7 +287,7 @@ O cardápio de cada uma fica no mesmo endereço, sem `/login`. No Safari, use
 ## 9. Testes
 
 ```bash
-cd backend && pytest                         # 93 testes de integração contra o DATABASE_URL de desenvolvimento
+cd backend && pytest                         # 118 testes de integração contra o DATABASE_URL de desenvolvimento
 cd frontend && npx tsc -b && npm run build   # checagem de tipos e build
 ```
 
@@ -346,10 +356,24 @@ Lidas de `backend/.env.<ENVIRONMENT>` no desenvolvimento e de `fly secrets` / `f
 | `RESEND_API_KEY`, `EMAIL_FROM` | E-mails do sistema |
 | `ANTHROPIC_API_KEY` | Leitura de cardápio por foto direto no painel (sem ela, só o caminho grátis) |
 | `SENTRY_DSN` (servidor) e `VITE_SENTRY_DSN` (site, no build) | Aviso de erros |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Avisos de pedido novo no celular (Web Push) |
+| `PLATFORM_ADMIN_TOKEN`, `DEMO_SLUGS` | Painel da plataforma (`/admin`) |
+| `BACKGROUND_JOBS` | Tarefa de hora em hora (e-mails automáticos); padrão: ligada só em produção |
+| `VITE_DEMO_SLUG` (build) | Loja exibida no celular da landing |
 | `R2_*`, `MEDIA_PUBLIC_URL` | Fotos no Cloudflare R2 (opcional) |
 | `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `WEB_CONCURRENCY` | Conexões e processos |
 
 ---
+
+## 12b. E-mails automáticos e painel da plataforma
+
+- **E-mails** (Resend), cada um enviado uma vez (`lifecycle_emails`): boas-vindas, faltam 3 dias, último dia, teste
+  acabou, pagamento atrasado, ajuda se não houver pedido em 3 dias e **resumo semanal** (segundas). Uma tarefa de hora em
+  hora dentro do servidor faz isso, só das 9h às 20h no fuso da loja (`BACKGROUND_JOBS`, ligada em produção).
+- **Painel da plataforma** em `https://mesadig.com.br/admin`: MRR, pagantes, testes acabando, lojas sem pedido em 7 dias,
+  atrasados e indicações. Acesso pelo token `PLATFORM_ADMIN_TOKEN` (guardado em `backend/.env.production.secret`).
+  As lojas de demonstração (`DEMO_SLUGS`) ficam fora do MRR.
+- **Contas demo com movimento**: `python -m scripts.demo_activity <slug> --days 60 --confirm <slug>` (só em contas demo).
 
 ## 13. Pendências e próximos passos
 
@@ -365,6 +389,6 @@ Lidas de `backend/.env.<ENVIRONMENT>` no desenvolvimento e de `fly secrets` / `f
 - [ ] Advogado revisar `/termos` e `/privacidade`.
 
 **Produto (ideias)**
-- PIX da mesa com confirmação automática (subcontas Asaas).
-- Painel da plataforma para ver todas as lojas, receita e assinaturas.
-- Domínio próprio por loja, avisos por WhatsApp e impressão direta em impressora térmica.
+- PIX com confirmação automática (subcontas Asaas), sem o garçom conferir no banco.
+- Domínio próprio por loja e avisos ao cliente por WhatsApp (API oficial).
+- Segunda máquina no Fly (o limitador de tentativas já é compartilhado pelo banco).
