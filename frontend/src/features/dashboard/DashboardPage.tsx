@@ -74,7 +74,7 @@ export function DashboardPage() {
 
   const { guard } = usePlan()
   const exportFile = (format: 'xlsx' | 'pdf') => guard('exports', () => {
-    downloadDashboard(period, format).catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') })
+    downloadDashboard(period, format, start, end).catch((err) => { if (!isPlanLimitError(err)) toast.error('Não foi possível exportar.') })
   })
 
   const change = Number(data?.revenue_change_percent ?? 0)

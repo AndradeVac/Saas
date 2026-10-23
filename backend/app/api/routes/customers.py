@@ -9,10 +9,12 @@ from app.core.database import get_db
 from app.core.spreadsheet import SafeCsvWriter
 from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.customer import CustomerCreate, CustomerListItem, CustomerResponse, CustomerUpdate
 from app.services.customer import CustomerService
+from app.services.reports import XLSX_TYPE, customers_xlsx
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
@@ -37,8 +39,16 @@ def list_customers(
 
 
 @router.get("/export", dependencies=[Depends(require_feature(EXPORTS))])
-def export_customers(db: Session = Depends(get_db), actor: User = Depends(staff_only)):
+def export_customers(
+    file_format: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+    db: Session = Depends(get_db),
+    actor: User = Depends(staff_only),
+):
     items, _ = CustomerService(db, actor.tenant_id).search(None, True, 1, 5000, "name")
+    if file_format == "xlsx":
+        tenant = db.get(Tenant, actor.tenant_id)
+        return Response(content=customers_xlsx(db, tenant, items), media_type=XLSX_TYPE,
+                        headers={"Content-Disposition": f"attachment; filename={tenant.slug}-clientes.xlsx"})
     buffer = io.StringIO()
     writer = SafeCsvWriter(buffer, delimiter=";")
     writer.writerow(["Nome", "Telefone", "Pedidos", "Total gasto", "Último pedido", "Observações"])

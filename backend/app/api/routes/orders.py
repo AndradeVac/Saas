@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.labels import PAYMENT_LABELS, SERVICE_LABELS, STATUS_LABELS
 from app.core.spreadsheet import SafeCsvWriter
 from app.core.plans import EXPORTS, require_feature
 from app.core.security import staff_only
@@ -25,14 +26,10 @@ from app.schemas.order import (
     OrderStatusUpdate,
 )
 from app.services.order import OrderService
+from app.services.reports import XLSX_TYPE, orders_xlsx
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
-_SERVICE_LABELS = {"DINE_IN": "No local", "TAKEAWAY": "Para levar", "DELIVERY": "Entrega"}
-_PAYMENT_LABELS = {"PIX": "PIX", "CARD": "Cartão", "CASH": "Dinheiro", "TAB": "Na comanda"}
-_STATUS_LABELS = {
-    "RECEIVED": "Recebido", "PREPARING": "Em preparo", "READY": "Pronto", "FINISHED": "Entregue", "CANCELLED": "Cancelado",
-}
 
 
 def _bounds(tenant: Tenant, date_from: date | None, date_to: date | None) -> tuple[datetime | None, datetime | None]:
@@ -86,6 +83,7 @@ def export_orders(
     date_from: date | None = None,
     date_to: date | None = None,
     q: str | None = Query(default=None, max_length=80),
+    file_format: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
     tenant: Tenant = Depends(get_tenant),
     db: Session = Depends(get_db),
     _: User = Depends(staff_only),
@@ -94,6 +92,11 @@ def export_orders(
     orders = OrderRepository(db, tenant.id).export(
         status=status_in, payment_status=payment_status, service_type=service_type, date_from=start, date_to=end, q=q,
     )
+    if file_format == "xlsx":
+        period = (f"{date_from:%d/%m/%Y} a {date_to:%d/%m/%Y}" if date_from and date_to
+                  else f"desde {date_from:%d/%m/%Y}" if date_from else f"até {date_to:%d/%m/%Y}" if date_to else "todos os pedidos")
+        return Response(content=orders_xlsx(db, tenant, orders, f"{len(orders)} pedidos · {period}"), media_type=XLSX_TYPE,
+                        headers={"Content-Disposition": f"attachment; filename={tenant.slug}-pedidos.xlsx"})
     zone = ZoneInfo(tenant.timezone)
     buffer = io.StringIO()
     writer = SafeCsvWriter(buffer, delimiter=";")
@@ -107,11 +110,11 @@ def export_orders(
             order.created_at.astimezone(zone).strftime("%d/%m/%Y %H:%M"),
             order.customer_name or "",
             order.customer_phone or "",
-            _SERVICE_LABELS.get(order.service_type.value, order.service_type.value),
+            SERVICE_LABELS.get(order.service_type.value, order.service_type.value),
             order.table_label or "",
-            _STATUS_LABELS.get(order.status.value, order.status.value),
+            STATUS_LABELS.get(order.status.value, order.status.value),
             "Pago" if order.payment_status is PaymentStatus.PAID else "Pendente",
-            _PAYMENT_LABELS.get(order.payment_method.value, order.payment_method.value),
+            PAYMENT_LABELS.get(order.payment_method.value, order.payment_method.value),
             "; ".join(f"{i.quantity}x {i.product_name}" for i in order.items),
             money(order.subtotal), money(order.discount), money(order.service_fee), money(order.delivery_fee), money(order.total),
         ])
