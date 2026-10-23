@@ -1,4 +1,4 @@
-import { Copy, Minus, Plus, Tag, Trash2 } from 'lucide-react'
+import { Minus, Plus, Tag, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'sonner'
 import { Modal } from '../../components/ui/Modal'
@@ -194,10 +194,7 @@ export function CartModal({ tenant, lines, setLines, tableFromQr, tableCode, onC
         ))}
       </div>
       {payment === 'PIX' && tenant.pix_key && (
-        <div className="pix-box">
-          <div><small className="muted">Chave PIX</small><br /><code>{tenant.pix_key}</code></div>
-          <button className="btn small" onClick={() => { void navigator.clipboard?.writeText(tenant.pix_key ?? ''); toast.success('Chave PIX copiada') }}><Copy size={14} /> Copiar</button>
-        </div>
+        <p className="alert info"><span>Ao enviar o pedido, aparece o <strong>QR Code PIX com o valor exato</strong> para você pagar pelo app do banco.</span></p>
       )}
       </>)}
 

@@ -1,13 +1,40 @@
-import { Check, MessageCircle } from 'lucide-react'
+import QRCode from 'qrcode'
+import { Check, Copy, MessageCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Skeleton } from '../../components/ui/parts'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
-import { trackOrder, type Tracking } from '../../services/publicMenu'
+import { getOrderPix, trackOrder, type Tracking } from '../../services/publicMenu'
 import type { OrderStatus, PublicTenant } from '../../types'
 
 const STEPS: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'FINISHED']
 const POLL_MS = 5000
+
+/** QR Code + copia e cola with the exact total, while a PIX order is waiting for payment. */
+function OrderPix({ token, tenantName }: { token: string; tenantName: string }) {
+  const [pix, setPix] = useState<{ code: string; amount: string; qr: string } | null>(null)
+  useEffect(() => {
+    let active = true
+    getOrderPix(token)
+      .then(async (data) => { const qr = await QRCode.toDataURL(data.code, { margin: 1, width: 280 }); if (active) setPix({ ...data, qr }) })
+      .catch(() => { if (active) setPix(null) })
+    return () => { active = false }
+  }, [token])
+  if (!pix) return null
+  return (
+    <div className="card flat pix-pay">
+      <h3>Pague {formatMoney(pix.amount)} com PIX</h3>
+      <p className="muted">Direto para <strong>{tenantName}</strong>: abra o app do seu banco e leia o QR Code ou use o PIX copia e cola. O valor já vem preenchido.</p>
+      <img className="pix-qr" src={pix.qr} alt="QR Code PIX" />
+      <div className="pix-box">
+        <code className="pix-code">{pix.code}</code>
+        <button className="btn small" onClick={() => { void navigator.clipboard?.writeText(pix.code); toast.success('PIX copiado. Cole no app do seu banco.') }}><Copy size={14} /> Copiar</button>
+      </div>
+      <p className="muted"><small>O estabelecimento confere o pagamento e confirma. Esta tela atualiza sozinha.</small></p>
+    </div>
+  )
+}
 
 const stepHints: Record<string, string> = {
   RECEIVED: 'Recebemos seu pedido. Em instantes ele entra em preparo.',
@@ -86,9 +113,11 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
         {Number(order.delivery_fee) > 0 && <div className="total-row sub"><span>Entrega</span><span>{formatMoney(order.delivery_fee)}</span></div>}
         <div className="total-row"><span>Total</span><strong>{formatMoney(order.total)}</strong></div>
       </div>
-      <p className="muted">
-        Pagamento no caixa ({paymentMethodLabels[order.payment_method]}).{order.payment_status === 'PAID' && ' ✔ Pagamento confirmado.'}
-      </p>
+      {order.payment_method === 'PIX' && order.payment_status !== 'PAID' && status !== 'CANCELLED' && tenant.pix_key && !order.table_label
+        ? <OrderPix token={token} tenantName={tenant.name.trim()} />
+        : <p className="muted">
+            {order.payment_status === 'PAID' ? `✔ Pagamento confirmado (${paymentMethodLabels[order.payment_method]}).` : `Pagamento no caixa (${paymentMethodLabels[order.payment_method]}).`}
+          </p>}
       {whatsapp && <a className="btn block" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Falar com o estabelecimento</a>}
     </Modal>
   )
