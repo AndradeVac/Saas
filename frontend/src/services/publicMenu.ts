@@ -60,6 +60,7 @@ export async function createPublicOrder(payload: PublicOrderPayload) {
 }
 
 export const trackOrder = async (token: string) => (await api.get<Tracking>(`/public/orders/${token}`)).data
+export const getOrderPix = async (token: string) => (await api.get<{ code: string; amount: string }>(`/public/orders/${token}/pix`)).data
 
 export async function checkCoupon(code: string, subtotal: number) {
   const { data } = await api.post<{ code: string; discount: string }>('/public/coupons/check', { code, subtotal: subtotal.toFixed(2) })

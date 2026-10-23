@@ -45,6 +45,20 @@ def normalize_pix_key(raw: str) -> str | None:
     return key
 
 
+def is_valid_pix_key(raw: str) -> bool:
+    """True for the five key types the PIX network accepts (after normalisation)."""
+    key = normalize_pix_key(raw)
+    if not key:
+        return False
+    if "@" in key:
+        return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", key)) and len(key) <= 77
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", key):
+        return True
+    if re.fullmatch(r"\+55\d{10,11}", key):
+        return True
+    return bool(re.fullmatch(r"\d{11}|\d{14}", key))
+
+
 def _ascii(text: str, limit: int) -> str:
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     plain = re.sub(r"[^A-Za-z0-9 ]", "", plain).strip().upper()

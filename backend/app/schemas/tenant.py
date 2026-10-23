@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.hours import DAYS
+from app.core.pix import is_valid_pix_key
 from app.core.tenancy import RESERVED_SLUGS, SLUG_PATTERN, normalize_slug
 from app.models.order import PaymentMethod, ServiceType
 from app.models.tenant import BusinessType, TenantStatus
@@ -142,6 +143,13 @@ class TenantSettingsUpdate(BaseModel):
     @classmethod
     def _validate_images(cls, value: str | None) -> str | None:
         return safe_image_url(value)
+
+    @field_validator("pix_key")
+    @classmethod
+    def _validate_pix_key(cls, value: str | None) -> str | None:
+        if value and value.strip() and not is_valid_pix_key(value):
+            raise ValueError("Chave PIX inválida. Use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória.")
+        return value.strip() if value else value
 
     @field_validator("accepted_payments")
     @classmethod

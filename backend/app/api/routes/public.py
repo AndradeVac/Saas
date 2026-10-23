@@ -199,6 +199,12 @@ def report_tab_pix(token: UUID, data: PixReport, tenant: Tenant = Depends(get_te
     return service.to_public(service.report_pix(token, tenant, data.amount, data.payer_name))
 
 
+@router.get("/orders/{public_token}/pix", response_model=PixCode, dependencies=[Depends(public_lookup_rate_limit)])
+def order_pix_code(public_token: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """QR Code / copia e cola with the order's exact total (pickup and delivery orders paid by PIX)."""
+    return OrderService(db, tenant.id).pix_code(public_token, tenant)
+
+
 @router.get(
     "/orders/{public_token}",
     response_model=PublicOrderTracking,

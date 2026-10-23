@@ -42,3 +42,4 @@ export async function uploadImage(file: File) {
 }
 
 export const getMediaUsage = async () => (await api.get<UploadResult>('/media-usage')).data
+export const getPixPreview = async (key: string) => (await api.get<{ code: string; amount: string }>('/tenant/pix-preview', { params: { key } })).data

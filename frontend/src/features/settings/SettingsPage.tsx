@@ -6,6 +6,7 @@ import { ImageUpload } from '../../components/ui/ImageUpload'
 import { MoneyInput } from '../../components/ui/MoneyInput'
 import { ErrorBanner, PageHeader, Skeleton } from '../../components/ui/parts'
 import { Toggle } from '../../components/ui/Toggle'
+import { Modal } from '../../components/ui/Modal'
 import { DAYS, businessTypeLabels, formatDate, maskPhone, paymentMethodLabels, realPaymentMethods, serviceLabels } from '../../lib/format'
 import { tenantUrl } from '../../lib/tenant'
 import { apiErrorMessage } from '../../services/api'
@@ -13,7 +14,7 @@ import { changePassword } from '../../services/auth'
 import { useSearchParams } from 'react-router-dom'
 import { writeJson } from '../../lib/storage'
 import { getTableQrCodes } from '../../services/tabs'
-import { getMediaUsage, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
+import { getMediaUsage, getPixPreview, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
 import type { BusinessType, DayKey, OpeningHours, ServiceType, TenantSettings } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 
@@ -39,6 +40,34 @@ const editable = (s: TenantSettings) => ({
 
 function toggleIn<T>(list: T[], item: T, on: boolean) {
   return on ? [...list.filter((x) => x !== item), item] : list.filter((x) => x !== item)
+}
+
+/** Generates a R$ 1,00 QR Code for the typed key, so the owner can pay it and see the money arrive. */
+function PixTest({ pixKey }: { pixKey: string }) {
+  const [qr, setQr] = useState<{ img: string; code: string } | null>(null)
+  const [error, setError] = useState('')
+  async function test() {
+    setError('')
+    try {
+      const pix = await getPixPreview(pixKey)
+      setQr({ img: await QRCode.toDataURL(pix.code, { margin: 1, width: 260 }), code: pix.code })
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Chave PIX inválida.'))
+    }
+  }
+  return (
+    <div>
+      <button type="button" className="btn small" onClick={() => void test()}>Testar minha chave (QR de R$ 1,00)</button>
+      {error && <p className="field-error">{error}</p>}
+      {qr && (
+        <Modal title="Teste da chave PIX" onClose={() => setQr(null)} size="sm">
+          <p className="muted">Pague este QR de <strong>R$ 1,00</strong> pelo app do seu banco. Se o dinheiro cair na sua conta, está tudo certo: é assim que seus clientes vão pagar.</p>
+          <img className="pix-qr" src={qr.img} alt="QR Code PIX de teste" />
+          <div className="pix-box"><code className="pix-code">{qr.code}</code><button className="btn small" onClick={() => { void navigator.clipboard?.writeText(qr.code); toast.success('PIX copiado') }}><Copy size={14} /> Copiar</button></div>
+        </Modal>
+      )}
+    </div>
+  )
 }
 
 export function SettingsPage() {
@@ -236,7 +265,10 @@ export function SettingsPage() {
               />
             ))}
             {form.accepted_payments.includes('PIX') && (
-              <label className="field" style={{ marginTop: 12 }}><span>Chave PIX (opcional)</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Com a chave, o cliente paga a conta da mesa pelo PIX com o valor exato, direto na sua conta. O garçom confere no banco e confirma.</small></label>
+              <>
+                <label className="field" style={{ marginTop: 12 }}><span>Chave PIX</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Com a chave, cada pedido pago por PIX (retirada, entrega e a conta da mesa) mostra um <strong>QR Code com o valor exato</strong>. O dinheiro cai direto na sua conta; você confere no banco e marca como pago.</small></label>
+                {form.pix_key && <PixTest pixKey={form.pix_key} />}
+              </>
             )}
           </div>
           <div className="card">

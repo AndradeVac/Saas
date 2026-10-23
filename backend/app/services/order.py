@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, NotFoundError
+from app.core.pix import brcode, normalize_pix_key
 from app.core.plans import can_take_orders, ensure_can_take_order
 from app.core.tables import valid_table_code
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, ServiceType
@@ -18,6 +19,7 @@ from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
 from app.repositories.tenant import TenantRepository
 from app.schemas.order import OrderCreate, OrderEdit, OrderItemCreate, OrderPaymentUpdate, OrderStatusUpdate
+from app.schemas.tab import PixCode
 from app.services.audit import record_audit
 from app.services.coupon import CouponService
 from app.services.tab import TabService
@@ -247,3 +249,16 @@ class OrderService:
         self.repository.update(order)
         self.db.commit()
         return order
+
+    def pix_code(self, public_token: UUID, tenant: Tenant) -> PixCode:
+        """PIX copia e cola with the order's exact total, paid straight to the restaurant's key."""
+        order = self.repository.get_by_public_token(public_token)
+        if order is None:
+            raise NotFoundError("Pedido não encontrado.")
+        if order.payment_method is not PaymentMethod.PIX or order.payment_status is PaymentStatus.PAID or order.status is OrderStatus.CANCELLED:
+            raise BusinessRuleError("Este pedido não está aguardando pagamento por PIX.")
+        key = normalize_pix_key(tenant.pix_key or "")
+        if not key:
+            raise BusinessRuleError("Este estabelecimento ainda não cadastrou a chave PIX. Pague no caixa.")
+        return PixCode(code=brcode(key, order.total, tenant.name, tenant.city or "BRASIL", f"PED{order.order_number}"), amount=order.total)
+
