@@ -66,6 +66,7 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
 
   const status = order.status as OrderStatus
   const index = STEPS.indexOf(status)
+  const waitingPix = Boolean(tenant.pix_key) && order.service_type === 'TAKEAWAY' && order.payment_method === 'PIX' && order.payment_status !== 'PAID' && status === 'RECEIVED' && !order.table_label
   const whatsapp = tenant.phone ? `https://wa.me/55${tenant.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Sobre o meu pedido #${order.order_number}`)}` : null
 
   return (
@@ -90,11 +91,11 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
             {STEPS.map((step, i) => (
               <li key={step} className={i < index || status === 'FINISHED' ? 'done' : i === index ? 'current' : ''}>
                 <span className="dot">{i < index || status === 'FINISHED' ? <Check size={13} /> : null}</span>
-                {orderStatusLabels[step]}
+                {step === 'RECEIVED' && waitingPix ? 'Aguardando pagamento' : orderStatusLabels[step]}
               </li>
             ))}
           </ol>
-          <p className="alert info">{stepHints[status]}</p>
+          <p className="alert info">{waitingPix ? 'Pague o PIX abaixo. Assim que o pagamento for confirmado, seu pedido entra em preparo.' : stepHints[status]}</p>
         </>
       )}
 

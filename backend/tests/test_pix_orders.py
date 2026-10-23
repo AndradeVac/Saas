@@ -30,3 +30,24 @@ def test_pix_order_gets_qr_with_exact_total(make_tenant):
     assert Decimal(pix.json()["amount"]) == Decimal("47.00") and "540547.00" in pix.json()["code"]  # amount field of the BR Code
     cash = shop.public_order(product["id"], quantity=1, service_type="TAKEAWAY", payment_method="CASH").json()
     assert shop.public_get(f"/public/orders/{cash['public_token']}/pix").status_code == 422
+
+
+def test_takeaway_pix_waits_for_payment_before_preparing(make_tenant):
+    shop = make_tenant()
+    shop.patch("/tenant/settings", {"pix_key": "dono@padaria.com", "accepted_payments": ["PIX", "CASH"],
+                                    "enabled_services": ["DINE_IN", "TAKEAWAY", "DELIVERY"]})
+    product = shop.add_product(price="20.00")
+    number = shop.public_order(product["id"], service_type="TAKEAWAY", payment_method="PIX").json()["order_number"]
+    order = next(o for o in shop.get("/orders").json()["items"] if o["order_number"] == number)
+
+    blocked = shop.patch(f"/orders/{order['id']}/status", {"status": "PREPARING"})
+    assert blocked.status_code == 422 and "PIX" in blocked.json()["detail"]
+    paid = shop.patch(f"/orders/{order['id']}/payment", {"payment_status": "PAID"})
+    assert paid.status_code == 200 and paid.json()["status"] == "PREPARING"  # PIX in: straight to the kitchen
+
+    # Cash takeaway and PIX delivery keep the usual flow.
+    for service, method in (("TAKEAWAY", "CASH"), ("DELIVERY", "PIX")):
+        extra = {"delivery_address": "Rua A, 1"} if service == "DELIVERY" else {}
+        n = shop.public_order(product["id"], service_type=service, payment_method=method, **extra).json()["order_number"]
+        other = next(o for o in shop.get("/orders").json()["items"] if o["order_number"] == n)
+        assert shop.patch(f"/orders/{other['id']}/status", {"status": "PREPARING"}).status_code == 200

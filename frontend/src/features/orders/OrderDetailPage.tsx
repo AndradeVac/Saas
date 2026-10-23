@@ -9,7 +9,7 @@ import {
   formatDateTime, formatMoney, formatPhone, formatTime, orderStatusLabels, paymentMethodLabels, serviceLabels,
 } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { editOrder, getOrder, updateOrderPayment, updateOrderStatus, type Order } from '../../services/orders'
+import { awaitingPix, editOrder, getOrder, updateOrderPayment, updateOrderStatus, type Order } from '../../services/orders'
 import type { OrderStatus } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 import { useLiveOrders } from './LiveOrders'
@@ -56,6 +56,7 @@ export function OrderDetailPage() {
   }
 
   const next = FLOW[FLOW.indexOf(order.status) + 1]
+  const waitingPix = awaitingPix(order, Boolean(tenant.pix_key))
   const closed = order.status === 'FINISHED' || order.status === 'CANCELLED'
   const cancellation = order.status_history.find((h) => h.status === 'CANCELLED')
 
@@ -140,7 +141,7 @@ export function OrderDetailPage() {
           ) : order.status !== 'CANCELLED' && (
             order.payment_status === 'PAID'
               ? <button className="btn" disabled={busy} onClick={() => void run(() => updateOrderPayment(order.id, 'PENDING'))}>Desfazer pagamento</button>
-              : <button className="btn primary" disabled={busy} onClick={() => void run(() => updateOrderPayment(order.id, 'PAID'), 'Pagamento confirmado')}>Confirmar pagamento recebido</button>
+              : <button className="btn primary" disabled={busy} onClick={() => void run(() => updateOrderPayment(order.id, 'PAID'), waitingPix ? 'PIX confirmado: pedido em preparo' : 'Pagamento confirmado')}>{waitingPix ? 'PIX recebido · iniciar preparo' : 'Confirmar pagamento recebido'}</button>
           )}
         </div>
       </div>
@@ -148,7 +149,9 @@ export function OrderDetailPage() {
       {cancellation?.reason && <div className="alert error">Cancelado: {cancellation.reason}</div>}
       {!closed && (
         <div className="actions no-print">
-          {next && <button className="btn primary large" disabled={busy} onClick={() => void run(() => updateOrderStatus(order.id, next))}>Avançar para “{orderStatusLabels[next]}”</button>}
+          {waitingPix
+            ? <span className="alert warn" style={{ margin: 0 }}>Aguardando o PIX do cliente: confira no banco e confirme acima para iniciar o preparo.</span>
+            : next && <button className="btn primary large" disabled={busy} onClick={() => void run(() => updateOrderStatus(order.id, next))}>Avançar para “{orderStatusLabels[next]}”</button>}
           <button className="btn danger" disabled={busy} onClick={() => void cancel()}>Cancelar pedido</button>
         </div>
       )}

@@ -81,6 +81,10 @@ export const editOrder = async (id: string, payload: { table_label?: string | nu
   (await api.patch<Order>(`/orders/${id}`, payload)).data
 export const updateOrderStatus = async (id: string, status: OrderStatus, reason?: string) =>
   (await api.patch<Order>(`/orders/${id}/status`, { status, reason })).data
+/** Takeaway paid by PIX: the kitchen waits for the payment (the API enforces it too). */
+export const awaitingPix = (order: Pick<Order, 'service_type' | 'payment_method' | 'payment_status' | 'status' | 'tab_id'>, hasPixKey: boolean) =>
+  hasPixKey && order.service_type === 'TAKEAWAY' && order.payment_method === 'PIX' && order.payment_status !== 'PAID' && order.status === 'RECEIVED' && !order.tab_id
+
 export const updateOrderPayment = async (id: string, payment_status: PaymentStatus, payment_method?: PaymentMethod) =>
   (await api.patch<Order>(`/orders/${id}/payment`, { payment_status, payment_method })).data
 
