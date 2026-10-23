@@ -34,3 +34,7 @@ sentry-sdk[fastapi]==2.73.0
 
 # Menu photo reading (Claude); off unless ANTHROPIC_API_KEY is set
 anthropic==2.1.0
+
+# New-order alerts on staff phones (Web Push); off unless VAPID keys are set
+pywebpush==2.5.0
+cryptography==48.0.1

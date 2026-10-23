@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.services import push
 from app.core.exceptions import NotFoundError
 from app.core.rate_limit import public_lookup_rate_limit, public_order_rate_limit
 from app.core.tenancy import get_tenant
@@ -124,7 +125,9 @@ def check_coupon(data: CouponCheckRequest, tenant: Tenant = Depends(get_tenant),
     status_code=201,
     dependencies=[Depends(public_order_rate_limit)],
 )
-def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+def create_public_order(
+    data: PublicOrderCreate, background: BackgroundTasks, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db),
+):
     customer = CustomerRepository(db, tenant.id).get_or_create_by_phone(data.customer_name, data.customer_phone)
     if data.marketing_opt_in and not customer.marketing_opt_in:
         customer.marketing_opt_in, customer.marketing_opt_in_at = True, datetime.now(timezone.utc)
@@ -147,6 +150,8 @@ def create_public_order(data: PublicOrderCreate, tenant: Tenant = Depends(get_te
         ),
         public=True,
     )
+    where = f"Mesa {order.table_label}" if order.table_label else {"TAKEAWAY": "Retirada", "DELIVERY": "Entrega"}.get(order.service_type.value, "")
+    background.add_task(push.notify_tenant, tenant.id, f"Novo pedido #{order.order_number}", f"{where} · {customer.name} · R$ {order.total:.2f}".replace(".", ","))
     return PublicOrderResponse(
         order_number=order.order_number,
         status=order.status.value,

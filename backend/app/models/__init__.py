@@ -9,6 +9,7 @@ from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.password_reset import PasswordResetToken
 from app.models.product import Product
+from app.models.push_subscription import PushSubscription
 from app.models.tab import Tab, TabStatus
 from app.models.tab_payment import TabPayment, TabPaymentStatus
 from app.models.tenant import BusinessType, Tenant, TenantStatus
@@ -31,6 +32,7 @@ __all__ = [
     "PaymentStatus",
     "PasswordResetToken",
     "Product",
+    "PushSubscription",
     "ServiceType",
     "Tab",
     "TabStatus",

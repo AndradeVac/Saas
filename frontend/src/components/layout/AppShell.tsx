@@ -16,6 +16,8 @@ import {
   Tags,
   Ticket,
   TrendingUp,
+  Wallet,
+  ChefHat,
   UserCog,
   UsersRound,
   X,
@@ -40,6 +42,8 @@ const operation: Item[] = [
   { label: 'Mesas', to: '/painel/mesas', icon: Armchair, badge: 'tables' },
   { label: 'Histórico', to: '/painel/historico', icon: History },
   { label: 'Clientes', to: '/painel/clientes', icon: UsersRound },
+  { label: 'Caixa', to: '/painel/caixa', icon: Wallet },
+  { label: 'Cozinha', to: '/painel/cozinha', icon: ChefHat },
 ]
 const management: Item[] = [
   { label: 'Produtos', to: '/painel/produtos', icon: Package },
@@ -127,8 +131,9 @@ export function AppShell() {
 
   return (
     <PlanProvider>
-    <LiveOrdersProvider>
+    <LiveOrdersProvider storeName={tenant.name.trim()}>
     <TablesLiveProvider>
+      {pathname === '/painel/cozinha' ? <Outlet /> : (
       <div className="app-shell">
         <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Menu do painel">
           <div className="sidebar-head">
@@ -165,6 +170,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      )}
     </TablesLiveProvider>
     </LiveOrdersProvider>
     </PlanProvider>

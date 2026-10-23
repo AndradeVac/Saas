@@ -6,13 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.plans import EXPORTS, INSIGHTS, require_feature
-from app.core.security import admin_only
+from app.core.security import admin_only, staff_only
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.analytics import DashboardAnalyticsResponse
 from app.schemas.insights import InsightsResponse
 from app.services.analytics import AnalyticsService
+from app.services.cash import CashReport, cash_report
 from app.services.insights import InsightsService
 from app.services.reports import XLSX_TYPE, build_sales_report, sales_report_pdf, sales_report_xlsx
 
@@ -29,6 +30,20 @@ def get_dashboard_analytics(
     _: User = Depends(admin_only),
 ):
     return AnalyticsService(db, tenant).dashboard(period, start, end)
+
+
+@router.get("/cash", response_model=CashReport)
+def get_cash_report(
+    day: date | None = Query(default=None),
+    tenant: Tenant = Depends(get_tenant),
+    db: Session = Depends(get_db),
+    _: User = Depends(staff_only),
+):
+    """Fechamento de caixa: the day's money by payment method (the cashier needs it, not only the owner)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    return cash_report(db, tenant, day or datetime.now(ZoneInfo(tenant.timezone)).date())
 
 
 @router.get("/insights", response_model=InsightsResponse, dependencies=[Depends(require_feature(INSIGHTS))])

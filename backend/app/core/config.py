@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     billing_grace_days: int = 5
     # Claude (Anthropic) reads menu photos into a draft of categories and products. Empty = feature hidden.
     anthropic_api_key: str = ""
+    # Web Push (new-order alerts on staff phones). Both empty = off. Private key: base64url PKCS8 DER.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:contato@mesadig.com.br"
     # Error alerts (Sentry). Empty = off.
     sentry_dsn: str = ""
     # Transactional e-mail (password reset) through Resend; empty key = e-mails are only logged.
