@@ -5,13 +5,15 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.plans import EXPORTS, require_feature
+from app.core.plans import EXPORTS, INSIGHTS, require_feature
 from app.core.security import admin_only
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.analytics import DashboardAnalyticsResponse
+from app.schemas.insights import InsightsResponse
 from app.services.analytics import AnalyticsService
+from app.services.insights import InsightsService
 from app.services.reports import XLSX_TYPE, build_sales_report, sales_report_pdf, sales_report_xlsx
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
@@ -27,6 +29,18 @@ def get_dashboard_analytics(
     _: User = Depends(admin_only),
 ):
     return AnalyticsService(db, tenant).dashboard(period, start, end)
+
+
+@router.get("/insights", response_model=InsightsResponse, dependencies=[Depends(require_feature(INSIGHTS))])
+def get_insights(
+    period: str = Query(default="month", pattern="^(month|quarter|all)$"),
+    start: date | None = Query(default=None),
+    end: date | None = Query(default=None),
+    tenant: Tenant = Depends(get_tenant),
+    db: Session = Depends(get_db),
+    _: User = Depends(admin_only),
+):
+    return InsightsService(db, tenant).build(period, start, end)
 
 
 @router.get("/dashboard/export", dependencies=[Depends(require_feature(EXPORTS))])

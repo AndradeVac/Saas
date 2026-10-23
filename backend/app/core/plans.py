@@ -26,12 +26,14 @@ COUPONS = "coupons"
 EXPORTS = "exports"
 AUDIT = "audit"
 WHITE_LABEL = "white_label"  # hides "Cardápio digital por Mesa Digital" on the customer menu
+INSIGHTS = "insights"  # advanced analytics and the customers-to-win-back list
 
 FEATURE_NAMES = {
     COUPONS: "Cupons de desconto",
     EXPORTS: "Exportar relatórios (Excel, PDF e CSV)",
     AUDIT: "Auditoria de ações da equipe",
     WHITE_LABEL: "Cardápio sem a marca Mesa Digital",
+    INSIGHTS: "Análises avançadas e clientes para reconquistar",
 }
 
 
@@ -64,7 +66,7 @@ PLANS: dict[str, Plan] = {
         key="pro", name="Profissional", price=Decimal("149.90"),
         tagline="Controle total, equipe ilimitada e sua marca em primeiro lugar.",
         max_products=None, max_users=None, max_orders=None,
-        features=frozenset({COUPONS, EXPORTS, AUDIT, WHITE_LABEL}), highlight=True,
+        features=frozenset({COUPONS, EXPORTS, AUDIT, WHITE_LABEL, INSIGHTS}), highlight=True,
     ),
 }
 DEFAULT_PAID_PLAN = "pro"
