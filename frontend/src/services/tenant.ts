@@ -31,6 +31,7 @@ export type SettingsUpdate = Partial<{
   delivery_minutes: number
   delivery_zones: DeliveryZone[]
   require_pix_delivery: boolean
+  require_pix_takeaway: boolean
   loyalty_enabled: boolean
   loyalty_goal: number
   loyalty_reward: string | null

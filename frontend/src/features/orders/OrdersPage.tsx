@@ -51,13 +51,12 @@ export function OrdersPage() {
 
   const { tenant } = useTenant()
   const { catalog } = usePlan()
-  const hasPixKey = Boolean(tenant.pix_key)
 
   async function advance(order: Order, next: OrderStatus) {
     setUpdating(order.id)
     try {
       // PIX takeaway: confirming the payment is what sends it to the kitchen.
-      const updated = awaitingPix(order, hasPixKey) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
+      const updated = awaitingPix(order, tenant) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
       replace(updated)
       if (updated.status === 'READY' && !catalog?.whatsapp_auto) offerReadyWhatsapp(updated, tenant.name.trim())
       void refresh()
@@ -154,7 +153,7 @@ export function OrdersPage() {
                       <div className="order-card-foot">
                         <strong>{formatMoney(order.total)}</strong>
                         <span className={`badge ${order.payment_status === 'PAID' ? 'ok' : 'warn'}`}>
-                          {order.payment_status === 'PAID' ? 'Pago' : awaitingPix(order, hasPixKey) ? 'Aguardando PIX' : paymentMethodLabels[order.payment_method]}
+                          {order.payment_status === 'PAID' ? 'Pago' : awaitingPix(order, tenant) ? 'Aguardando PIX' : paymentMethodLabels[order.payment_method]}
                         </span>
                       </div>
                       {column.next && (
@@ -163,7 +162,7 @@ export function OrdersPage() {
                           disabled={updating === order.id}
                           onClick={(e) => { e.stopPropagation(); void advance(order, column.next!) }}
                         >
-                          <ArrowRight size={14} /> {updating === order.id ? 'Atualizando…' : awaitingPix(order, hasPixKey) ? 'PIX recebido · iniciar preparo' : column.action}
+                          <ArrowRight size={14} /> {updating === order.id ? 'Atualizando…' : awaitingPix(order, tenant) ? 'PIX recebido · iniciar preparo' : column.action}
                         </button>
                       )}
                     </article>

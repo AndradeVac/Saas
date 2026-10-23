@@ -139,7 +139,8 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
 
   const status = order.status as OrderStatus
   const index = STEPS.indexOf(status)
-  const waitingPix = Boolean(tenant.pix_key) && order.service_type === 'TAKEAWAY' && order.payment_method === 'PIX' && order.payment_status !== 'PAID' && status === 'RECEIVED' && !order.table_label
+  const waitingPix = Boolean(tenant.pix_key) && order.payment_method === 'PIX' && order.payment_status !== 'PAID' && status === 'RECEIVED' && !order.table_label
+    && ((order.service_type === 'TAKEAWAY' && tenant.require_pix_takeaway) || (order.service_type === 'DELIVERY' && tenant.require_pix_delivery))
   const whatsapp = tenant.phone ? `https://wa.me/55${tenant.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Sobre o meu pedido #${order.order_number}`)}` : null
 
   return (

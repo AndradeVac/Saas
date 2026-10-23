@@ -29,7 +29,7 @@ export function KitchenPage() {
   async function advance(order: Order, next: OrderStatus) {
     setBusy(order.id)
     try {
-      const updated = awaitingPix(order, Boolean(tenant.pix_key)) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
+      const updated = awaitingPix(order, tenant) ? await updateOrderPayment(order.id, 'PAID') : await updateOrderStatus(order.id, next)
       replace(updated)
       if (updated.status === 'READY' && !catalog?.whatsapp_auto) offerReadyWhatsapp(updated, tenant.name.trim())
       void refresh()
@@ -57,7 +57,7 @@ export function KitchenPage() {
               {list.map((order) => {
                 const minutes = Math.floor((now - new Date(order.created_at).getTime()) / 60_000)
                 const tone = column.status === 'READY' ? '' : minutes >= late ? 'late' : minutes >= late * 0.7 ? 'warn' : ''
-                const waiting = awaitingPix(order, Boolean(tenant.pix_key))
+                const waiting = awaitingPix(order, tenant)
                 return (
                   <article key={order.id} className={`kitchen-card ${tone}`}>
                     <div className="kitchen-card-head">

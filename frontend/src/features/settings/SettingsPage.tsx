@@ -39,6 +39,7 @@ const editable = (s: TenantSettings) => ({
   delivery_fee: s.delivery_fee, min_order_value: s.min_order_value, service_fee_percent: s.service_fee_percent,
   tabs_enabled: s.tabs_enabled, tabs_auto_approve: s.tabs_auto_approve, tab_idle_minutes: s.tab_idle_minutes,
   prep_minutes: s.prep_minutes, delivery_minutes: s.delivery_minutes, delivery_zones: s.delivery_zones, require_pix_delivery: s.require_pix_delivery,
+  require_pix_takeaway: s.require_pix_takeaway,
   loyalty_enabled: s.loyalty_enabled, loyalty_goal: s.loyalty_goal, loyalty_reward: s.loyalty_reward || null,
   google_review_url: s.google_review_url || null, scheduling_enabled: s.scheduling_enabled, notify_customers: s.notify_customers,
 })
@@ -293,6 +294,9 @@ export function SettingsPage() {
               <>
                 <label className="field" style={{ marginTop: 12 }}><span>Chave PIX</span><input value={form.pix_key ?? ''} maxLength={100} placeholder="CPF, CNPJ, e-mail, celular ou chave aleatória" onChange={(e) => set('pix_key', e.target.value)} /><small className="muted">Com a chave, cada pedido pago por PIX (retirada, entrega e a conta da mesa) mostra um <strong>QR Code com o valor exato</strong>. O dinheiro cai direto na sua conta; você confere no banco e marca como pago.</small></label>
                 {form.pix_key && <PixTest pixKey={form.pix_key} />}
+                {form.pix_key && form.enabled_services.includes('TAKEAWAY') && (
+                  <Toggle label="Para viagem com PIX: preparar só depois do pagamento" hint="Evita fazer pedido que ninguém busca. Desligado, o pedido vai direto para a cozinha e você confere o PIX depois." checked={form.require_pix_takeaway} onChange={(on) => set('require_pix_takeaway', on)} />
+                )}
                 {form.enabled_services.includes('DELIVERY') && (
                   <Toggle label="Entrega só com PIX antecipado" hint="Contra trote: o pedido de entrega só vai para a cozinha depois que o PIX é confirmado." checked={form.require_pix_delivery} onChange={(on) => set('require_pix_delivery', on)} />
                 )}

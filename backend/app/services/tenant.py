@@ -31,7 +31,7 @@ TAB_BUSINESSES = {BusinessType.RESTAURANT, BusinessType.SNACK_BAR, BusinessType.
 _PLAIN_FIELDS = (
     "name", "business_type", "primary_color", "accepting_orders", "hours_mode", "opening_hours",
     "enabled_services", "accepted_payments", "delivery_fee", "min_order_value", "service_fee_percent", "timezone",
-    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes", "prep_minutes", "delivery_minutes", "require_pix_delivery",
+    "tabs_enabled", "tabs_auto_approve", "tab_idle_minutes", "prep_minutes", "delivery_minutes", "require_pix_delivery", "require_pix_takeaway",
     "loyalty_enabled", "loyalty_goal", "scheduling_enabled", "notify_customers",
 )
 # Can be cleared by sending null explicitly.

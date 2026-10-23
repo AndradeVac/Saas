@@ -118,6 +118,7 @@ class PublicTenant(BaseModel):
     delivery_minutes: int = 45
     delivery_zones: list[DeliveryZone] = []
     require_pix_delivery: bool = False
+    require_pix_takeaway: bool = True
     loyalty_enabled: bool = False
     loyalty_goal: int = 10
     loyalty_reward: str | None = None
@@ -168,6 +169,7 @@ class TenantSettingsUpdate(BaseModel):
     delivery_minutes: int | None = Field(default=None, ge=10, le=300)
     delivery_zones: list[DeliveryZone] | None = Field(default=None, max_length=80)
     require_pix_delivery: bool | None = None
+    require_pix_takeaway: bool | None = None
     loyalty_enabled: bool | None = None
     loyalty_goal: int | None = Field(default=None, ge=2, le=50)
     loyalty_reward: str | None = Field(default=None, max_length=120)

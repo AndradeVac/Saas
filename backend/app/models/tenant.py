@@ -95,6 +95,8 @@ class Tenant(Base):
     delivery_zones: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb"))
     # Anti-prank: deliveries only with PIX paid before the kitchen starts.
     require_pix_delivery: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Takeaway paid by PIX: the kitchen waits for the payment (store option, on by default).
+    require_pix_takeaway: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # Loyalty card: every `loyalty_goal` delivered orders earn `loyalty_reward` (plan Profissional).
     loyalty_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     loyalty_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")

@@ -3,13 +3,15 @@ import { toast } from 'sonner'
 import { readJson, writeJson } from '../../lib/storage'
 import { formatMoney } from '../../lib/format'
 import { printTicket } from '../../lib/ticket'
-import { getBoard, type Order } from '../../services/orders'
+import { awaitingPix, getBoard, type Order } from '../../services/orders'
 
 const POLL_MS = 8000
 const SOUND_KEY = 'mesa-sound'
 const PRINT_KEY = 'mesa-auto-print'
-// An order nobody has opened keeps ringing, so a busy counter does not miss it.
+// A new order nobody moved rings again every 30 s, for its first 10 minutes (then the red "late" mark takes over).
+// Orders waiting for the customer's PIX do not ring: they depend on the customer, not on the kitchen.
 const REMIND_MS = 30_000
+const REMIND_FOR_MS = 10 * 60_000
 
 type LiveValue = {
   orders: Order[]
@@ -61,7 +63,7 @@ function notify(title: string, body: string) {
   }
 }
 
-export function LiveOrdersProvider({ children, storeName = '' }: PropsWithChildren<{ storeName?: string }>) {
+export function LiveOrdersProvider({ children, storeName = '', store }: PropsWithChildren<{ storeName?: string; store?: { pix_key: string | null; require_pix_takeaway: boolean; require_pix_delivery: boolean } }>) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
@@ -117,10 +119,20 @@ export function LiveOrdersProvider({ children, storeName = '' }: PropsWithChildr
 
   const newCount = useMemo(() => orders.filter((o) => o.status === 'RECEIVED').length, [orders])
 
-  // Reminder: rings again while a new order waits, until someone moves it forward.
+  // Reminder: rings again while a fresh order waits for the kitchen.
+  const ordersRef = useRef(orders)
+  ordersRef.current = orders
+  const storeRef = useRef(store)
+  storeRef.current = store
   useEffect(() => {
     if (newCount === 0) return
-    const timer = window.setInterval(() => { if (soundRef.current) beep() }, REMIND_MS)
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      const waiting = ordersRef.current.some((o) => o.status === 'RECEIVED'
+        && now - new Date(o.created_at).getTime() < REMIND_FOR_MS
+        && !(storeRef.current && awaitingPix(o, storeRef.current)))
+      if (waiting && soundRef.current) beep()
+    }, REMIND_MS)
     return () => window.clearInterval(timer)
   }, [newCount])
 

@@ -40,7 +40,8 @@ def _category_open(category, tenant: Tenant, at: datetime | None = None) -> bool
 def awaiting_pix(order: Order, tenant: Tenant) -> bool:
     """Takeaway paid by PIX (and deliveries, when the store requires PIX up front): the kitchen only starts once
     the PIX is in."""
-    prepaid = order.service_type is ServiceType.TAKEAWAY or (order.service_type is ServiceType.DELIVERY and tenant.require_pix_delivery)
+    prepaid = (order.service_type is ServiceType.TAKEAWAY and tenant.require_pix_takeaway) or (
+        order.service_type is ServiceType.DELIVERY and tenant.require_pix_delivery)
     return (
         prepaid and order.payment_method is PaymentMethod.PIX
         and order.payment_status is not PaymentStatus.PAID and order.status is OrderStatus.RECEIVED
