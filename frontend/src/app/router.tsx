@@ -34,6 +34,7 @@ const CouponsPage = page(() => import('../features/coupons/CouponsPage'), 'Coupo
 const CustomersPage = page(() => import('../features/customers/CustomersPage'), 'CustomersPage')
 const UsersPage = page(() => import('../features/users/UsersPage'), 'UsersPage')
 const AuditPage = page(() => import('../features/audit/AuditPage'), 'AuditPage')
+const InsightsPage = page(() => import('../features/insights/InsightsPage'), 'InsightsPage')
 const PlanPage = page(() => import('../features/plans/PlanPage'), 'PlanPage')
 const SettingsPage = page(() => import('../features/settings/SettingsPage'), 'SettingsPage')
 
@@ -74,6 +75,7 @@ function TenantRoutes() {
                   <Route path="cupons" element={<FeatureGate feature="coupons" title="Cupons de desconto"><CouponsPage /></FeatureGate>} />
                   <Route path="equipe" element={<UsersPage />} />
                   <Route path="auditoria" element={<FeatureGate feature="audit" title="Auditoria da equipe"><AuditPage /></FeatureGate>} />
+                  <Route path="analises" element={<FeatureGate feature="insights" title="Análises avançadas"><InsightsPage /></FeatureGate>} />
                   <Route path="plano" element={<PlanPage />} />
                   <Route path="configuracoes" element={<SettingsPage />} />
                 </Route>

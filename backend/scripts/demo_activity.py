@@ -3,6 +3,7 @@ restaurant in operation (for showing the product to prospects).
 
 Usage (from backend/):
     python -m scripts.demo_activity hamburgueria-teste --days 60 --confirm hamburgueria-teste
+    python -m scripts.demo_activity hamburgueria-teste --lapsed-only 12 --confirm hamburgueria-teste
 
 What it creates, in the tenant's own time zone: lunch and dinner peaks, busier Fridays and Saturdays, closed on
 Mondays, returning customers, dine-in / takeaway / delivery, PIX / card / cash, some coupons and ~4% cancellations.
@@ -66,6 +67,8 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=60)
     parser.add_argument("--confirm", required=True, help="repeat the slug to confirm this is a demo account")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--lapsed", type=int, default=12, help="regulars who stopped coming 25-100 days ago (win-back list)")
+    parser.add_argument("--lapsed-only", type=int, default=None, metavar="N", help="only add N lapsed regulars")
     args = parser.parse_args()
     if args.confirm != args.slug:
         sys.exit("--confirm precisa repetir o slug.")
@@ -83,83 +86,109 @@ def main() -> int:
         # Burgers and combos sell more than water: weight by price band and featured flag.
         weights = [(3 if p.featured else 1) * (2 if Decimal("20") <= p.price <= Decimal("45") else 1) for p in products]
 
-        people = []
-        for _ in range(70):
-            name = f"{rng.choice(FIRST)} {rng.choice(LAST)}"
-            phone = f"119{rng.randint(10000000, 99999999)}"
-            people.append(Customer(tenant_id=tenant.id, name=name, phone=phone, phone_digits=phone_digits(phone)))
-        db.add_all(people)
+        taken = set(db.scalars(select(Customer.phone_digits).where(Customer.tenant_id == tenant.id)))
+
+        def new_customer() -> Customer:
+            while (phone := f"119{rng.randint(10000000, 99999999)}") in taken:
+                pass
+            taken.add(phone)
+            customer = Customer(tenant_id=tenant.id, name=f"{rng.choice(FIRST)} {rng.choice(LAST)}", phone=phone, phone_digits=phone_digits(phone))
+            db.add(customer)
+            return customer
+
+        people = [new_customer() for _ in range(70 if args.lapsed_only is None else 0)]
         db.flush()
         regulars = people[:15]  # a few come back again and again
 
         repository = TenantRepository(db)
         now = datetime.now(zone)
+        enabled = [getattr(item, "value", item) for item in tenant.enabled_services or []]
+
+        def build_order(customer: Customer, moment: datetime) -> bool:
+            """One finished (or cancelled) order priced exactly like a real one. False when it is skipped."""
+            service = rng.choices([ServiceType.DINE_IN, ServiceType.TAKEAWAY, ServiceType.DELIVERY], weights=[55, 20, 25])[0]
+            if service.value not in enabled:
+                service = ServiceType.TAKEAWAY
+            payment = rng.choices([PaymentMethod.PIX, PaymentMethod.CARD, PaymentMethod.CASH], weights=[45, 42, 13])[0]
+            order = Order(tenant_id=tenant.id, customer_id=customer.id, service_type=service, payment_method=payment,
+                          table_label=str(rng.randint(1, 10)) if service is ServiceType.DINE_IN else None,
+                          delivery_address=f"{rng.choice(STREETS)}, {rng.randint(10, 999)}" if service is ServiceType.DELIVERY else None,
+                          created_at=moment)
+            subtotal = Decimal("0")
+            party = rng.choices([1, 2, 3, 4], weights=[45, 35, 12, 8])[0]
+            for product in rng.choices(products, weights=weights, k=party + rng.randint(0, 1)):
+                options, extra = pick_options(rng, product)
+                quantity = rng.choices([1, 2], weights=[85, 15])[0]
+                unit = (product.price + extra).quantize(CENTS)
+                total = (unit * quantity).quantize(CENTS)
+                subtotal += total
+                order.items.append(OrderItem(product_id=product.id, product_name=product.name, quantity=quantity,
+                                             unit_price=unit, total_price=total, options=options, created_at=moment))
+            if service is not ServiceType.DINE_IN and subtotal < tenant.min_order_value:
+                return False
+
+            discount = Decimal("0")
+            usable = [c for c in coupons if subtotal >= c.min_order and (c.max_uses is None or c.used_count < c.max_uses)]
+            if usable and rng.random() < 0.12:
+                coupon = rng.choice(usable)
+                discount = (subtotal * coupon.value / 100).quantize(CENTS) if coupon.kind is CouponKind.PERCENT else min(coupon.value, subtotal)
+                coupon.used_count += 1
+                order.coupon_code = coupon.code
+            taxable = subtotal - discount
+            service_fee = ((taxable * tenant.service_fee_percent / 100).quantize(CENTS, rounding=ROUND_HALF_UP)
+                           if service is ServiceType.DINE_IN and tenant.service_fee_percent else Decimal("0"))
+            delivery_fee = tenant.delivery_fee if service is ServiceType.DELIVERY else Decimal("0")
+            order.subtotal, order.discount, order.service_fee, order.delivery_fee = subtotal, discount, service_fee, delivery_fee
+            order.total = taxable + service_fee + delivery_fee
+
+            cancelled = rng.random() < 0.04
+            order.status = OrderStatus.CANCELLED if cancelled else OrderStatus.FINISHED
+            order.payment_status = PaymentStatus.PENDING if cancelled else PaymentStatus.PAID
+            order.paid_at = None if cancelled else moment + timedelta(minutes=rng.randint(20, 70))
+            order.updated_at = moment + timedelta(minutes=rng.randint(25, 80))
+            order.status_history.append(OrderStatusHistory(status=OrderStatus.RECEIVED, created_at=moment))
+            if cancelled:
+                order.status_history.append(OrderStatusHistory(status=OrderStatus.CANCELLED, reason=rng.choice(
+                    ["Cliente desistiu", "Endereço fora da área de entrega", "Pedido duplicado"]), created_at=moment + timedelta(minutes=4)))
+            else:
+                ready = rng.randint(15, 30)
+                done = ready + (rng.randint(18, 40) if service is ServiceType.DELIVERY else rng.randint(3, 15))
+                for minutes, status in ((3, OrderStatus.PREPARING), (ready, OrderStatus.READY), (done, OrderStatus.FINISHED)):
+                    order.status_history.append(OrderStatusHistory(status=status, created_at=moment + timedelta(minutes=minutes)))
+            order.order_number = repository.next_order_number(tenant.id)
+            db.add(order)
+            return True
+
+        def random_moment(day: date) -> datetime:
+            hour = rng.choices(list(HOURS), weights=list(HOURS.values()))[0]
+            return datetime.combine(day, time(hour, rng.randint(0, 59), rng.randint(0, 59)), tzinfo=zone)
+
         created = 0
-        for offset in range(args.days, -1, -1):
+        days = 0 if args.lapsed_only is not None else args.days
+        for offset in range(days, -1, -1) if days else ():
             day: date = (now - timedelta(days=offset)).date()
             base = WEEKDAY[day.weekday()]
             if not base:
                 continue
-            growth = 0.75 + 0.5 * (1 - offset / max(args.days, 1))  # the business grows over the period
-            count = max(0, int(rng.gauss(base * growth, base * 0.15)))
-            for _ in range(count):
-                hour = rng.choices(list(HOURS), weights=list(HOURS.values()))[0]
-                moment = datetime.combine(day, time(hour, rng.randint(0, 59), rng.randint(0, 59)), tzinfo=zone)
+            growth = 0.75 + 0.5 * (1 - offset / max(days, 1))  # the business grows over the period
+            for _ in range(max(0, int(rng.gauss(base * growth, base * 0.15)))):
+                moment = random_moment(day)
                 if moment > now - timedelta(minutes=50):
                     continue  # recent orders stay for the live queue
                 customer = rng.choice(regulars) if rng.random() < 0.35 else rng.choice(people)
-                service = rng.choices([ServiceType.DINE_IN, ServiceType.TAKEAWAY, ServiceType.DELIVERY], weights=[55, 20, 25])[0]
-                if service.value not in [getattr(s, "value", s) for s in tenant.enabled_services or []]:
-                    service = ServiceType.TAKEAWAY
-                payment = rng.choices([PaymentMethod.PIX, PaymentMethod.CARD, PaymentMethod.CASH], weights=[45, 42, 13])[0]
-
-                order = Order(tenant_id=tenant.id, customer_id=customer.id, service_type=service, payment_method=payment,
-                              table_label=str(rng.randint(1, 10)) if service is ServiceType.DINE_IN else None,
-                              delivery_address=f"{rng.choice(STREETS)}, {rng.randint(10, 999)}" if service is ServiceType.DELIVERY else None,
-                              created_at=moment)
-                subtotal = Decimal("0")
-                party = rng.choices([1, 2, 3, 4, 6], weights=[25, 40, 15, 15, 5])[0]
-                for product in rng.choices(products, weights=weights, k=max(1, party + rng.randint(-1, 2))):
-                    options, extra = pick_options(rng, product)
-                    quantity = rng.choices([1, 2, 3, 4], weights=[70, 20, 6, 4])[0]
-                    unit = (product.price + extra).quantize(CENTS)
-                    total = (unit * quantity).quantize(CENTS)
-                    subtotal += total
-                    order.items.append(OrderItem(product_id=product.id, product_name=product.name, quantity=quantity,
-                                                 unit_price=unit, total_price=total, options=options, created_at=moment))
-                if service is not ServiceType.DINE_IN and subtotal < tenant.min_order_value:
-                    continue
-
-                discount = Decimal("0")
-                usable = [c for c in coupons if subtotal >= c.min_order and (c.max_uses is None or c.used_count < c.max_uses)]
-                if usable and rng.random() < 0.12:
-                    coupon = rng.choice(usable)
-                    discount = (subtotal * coupon.value / 100).quantize(CENTS) if coupon.kind is CouponKind.PERCENT else min(coupon.value, subtotal)
-                    coupon.used_count += 1
-                    order.coupon_code = coupon.code
-                taxable = subtotal - discount
-                service_fee = ((taxable * tenant.service_fee_percent / 100).quantize(CENTS, rounding=ROUND_HALF_UP)
-                               if service is ServiceType.DINE_IN and tenant.service_fee_percent else Decimal("0"))
-                delivery_fee = tenant.delivery_fee if service is ServiceType.DELIVERY else Decimal("0")
-                order.subtotal, order.discount, order.service_fee, order.delivery_fee = subtotal, discount, service_fee, delivery_fee
-                order.total = taxable + service_fee + delivery_fee
-
-                cancelled = rng.random() < 0.04
-                order.status = OrderStatus.CANCELLED if cancelled else OrderStatus.FINISHED
-                order.payment_status = PaymentStatus.PENDING if cancelled else PaymentStatus.PAID
-                order.paid_at = None if cancelled else moment + timedelta(minutes=rng.randint(20, 70))
-                order.updated_at = moment + timedelta(minutes=rng.randint(25, 80))
-                order.status_history.append(OrderStatusHistory(status=OrderStatus.RECEIVED, created_at=moment))
-                if cancelled:
-                    order.status_history.append(OrderStatusHistory(status=OrderStatus.CANCELLED, reason=rng.choice(
-                        ["Cliente desistiu", "Endereço fora da área de entrega", "Pedido duplicado"]), created_at=moment + timedelta(minutes=4)))
-                else:
-                    for minutes, status in ((3, OrderStatus.PREPARING), (rng.randint(15, 30), OrderStatus.READY), (rng.randint(32, 55), OrderStatus.FINISHED)):
-                        order.status_history.append(OrderStatusHistory(status=status, created_at=moment + timedelta(minutes=minutes)))
-                order.order_number = repository.next_order_number(tenant.id)
-                db.add(order)
-                created += 1
+                created += build_order(customer, moment)
             db.flush()
+
+        # Regulars who used to come and stopped: what the "customers to win back" list is for.
+        for _ in range(args.lapsed if args.lapsed_only is None else args.lapsed_only):
+            customer = new_customer()
+            db.flush()
+            last_seen = rng.randint(25, 100)
+            for visit in range(rng.randint(2, 6)):
+                day = (now - timedelta(days=last_seen + visit * rng.randint(5, 12))).date()
+                if WEEKDAY[day.weekday()]:
+                    created += build_order(customer, random_moment(day))
+        db.flush()
 
         # Kitchen numbers follow the clock: renumber every order of the demo by time (two steps: the pair is unique).
         orders = list(db.scalars(select(Order).where(Order.tenant_id == tenant.id).order_by(Order.created_at)))
@@ -170,7 +199,7 @@ def main() -> int:
             order.order_number = number
         tenant.order_counter = len(orders)
         db.commit()
-        print(f"{tenant.slug}: {created} pedidos criados em {args.days} dias, {len(people)} clientes.")
+        print(f"{tenant.slug}: {created} pedidos criados, {len(people)} clientes novos (+ clientes sumidos).")
     return 0
 
 

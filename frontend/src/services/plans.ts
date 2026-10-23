@@ -1,6 +1,6 @@
 import { api } from './api'
 
-export type FeatureKey = 'coupons' | 'exports' | 'audit' | 'white_label'
+export type FeatureKey = 'coupons' | 'exports' | 'audit' | 'white_label' | 'insights'
 
 export type PlanInfo = {
   key: string

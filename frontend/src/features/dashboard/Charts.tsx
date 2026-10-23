@@ -81,3 +81,55 @@ export function Bars({ rows }: { rows: Array<{ label: string; value: number; tex
     </div>
   )
 }
+
+/** Cumulative revenue of the period against the same days of the previous period. */
+export function CompareChart({ points }: { points: Array<{ label: string; current: number | null; previous: number | null }> }) {
+  if (points.length === 0) return <div className="empty small">Escolha "Este mês" ou um intervalo de datas para comparar.</div>
+  const values = points.flatMap((p) => [p.current ?? 0, p.previous ?? 0])
+  const max = niceMax(Math.max(...values, 1))
+  const innerW = W - PAD.left - PAD.right
+  const innerH = H - PAD.top - PAD.bottom
+  const x = (i: number) => PAD.left + (points.length === 1 ? innerW / 2 : (i / (points.length - 1)) * innerW)
+  const y = (v: number) => PAD.top + innerH - (v / max) * innerH
+  const path = (key: 'current' | 'previous') => points
+    .map((p, i) => [i, p[key]] as const)
+    .filter(([, v]) => v !== null)
+    .map(([i, v], n) => `${n === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v as number).toFixed(1)}`).join(' ')
+  const every = Math.ceil(points.length / 8)
+  return (
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Faturamento acumulado comparado ao período anterior" preserveAspectRatio="none">
+      {[0, 0.5, 1].map((t) => <line key={t} className="grid" x1={PAD.left} x2={W - PAD.right} y1={PAD.top + innerH * (1 - t)} y2={PAD.top + innerH * (1 - t)} />)}
+      <path className="line previous" d={path('previous')} />
+      <path className="line" d={path('current')} />
+      {points.map((p, i) => i % every === 0 && <text key={p.label} className="axis" x={x(i)} y={H - 6} textAnchor="middle">{p.label}</text>)}
+    </svg>
+  )
+}
+
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+/** Orders by weekday x hour: where the house fills up. */
+export function Heatmap({ cells }: { cells: Array<{ weekday: number; hour: number; orders: number }> }) {
+  if (cells.length === 0) return <div className="empty small">Sem vendas no período.</div>
+  const hours = cells.map((c) => c.hour)
+  const first = Math.min(...hours)
+  const last = Math.max(...hours)
+  const range = Array.from({ length: last - first + 1 }, (_, i) => first + i)
+  const byKey = new Map(cells.map((c) => [`${c.weekday}-${c.hour}`, c.orders]))
+  const max = Math.max(...cells.map((c) => c.orders), 1)
+  return (
+    <div className="heatmap" style={{ gridTemplateColumns: `38px repeat(${range.length}, minmax(18px, 1fr))` }} role="table" aria-label="Pedidos por dia da semana e horário">
+      <span />
+      {range.map((h) => <span key={h} className="heat-axis">{h % 2 === 0 ? `${h}h` : ''}</span>)}
+      {WEEKDAYS.map((day, weekday) => (
+        <div key={day} className="heat-row" role="row">
+          <span className="heat-axis day">{day}</span>
+          {range.map((h) => {
+            const value = byKey.get(`${weekday}-${h}`) ?? 0
+            return <i key={h} title={`${day} ${h}h: ${value} ${value === 1 ? 'pedido' : 'pedidos'}`} style={{ opacity: value ? 0.15 + 0.85 * (value / max) : 1 }} className={value ? 'on' : ''} />
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}

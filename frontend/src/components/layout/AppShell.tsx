@@ -15,6 +15,7 @@ import {
   Sun,
   Tags,
   Ticket,
+  TrendingUp,
   UserCog,
   UsersRound,
   X,
@@ -34,6 +35,7 @@ type Item = { label: string; to: string; icon: typeof Menu; end?: boolean; badge
 
 const operation: Item[] = [
   { label: 'Visão geral', to: '/painel', icon: LayoutDashboard, end: true },
+  { label: 'Análises', to: '/painel/analises', icon: TrendingUp, feature: 'insights' },
   { label: 'Pedidos', to: '/painel/pedidos', icon: ClipboardList, end: true, badge: 'orders' },
   { label: 'Mesas', to: '/painel/mesas', icon: Armchair, badge: 'tables' },
   { label: 'Histórico', to: '/painel/historico', icon: History },
@@ -135,7 +137,7 @@ export function AppShell() {
           </div>
           <nav>
             <span className="nav-label">Operação</span>
-            <NavItems items={isAdmin ? operation : operation.filter((i) => !i.end || i.to !== '/painel')} onNavigate={close} />
+            <NavItems items={isAdmin ? operation : operation.filter((i) => i.to !== '/painel' && i.to !== '/painel/analises')} onNavigate={close} />
             {isAdmin && <>
               <span className="nav-label">Gestão</span>
               <NavItems items={management} onNavigate={close} />
