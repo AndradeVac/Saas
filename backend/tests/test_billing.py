@@ -141,3 +141,15 @@ def test_courtesy_gives_the_full_plan_until_a_date(make_tenant, client, fake_asa
     webhook(client, "PAYMENT_CONFIRMED", tenant_row(shop.slug).billing_subscription_id, "evt_courtesy")
     status = shop.get("/tenant/plan").json()
     assert status["billing_status"] == "ACTIVE" and status["plan"]["key"] == "essencial" and status["billing_blocked"] is False
+
+
+def test_annual_plan_charges_ten_months_and_lasts_a_year(make_tenant, client, fake_asaas):
+    shop = make_tenant(plan=None)
+    response = shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com", "cycle": "YEARLY"})
+    assert response.status_code == 200
+    assert fake_asaas["subscriptions"][0][1] == "799.00" and fake_asaas["subscriptions"][0][5] == "YEARLY"
+    sub = tenant_row(shop.slug).billing_subscription_id
+    webhook(client, "PAYMENT_CONFIRMED", sub, "evt_year")
+    status = shop.get("/tenant/plan").json()
+    assert status["billing_cycle"] == "YEARLY" and date.fromisoformat(status["paid_until"]) > date.today() + timedelta(days=330)
+    assert shop.post("/billing/subscribe", {"plan": "pro", "document": CNPJ, "email": "d@x.com", "cycle": "WEEKLY"}).status_code == 422

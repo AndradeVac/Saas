@@ -1,9 +1,9 @@
-import { ArrowRight, BarChart3, Check, Clock, Percent, QrCode, Smartphone, Sparkles, Store, Tag, Utensils } from 'lucide-react'
+import { ArrowRight, BarChart3, BellRing, Check, ChefHat, Clock, Gift, MessageCircle, Percent, QrCode, Smartphone, Sparkles, Store, Tag, Utensils } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { formatMoney, slugify } from '../../lib/format'
 import { APP_NAME, tenantUrl } from '../../lib/tenant'
-import { getPlanCatalog, paidPlans, type PlanCatalog } from '../../services/plans'
+import { getPlanCatalog, paidPlans, salesLink, type PlanCatalog } from '../../services/plans'
 
 // Account shown inside the phone mockup; `python -m scripts.seed_demo` creates it locally.
 const DEMO_SLUG = import.meta.env.VITE_DEMO_SLUG ?? 'demo'
@@ -14,7 +14,10 @@ const features = [
   { icon: Clock, title: 'Abre e fecha sozinho', text: 'Horários por dia, pedido mínimo, taxa de entrega e de serviço, formas de pagamento e PIX.' },
   { icon: Tag, title: 'Cupons que trazem cliente', text: 'Cupons percentuais ou em reais, com validade, limite de uso e pedido mínimo.' },
   { icon: Store, title: 'Seu endereço, sua marca', text: 'Endereço próprio, logo, capa e cores. A equipe entra com login e senha.' },
-  { icon: BarChart3, title: 'Gestão de verdade', text: 'Pedidos ao vivo com aviso sonoro, clientes, equipe, vendas por horário e relatórios.' },
+  { icon: BarChart3, title: 'Gestão de verdade', text: 'Pedidos ao vivo, clientes, equipe, fechamento de caixa e relatórios em Excel e PDF.' },
+  { icon: Gift, title: 'Cliente que volta', text: 'Cartão fidelidade digital e a lista de clientes sumidos para chamar no WhatsApp com um toque.' },
+  { icon: BellRing, title: 'Nenhum pedido perdido', text: 'Aviso no celular mesmo com o painel fechado, lembrete sonoro e impressão automática da comanda.' },
+  { icon: ChefHat, title: 'Comanda e PIX na mesa', text: 'Cada mesa com sua conta: o cliente pede várias vezes, divide e paga pelo PIX com o valor exato.' },
 ]
 
 const steps = [
@@ -24,7 +27,9 @@ const steps = [
 ]
 
 const faq = [
-  { q: 'Preciso de cartão de crédito para testar?', a: 'Não. Você cria a conta, monta o cardápio e recebe pedidos de teste sem informar pagamento.' },
+  { q: 'Preciso de cartão de crédito para testar?', a: 'Não. Por 14 dias está tudo liberado, sem limite de produtos ou pedidos e sem informar pagamento.' },
+  { q: 'Vocês cadastram o meu cardápio?', a: 'Sim. Você pode importar por foto em minutos ou pedir para a nossa equipe cadastrar tudo para você.' },
+  { q: 'Tem fidelidade ou multa para cancelar?', a: 'Não. O plano mensal é sem fidelidade: cancele quando quiser pelo próprio painel. No plano anual você paga 10 meses e usa 12.' },
   { q: 'Vocês cobram comissão por pedido?', a: 'Não. Você paga só a mensalidade do plano. O cliente pede direto com você e o dinheiro é todo seu.' },
   { q: 'O cliente precisa baixar aplicativo?', a: 'Não. O cardápio abre no navegador do celular, pelo QR Code ou pelo link.' },
   { q: 'Consigo mudar preços e fotos sozinho?', a: 'Sim. Tudo é editado pelo painel e aparece no cardápio na hora, inclusive marcar um item como esgotado.' },
@@ -44,10 +49,17 @@ export function LandingPage() {
   }
 
   const trialDays = catalog?.trial_days ?? 14
+  const whatsapp = salesLink(catalog, 'Olá! Quero saber mais sobre o Mesa Digital para o meu restaurante.')
+  const setupLink = salesLink(catalog, 'Olá! Quero que vocês cadastrem o cardápio do meu restaurante no Mesa Digital.')
+  const [sales, setSales] = useState(15000)
+  const [rate, setRate] = useState(27)
+  const proPrice = Number(catalog?.plans.find((p) => p.key === 'pro')?.price ?? 149.9)
+  const commission = (sales * rate) / 100
   const plans = catalog ? paidPlans(catalog) : []
 
   return (
     <div className="landing-page">
+      {whatsapp && <a className="whatsapp-fab" href={whatsapp} target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp"><MessageCircle size={26} /></a>}
       <header className="landing-header">
         <strong className="landing-logo">{APP_NAME}</strong>
         <nav className="landing-nav">
@@ -86,6 +98,27 @@ export function LandingPage() {
         <div className="band-item"><Percent size={22} /><div><strong>0% de comissão</strong><span>Apps de entrega cobram uma fatia de cada pedido. Aqui, o lucro é todo seu.</span></div></div>
         <div className="band-item"><Smartphone size={22} /><div><strong>Sem baixar nada</strong><span>Abre direto no celular do cliente, pelo QR Code ou link.</span></div></div>
         <div className="band-item"><Clock size={22} /><div><strong>Pedido na hora</strong><span>Chega no painel com aviso sonoro, mesa e forma de pagamento.</span></div></div>
+      </section>
+
+      <section className="landing-section calculator" id="calculadora">
+        <h2 className="landing-title">Quanto os aplicativos levam do seu faturamento?</h2>
+        <p className="landing-sub">Faça a conta com o seu número de verdade.</p>
+        <div className="calc card">
+          <label className="field"><span>Vendas por aplicativos de entrega, por mês</span>
+            <input type="range" min={2000} max={100000} step={1000} value={sales} onChange={(e) => setSales(Number(e.target.value))} />
+            <strong>{formatMoney(sales)}</strong>
+          </label>
+          <label className="field"><span>Comissão do aplicativo</span>
+            <input type="range" min={10} max={30} step={1} value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+            <strong>{rate}%</strong>
+          </label>
+          <div className="calc-result">
+            <div><span>Você paga de comissão por mês</span><strong className="danger">{formatMoney(commission)}</strong></div>
+            <div><span>Com o Mesa Digital Profissional</span><strong>{formatMoney(proPrice)}</strong></div>
+            <div className="calc-save"><span>Fica no seu bolso por ano, se metade desses clientes pedir direto com você</span><strong>{formatMoney(Math.max(0, (commission / 2 - proPrice) * 12))}</strong></div>
+          </div>
+          <Link className="btn primary large block" to="/cadastro">Quero parar de pagar comissão <ArrowRight size={18} /></Link>
+        </div>
       </section>
 
       <section className="landing-section">
@@ -153,6 +186,15 @@ export function LandingPage() {
           ))}
         </div>
       </section>
+
+      {setupLink && (
+        <section className="landing-section">
+          <div className="card setup-card">
+            <div><h3>Sem tempo para cadastrar o cardápio?</h3><p className="muted">Mande as fotos do seu cardápio no WhatsApp que a nossa equipe cadastra tudo para você, com fotos e preços.</p></div>
+            <a className="btn primary" href={setupLink} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Quero que cadastrem para mim</a>
+          </div>
+        </section>
+      )}
 
       <section className="landing-cta">
         <h2>Seu cardápio digital pode estar no ar hoje.</h2>

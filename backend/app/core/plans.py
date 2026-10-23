@@ -210,6 +210,7 @@ def plan_status(db: Session, tenant: Tenant):
     return TenantPlanStatus(
         billing_status=tenant.billing_status,
         billing_plan=tenant.billing_plan,
+        billing_cycle=tenant.billing_cycle,
         paid_until=tenant.paid_until,
         grace_until=grace_until(tenant),
         billing_blocked=billing_blocked(tenant),

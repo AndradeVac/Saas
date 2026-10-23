@@ -39,6 +39,7 @@ class SignupRequest(BaseModel):
     # The owner must accept the Terms of Use and the Privacy Policy to create the account.
     # validate_default: leaving the field out must fail too, not only sending false.
     accept_terms: bool = Field(default=False, validate_default=True)
+    referred_by: str | None = Field(default=None, max_length=40)  # ?ref=<slug> of the store that recommended us
 
     @field_validator("accept_terms")
     @classmethod

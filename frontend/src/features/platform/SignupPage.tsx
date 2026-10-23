@@ -49,7 +49,8 @@ export function SignupPage() {
   async function onSubmit(values: FormValues) {
     setServerError('')
     try {
-      const created = await signup(values)
+      const ref = new URLSearchParams(window.location.search).get('ref') || undefined
+      const created = await signup({ ...values, referred_by: ref })
       window.location.href = tenantUrl(created.slug, '/login')
     } catch (error) {
       setServerError(apiErrorMessage(error, 'Não foi possível criar a conta. Tente novamente.'))

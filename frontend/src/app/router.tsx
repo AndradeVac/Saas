@@ -15,6 +15,7 @@ function page<T extends Record<string, unknown>>(load: () => Promise<T>, name: k
 const AppShell = page(() => import('../components/layout/AppShell'), 'AppShell')
 const FeatureGate = lazy(() => import('../features/plans/PlanProvider').then((module) => ({ default: module.FeatureGate })))
 const LandingPage = page(() => import('../features/platform/LandingPage'), 'LandingPage')
+const AdminPage = page(() => import('../features/platform/AdminPage'), 'AdminPage')
 const TermsPage = page(() => import('../features/platform/LegalPages'), 'TermsPage')
 const PrivacyPage = page(() => import('../features/platform/LegalPages'), 'PrivacyPage')
 const SignupPage = page(() => import('../features/platform/SignupPage'), 'SignupPage')
@@ -45,6 +46,7 @@ function PlatformRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/cadastro" element={<SignupPage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/termos" element={<TermsPage />} />
       <Route path="/privacidade" element={<PrivacyPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

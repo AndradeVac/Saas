@@ -23,6 +23,8 @@ class PlanCatalog(BaseModel):
     trial_days: int
     # True when subscriptions are paid online (Asaas); otherwise "Assinar" opens the sales WhatsApp.
     online_billing: bool = False
+    # Annual plan: months charged for 12 months of use (10 = two months free).
+    annual_months_charged: int = 10
     # True when "Importar cardápio por foto" is available (Claude API key set).
     menu_import: bool = False
     # WhatsApp number (digits) of the platform's sales team; empty when not configured.
@@ -38,6 +40,7 @@ class PlanUsage(BaseModel):
 class TenantPlanStatus(BaseModel):
     billing_status: str = "NONE"  # NONE, COURTESY, PENDING, ACTIVE, OVERDUE, CANCELED
     billing_plan: str | None = None
+    billing_cycle: str = "MONTHLY"
     paid_until: date | None = None
     grace_until: date | None = None  # last day before orders stop when a payment is overdue
     billing_blocked: bool = False

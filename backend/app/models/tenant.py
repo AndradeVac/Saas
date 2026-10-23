@@ -103,6 +103,10 @@ class Tenant(Base):
     google_review_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     # Encomendas: customers may schedule an order for later (cakes, party snacks...).
     scheduling_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # MONTHLY or YEARLY (12 months for the price of 10).
+    billing_cycle: Mapped[str] = mapped_column(String(10), nullable=False, default="MONTHLY", server_default="MONTHLY")
+    # Slug of the store that recommended this one (referral: the owner earns a free month).
+    referred_by: Mapped[str | None] = mapped_column(String(40), nullable=True)
     # Terms of Use / Privacy Policy accepted at sign-up (see app.core.legal.TERMS_VERSION).
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

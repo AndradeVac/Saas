@@ -56,7 +56,11 @@ class TenantService:
         if self.repository.slug_exists(data.slug):
             raise BusinessRuleError("Este endereço já está em uso. Escolha outro.")
 
+        referrer = data.referred_by.strip().lower() if data.referred_by else None
+        if referrer and not self.repository.slug_exists(referrer):
+            referrer = None
         tenant = Tenant(
+            referred_by=referrer,
             slug=data.slug,
             name=data.business_name,
             business_type=data.business_type,

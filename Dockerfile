@@ -14,6 +14,9 @@ ENV VITE_ROOT_DOMAIN=$VITE_ROOT_DOMAIN
 # Optional: error alerts from the browser (Sentry). The DSN is public by design.
 ARG VITE_SENTRY_DSN=""
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+# Store shown in the phone mockup of the landing page.
+ARG VITE_DEMO_SLUG="demo"
+ENV VITE_DEMO_SLUG=$VITE_DEMO_SLUG
 RUN npm run build
 
 # ---- runtime --------------------------------------------------------------------------------

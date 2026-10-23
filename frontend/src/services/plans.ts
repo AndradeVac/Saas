@@ -20,6 +20,7 @@ export type PlanCatalog = {
   trial_days: number
   /** Subscriptions paid online (Asaas checkout); otherwise "Assinar" opens the sales WhatsApp. */
   online_billing: boolean
+  annual_months_charged: number
   menu_import: boolean
   sales_whatsapp: string
 }
@@ -53,7 +54,8 @@ export function salesLink(catalog: PlanCatalog | null, message: string) {
 }
 
 // Online subscription (Asaas): every call returns the Asaas payment page to open.
-export const subscribe = async (plan: string, document: string, email: string) =>
-  (await api.post<{ checkout_url: string | null }>('/billing/subscribe', { plan, document, email })).data
+export type Cycle = 'MONTHLY' | 'YEARLY'
+export const subscribe = async (plan: string, document: string, email: string, cycle: Cycle = 'MONTHLY') =>
+  (await api.post<{ checkout_url: string | null }>('/billing/subscribe', { plan, document, email, cycle })).data
 export const payNow = async () => (await api.post<{ checkout_url: string | null }>('/billing/pay')).data
 export const cancelSubscription = async () => { await api.post('/billing/cancel') }

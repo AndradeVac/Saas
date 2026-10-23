@@ -21,6 +21,7 @@ from app.services.audit import record_audit
 
 logger = logging.getLogger(__name__)
 
+ANNUAL_MONTHS_CHARGED = 10  # yearly plan: 12 months for the price of 10
 PAID_EVENTS = {"PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"}
 UNPAID_EVENTS = {"PAYMENT_REFUNDED", "PAYMENT_RECEIVED_IN_CASH_UNDONE", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_REPROVED_BY_RISK_ANALYSIS"}
 ENDED_EVENTS = {"SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED"}
@@ -67,7 +68,7 @@ class BillingService:
         self.db = db
 
     # ---- owner actions ------------------------------------------------------------------------
-    def subscribe(self, tenant: Tenant, actor: User, plan_key: str, document: str, email: str) -> str | None:
+    def subscribe(self, tenant: Tenant, actor: User, plan_key: str, document: str, email: str, cycle: str = "MONTHLY") -> str | None:
         if not asaas.enabled():
             raise BusinessRuleError("A assinatura online ainda não está disponível. Fale com o suporte.")
         plan = PLANS.get(plan_key)
@@ -76,14 +77,17 @@ class BillingService:
         digits = re.sub(r"\D", "", document)
         if not _valid_document(digits):
             raise BusinessRuleError("Informe um CPF ou CNPJ válido.")
-        value = f"{plan.price:.2f}"
-        description = f"Mesa Digital · plano {plan.name}"
+        if cycle not in ("MONTHLY", "YEARLY"):
+            raise BusinessRuleError("Escolha mensal ou anual.")
+        # Annual: 12 months for the price of 10.
+        value = f"{(plan.price * ANNUAL_MONTHS_CHARGED if cycle == 'YEARLY' else plan.price):.2f}"
+        description = f"Mesa Digital · plano {plan.name}{' (anual)' if cycle == 'YEARLY' else ''}"
 
         if not tenant.billing_customer_id:
             tenant.billing_customer_id = asaas.create_customer(tenant.name, digits, email, tenant.phone, str(tenant.id))
             self.db.commit()
         if tenant.billing_subscription_id and tenant.billing_status in ("PENDING", "ACTIVE", "OVERDUE"):
-            asaas.update_subscription(tenant.billing_subscription_id, value, description)
+            asaas.update_subscription(tenant.billing_subscription_id, value, description, cycle)
             if tenant.billing_status == "ACTIVE":
                 tenant.plan = plan_key  # plan changes apply now; the new price from the next charge
         else:
@@ -91,11 +95,12 @@ class BillingService:
             courtesy_left = tenant.billing_status == "COURTESY" and tenant.paid_until and tenant.paid_until > date.today()
             first_due = tenant.paid_until if courtesy_left else date.today()
             subscription = asaas.create_subscription(
-                tenant.billing_customer_id, value, description, str(tenant.id), first_due.isoformat()
+                tenant.billing_customer_id, value, description, str(tenant.id), first_due.isoformat(), cycle
             )
             tenant.billing_subscription_id = subscription["id"]
             tenant.billing_status = "PENDING"
         tenant.billing_plan = plan_key
+        tenant.billing_cycle = cycle
         record_audit(self.db, tenant.id, actor, "BILLING_SUBSCRIBE", "TENANT", tenant.id, f"plano={plan_key}")
         self.db.commit()
         return asaas.pending_payment_url(tenant.billing_subscription_id)
@@ -136,13 +141,19 @@ class BillingService:
 
         due = date.fromisoformat(payment["dueDate"]) if payment.get("dueDate") else date.today()
         if event in PAID_EVENTS:
-            month_after = (due.replace(day=1) + timedelta(days=32)).replace(day=min(due.day, 28))
-            tenant.paid_until = max(tenant.paid_until or month_after, month_after)
+            if tenant.billing_cycle == "YEARLY":
+                period_end = due.replace(year=due.year + 1, day=min(due.day, 28))
+            else:
+                period_end = (due.replace(day=1) + timedelta(days=32)).replace(day=min(due.day, 28))
+            tenant.paid_until = max(tenant.paid_until or period_end, period_end)
             tenant.billing_status, tenant.past_due_since = "ACTIVE", None
             tenant.status, tenant.plan = TenantStatus.ACTIVE, tenant.billing_plan or tenant.plan
         elif event == "PAYMENT_OVERDUE" and tenant.billing_status != "CANCELED":
             tenant.billing_status = "OVERDUE"
             tenant.past_due_since = tenant.past_due_since or due
+            from app.services import lifecycle
+
+            lifecycle.payment_overdue(self.db, tenant)
         elif event in UNPAID_EVENTS and tenant.billing_status != "CANCELED":
             tenant.billing_status = "OVERDUE"
             tenant.past_due_since = tenant.past_due_since or date.today()

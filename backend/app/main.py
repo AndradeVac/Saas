@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.routes import (
+    admin,
     analytics,
     audit,
     auth,
@@ -57,7 +58,7 @@ app.add_middleware(
 register_exception_handlers(app)
 
 for module in (
-    platform, auth, billing, tenant, users, categories, products, menu_import, marketing, customers, coupons, media, orders, tabs, public, push, analytics, audit,
+    platform, admin, auth, billing, tenant, users, categories, products, menu_import, marketing, customers, coupons, media, orders, tabs, public, push, analytics, audit,
 ):
     app.include_router(module.router)
 
