@@ -915,3 +915,43 @@ a.landing-logo { text-decoration: none; }
 .cycle-toggle { max-width: 420px; margin: 0 0 14px; }
 .referral { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
 .referral h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+
+/* Order status (customer): hero + live bar */
+.status-hero { border-radius: var(--radius-l, 18px); padding: 16px; margin: 4px 0 14px; background: var(--surface-2); border: 1px solid var(--border); }
+.status-hero-top { display: flex; gap: 14px; align-items: center; }
+.status-hero h2 { margin: 0 0 2px; font-size: 21px; }
+.status-hero p { margin: 0; color: var(--text-2); font-size: 14.5px; line-height: 1.4; }
+.status-icon { font-size: 34px; width: 58px; height: 58px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface); }
+.tone-cook .status-icon { animation: bob 1.6s ease-in-out infinite; }
+.tone-ready { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); border-color: var(--ok); }
+.tone-ready .status-icon { animation: pop 0.9s ease 2; }
+.tone-ready h2 { color: var(--ok); }
+.tone-off { background: var(--danger-bg); border-color: var(--danger); }
+.status-bar { height: 8px; border-radius: 99px; background: var(--surface); margin: 14px 0 8px; overflow: hidden; }
+.status-bar b { display: block; height: 100%; border-radius: 99px; background: var(--brand); transition: width 0.8s ease; position: relative; overflow: hidden; }
+.tone-cook .status-bar b::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent); animation: shimmer 1.6s linear infinite; }
+.tone-ready .status-bar b, .tone-done .status-bar b { background: var(--ok); }
+.status-steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.status-steps li { display: grid; gap: 1px; font-size: 12px; color: var(--muted); }
+.status-steps li span { font-weight: 650; }
+.status-steps li.done, .status-steps li.current { color: var(--text); }
+.status-steps li.current span { color: var(--brand); }
+.tone-ready .status-steps li.current span { color: var(--ok); }
+.status-live { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.status-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: pulse 1.6s ease infinite; }
+.active-order-bar { display: grid !important; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 10px 14px 12px !important; }
+.aob-icon { grid-row: span 2; font-size: 26px; align-self: center; }
+.tone-cook .aob-icon { animation: bob 1.6s ease-in-out infinite; }
+.aob-text { display: grid; min-width: 0; }
+.aob-text strong { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aob-text small { color: var(--muted); font-weight: 500; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aob-bar { grid-column: 2; height: 4px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 4px; }
+.aob-bar b { display: block; height: 100%; background: var(--brand); border-radius: 99px; transition: width 0.8s ease; }
+.active-order-bar.tone-ready { border-color: var(--ok) !important; background: color-mix(in srgb, var(--ok) 14%, var(--surface)) !important; }
+.active-order-bar.tone-ready .aob-bar b { background: var(--ok); }
+.active-order-bar.tone-ready small { color: var(--text); }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-4deg); } }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .status-icon, .aob-icon, .status-bar b::after, .status-live i { animation: none !important; } }
+.active-order-bar.tone-ready .aob-bar b { width: 100% !important; }

@@ -7,10 +7,11 @@ import { Skeleton } from '../../components/ui/parts'
 import { formatDateTime, formatMoney, orderStatusLabels, paymentMethodLabels, serviceLabels } from '../../lib/format'
 import { cancelPublicOrder, getOrderPix, reviewOrder, trackOrder, type Tracking } from '../../services/publicMenu'
 import { pushSupported, subscribeOrderPush } from '../../lib/push'
+import { orderProgress, type Progress } from './orderProgress'
+import { beep } from '../orders/LiveOrders'
 import { apiErrorMessage } from '../../services/api'
 import type { OrderStatus, PublicTenant } from '../../types'
 
-const STEPS: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'FINISHED']
 const POLL_MS = 5000
 
 /** QR Code + copia e cola with the exact total, while a PIX order is waiting for payment. */
@@ -86,17 +87,49 @@ function ReviewBox({ token, given, googleUrl }: { token: string; given: number |
   )
 }
 
-const stepHints: Record<string, string> = {
-  RECEIVED: 'Recebemos seu pedido. Em instantes ele entra em preparo.',
-  PREPARING: 'Estamos preparando seu pedido.',
-  READY: 'Seu pedido está pronto!',
-  FINISHED: 'Pedido entregue. Bom apetite!',
+/** The moment the customer waits for: sound + vibration when the order turns ready. */
+export function celebrate() {
+  try { navigator.vibrate?.([250, 120, 250, 120, 400]) } catch { /* not supported */ }
+  beep()
 }
+
+/** Big, glanceable status: animated icon, headline, forecast, progress bar and the time of each step. */
+function StatusHero({ progress }: { progress: Progress }) {
+  const icon = { wait: '🧾', cook: '👨‍🍳', ready: '🎉', done: '✅', off: '✖️' }[progress.tone]
+  return (
+    <div className={`status-hero tone-${progress.tone}`} role="status" aria-live="polite">
+      <div className="status-hero-top">
+        <span className="status-icon" aria-hidden="true">{icon}</span>
+        <div>
+          <h2>{progress.title}</h2>
+          <p>{progress.detail}</p>
+        </div>
+      </div>
+      {progress.tone !== 'off' && (
+        <>
+          <div className="status-bar"><b style={{ width: `${progress.percent}%` }} /></div>
+          <ol className="status-steps">
+            {progress.steps.map((step) => (
+              <li key={step.label} className={step.state}>
+                <span>{step.label}</span>
+                <small>{step.at ? new Date(step.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}</small>
+              </li>
+            ))}
+          </ol>
+          {(progress.tone === 'wait' || progress.tone === 'cook') && <small className="status-live"><i /> Atualiza sozinho</small>}
+        </>
+      )}
+    </div>
+  )
+}
+
 
 export function TrackModal({ token, tenant, isNew, onClose }: { token: string; tenant: PublicTenant; isNew: boolean; onClose: () => void }) {
   const [order, setOrder] = useState<Tracking | null>(null)
   const [missing, setMissing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer) }, [])
   const [alerting, setAlerting] = useState(false)
   async function alertMe() {
     try {
@@ -115,7 +148,10 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
     const load = () => trackOrder(token)
       .then((data) => {
         if (!active) return
-        setOrder(data)
+        setOrder((previous) => {
+          if (previous && previous.status !== 'READY' && data.status === 'READY') celebrate()
+          return data
+        })
         if (data.status !== 'FINISHED' && data.status !== 'CANCELLED') timer = window.setTimeout(load, POLL_MS)
       })
       .catch(() => { if (active) setMissing(true) })
@@ -138,9 +174,9 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
   }
 
   const status = order.status as OrderStatus
-  const index = STEPS.indexOf(status)
   const waitingPix = Boolean(tenant.pix_key) && order.payment_method === 'PIX' && order.payment_status !== 'PAID' && status === 'RECEIVED' && !order.table_label
     && ((order.service_type === 'TAKEAWAY' && tenant.require_pix_takeaway) || (order.service_type === 'DELIVERY' && tenant.require_pix_delivery))
+  const progress = orderProgress(order, waitingPix, now)
   const whatsapp = tenant.phone ? `https://wa.me/55${tenant.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Sobre o meu pedido #${order.order_number}`)}` : null
 
   return (
@@ -158,30 +194,11 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
       {order.delivery_address && <p className="muted">Entrega em: {order.delivery_address}</p>}
       {order.scheduled_for && <p className="alert info">📅 Encomenda para <strong>{formatDateTime(order.scheduled_for)}</strong></p>}
 
-      {status === 'CANCELLED' ? (
-        <div className="alert error">Este pedido foi cancelado. Fale com a equipe se tiver dúvidas.</div>
-      ) : (
-        <>
-          <ol className="track">
-            {STEPS.map((step, i) => (
-              <li key={step} className={i < index || status === 'FINISHED' ? 'done' : i === index ? 'current' : ''}>
-                <span className="dot">{i < index || status === 'FINISHED' ? <Check size={13} /> : null}</span>
-                {step === 'RECEIVED' && waitingPix ? 'Aguardando pagamento' : orderStatusLabels[step]}
-              </li>
-            ))}
-          </ol>
-          <p className="alert info">{waitingPix ? 'Pague o PIX abaixo. Assim que o pagamento for confirmado, seu pedido entra em preparo.' : stepHints[status]}</p>
-          {(status === 'RECEIVED' || status === 'PREPARING') && !order.table_label && (
-            tenant.whatsapp_notifications
-              ? <p className="muted eta">📲 Vamos avisar pelo WhatsApp quando estiver pronto.</p>
-              : !alerting && pushSupported() && <button className="btn block" onClick={() => void alertMe()}>🔔 Avisar neste celular quando ficar pronto</button>
-          )}
-          {(status === 'RECEIVED' || status === 'PREPARING') && (
-            <p className="muted eta">⏱ {order.service_type === 'DELIVERY'
-              ? `Previsão de entrega: cerca de ${tenant.delivery_minutes} min após o pedido.`
-              : `Previsão: pronto em cerca de ${tenant.prep_minutes} min.`}</p>
-          )}
-        </>
+      <StatusHero progress={progress} />
+      {(status === 'RECEIVED' || status === 'PREPARING') && !order.table_label && (
+        tenant.whatsapp_notifications
+          ? <p className="muted eta">📲 Vamos avisar pelo WhatsApp quando estiver pronto.</p>
+          : !alerting && pushSupported() && <button className="btn block" onClick={() => void alertMe()}>🔔 Avisar neste celular quando ficar pronto</button>
       )}
 
       <div className="card flat">
