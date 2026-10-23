@@ -1,4 +1,6 @@
-import { ArrowRight, Bell, BellOff, Plus, Search, UtensilsCrossed } from 'lucide-react'
+import { ArrowRight, Bell, BellOff, BellRing, ChefHat, Plus, Printer, Search, UtensilsCrossed } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { enablePush, pushState, type PushState } from '../../lib/push'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -21,7 +23,20 @@ const columns: Array<{ status: OrderStatus; title: string; color: string; next?:
 
 export function OrdersPage() {
   const navigate = useNavigate()
-  const { orders, loading, offline, freshIds, soundOn, setSoundOn, replace, refresh } = useLiveOrders()
+  const { orders, loading, offline, freshIds, soundOn, setSoundOn, autoPrint, setAutoPrint, replace, refresh } = useLiveOrders()
+  const [push, setPush] = useState<PushState>('off')
+  useEffect(() => { pushState().then(setPush).catch(() => setPush('unsupported')) }, [])
+  async function turnOnPush() {
+    try {
+      const state = await enablePush()
+      setPush(state)
+      if (state === 'on') toast.success('Pronto! Você recebe os pedidos novos neste aparelho, mesmo com o painel fechado.')
+      else if (state === 'blocked') toast.error('As notificações estão bloqueadas no navegador. Libere nas configurações do site.')
+      else if (state === 'unsupported') toast.error('Este navegador não aceita notificações. No iPhone, adicione o painel à tela de início primeiro.')
+    } catch {
+      toast.error('Não foi possível ativar as notificações.')
+    }
+  }
   const [updating, setUpdating] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [now, setNow] = useState(Date.now())
@@ -68,6 +83,13 @@ export function OrdersPage() {
             <button className="btn" onClick={() => setSoundOn(!soundOn)} aria-pressed={soundOn} title="Som de novo pedido">
               {soundOn ? <Bell size={16} /> : <BellOff size={16} />} Som {soundOn ? 'ligado' : 'desligado'}
             </button>
+            {push !== 'on' && push !== 'unsupported' && (
+              <button className="btn" onClick={() => void turnOnPush()} title="Receba os pedidos no celular, mesmo com o painel fechado"><BellRing size={16} /> Avisar no celular</button>
+            )}
+            <button className="btn" onClick={() => { setAutoPrint(!autoPrint); toast.message(autoPrint ? 'Impressão automática desligada.' : 'Cada pedido novo vai abrir a impressão da comanda.') }} aria-pressed={autoPrint} title="Imprimir a comanda de cada pedido novo">
+              <Printer size={16} /> {autoPrint ? 'Impressão automática' : 'Imprimir automático'}
+            </button>
+            <Link className="btn" to="/painel/cozinha"><ChefHat size={16} /> Tela da cozinha</Link>
             <button className="btn primary" onClick={() => navigate('/painel/pedidos/novo')}><Plus size={16} /> Novo pedido</button>
           </div>
         }

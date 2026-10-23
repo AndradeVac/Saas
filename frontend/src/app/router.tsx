@@ -35,6 +35,8 @@ const CustomersPage = page(() => import('../features/customers/CustomersPage'), 
 const UsersPage = page(() => import('../features/users/UsersPage'), 'UsersPage')
 const AuditPage = page(() => import('../features/audit/AuditPage'), 'AuditPage')
 const InsightsPage = page(() => import('../features/insights/InsightsPage'), 'InsightsPage')
+const KitchenPage = page(() => import('../features/kitchen/KitchenPage'), 'KitchenPage')
+const CashPage = page(() => import('../features/cash/CashPage'), 'CashPage')
 const PlanPage = page(() => import('../features/plans/PlanPage'), 'PlanPage')
 const SettingsPage = page(() => import('../features/settings/SettingsPage'), 'SettingsPage')
 
@@ -68,6 +70,8 @@ function TenantRoutes() {
                 <Route path="mesas" element={<TablesPage />} />
                 <Route path="historico" element={<HistoryPage />} />
                 <Route path="clientes" element={<CustomersPage />} />
+                <Route path="caixa" element={<CashPage />} />
+                <Route path="cozinha" element={<KitchenPage />} />
                 <Route element={<RoleRoute roles={['ADMIN']} />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="produtos" element={<ProductsPage />} />

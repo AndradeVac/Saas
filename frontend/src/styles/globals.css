@@ -855,3 +855,32 @@ a.landing-logo { text-decoration: none; }
 .zone-row { display: grid; grid-template-columns: 1fr 140px auto; gap: 8px; align-items: end; }
 .zone-row .field { margin-bottom: 8px; }
 .zone-row > .input { margin-bottom: 8px; height: 42px; }
+
+/* Kitchen display */
+.kitchen { min-height: 100vh; background: #0f0e0d; color: #f5f5f4; padding: 14px; }
+.kitchen-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.kitchen-head h1 { margin: 0; font-size: 24px; }
+.kitchen-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.kitchen-col h2 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.06em; color: #a8a29e; display: flex; gap: 8px; align-items: center; }
+.kitchen-col h2 span { background: #292524; border-radius: 99px; padding: 1px 10px; color: #fff; }
+.kitchen-card { background: #1c1917; border: 2px solid #292524; border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+.kitchen-card.warn { border-color: #d97706; }
+.kitchen-card.late { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25); }
+.kitchen-card-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+.kitchen-card-head strong { font-size: 26px; }
+.kitchen-time { margin-left: auto; font-weight: 800; font-size: 18px; }
+.kitchen-card.late .kitchen-time { color: #f87171; }
+.kitchen-card ul { list-style: none; padding: 0; margin: 0 0 10px; font-size: 18px; }
+.kitchen-card li { padding: 4px 0; border-bottom: 1px dashed #292524; }
+.kitchen-card li small { display: block; font-size: 14px; color: #a8a29e; }
+.kitchen-card .note { color: #fbbf24; }
+@media (max-width: 900px) { .kitchen-board { grid-template-columns: 1fr; } }
+/* Cash report */
+.cash-total { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.cash-total strong { font-size: 30px; }
+@media print { .sidebar, .topbar, .no-print, .toolbar input { display: none !important; } .cash .card { break-inside: avoid; } }
+/* Order cards never overflow their column (long badges/buttons wrap instead) */
+.board-col, .order-card { min-width: 0; }
+.order-card > * { min-width: 0; }
+.order-card .btn { white-space: normal; height: auto; min-height: 34px; line-height: 1.2; }
+.order-card-foot { flex-wrap: wrap; gap: 6px; }
