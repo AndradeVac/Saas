@@ -49,7 +49,7 @@ Cada estabelecimento (um *tenant*) ganha:
 
 | Área | O que faz |
 |---|---|
-| **Visão geral** | Faturamento, pedidos, ticket médio, gráficos por dia, horário e categoria, e checklist de primeiros passos |
+| **Visão geral** | Faturamento, pedidos, ticket médio, gráficos por dia, horário e categoria, checklist de primeiros passos e relatório em **Excel** (5 abas com gráficos) e **PDF** (A4 com a marca da loja) |
 | **Pedidos** | Fila ao vivo (atualiza sozinha, com aviso sonoro e contador na aba), avanço de status, pagamento no caixa, cancelamento com motivo, edição e impressão da comanda |
 | **Mesas** | Mapa das mesas com a conta aberta de cada uma. Alertas: mesa nova esperando aprovação, pediu a conta, parada há X minutos, pedido atrasado, "já paguei" pelo PIX. Fechamento com forma de pagamento |
 | **Histórico** | Busca por número, cliente, telefone ou mesa, com filtros, paginação e exportação |
@@ -60,6 +60,7 @@ Cada estabelecimento (um *tenant*) ganha:
 | **Equipe** | Usuários com perfil **Administrador** (tudo) ou **Operador** (pedidos e mesas), redefinição de senha e desativação |
 | **Configurações** | Marca (logo, capa, cor), aberto manualmente ou **por horário**, tipos de atendimento (mesa, retirada, entrega), formas de pagamento, chave PIX, pedido mínimo, taxa de entrega e de serviço, QR Codes das mesas e senha |
 | **Auditoria** | Quem fez o quê e quando (plano Profissional) |
+| **Análises** (Profissional) | **Clientes para reconquistar** (frequentes que sumiram, com botão de WhatsApp e mensagem pronta), % de clientes que voltam, previsão do faturamento do mês, tempo de preparo e de entrega, mapa de calor dia × horário, curva ABC dos produtos, melhores clientes, ticket por atendimento e motivos de cancelamento |
 | **Meu plano** | Uso (produtos, equipe, pedidos), situação da assinatura, assinar, trocar de plano, pagar e cancelar |
 
 ### 1.3 O cliente final (no celular, sem instalar nada)
@@ -90,6 +91,7 @@ Tudo é definido num lugar só: `backend/app/core/plans.py`. **A API aplica os l
 | Pedidos | 30 no teste (cada mesa conta 1) | ilimitados | ilimitados |
 | Cupons e exportações (Excel, PDF, CSV) | — | ✓ | ✓ |
 | Auditoria e cardápio sem a marca Mesa Digital | — | — | ✓ |
+| **Análises avançadas e clientes para reconquistar** | — | — | ✓ |
 
 - **Degustação** é um "gostinho": o fluxo principal funciona, mas o volume é limitado e as ferramentas premium aparecem
   bloqueadas, com a explicação do que liberam. Pedidos cancelados não contam no limite.
@@ -275,7 +277,7 @@ O cardápio de cada uma fica no mesmo endereço, sem `/login`. No Safari, use
 ## 9. Testes
 
 ```bash
-cd backend && pytest                         # 87 testes de integração contra o DATABASE_URL de desenvolvimento
+cd backend && pytest                         # 93 testes de integração contra o DATABASE_URL de desenvolvimento
 cd frontend && npx tsc -b && npm run build   # checagem de tipos e build
 ```
 
@@ -324,6 +326,7 @@ python -m scripts.manage_tenant courtesy <slug> --days 15 --plan pro   # cortesi
 python -m scripts.manage_tenant suspend <slug>                         # bloqueia a loja
 python -m scripts.create_tenant --slug minha-loja --name "Minha Loja" --type BAKERY --email dono@exemplo.com
 python -m scripts.asaas_webhook https://mesadig.com.br/api/billing/webhook   # registra/atualiza o webhook
+python -m scripts.demo_activity <slug> --days 60 --confirm <slug>      # só para contas DEMO: semanas de vendas fictícias
 ```
 
 ---
