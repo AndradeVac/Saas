@@ -122,3 +122,23 @@ def test_validation_messages_are_portuguese(client, make_tenant):
     assert detail[0]["msg"] == "Informe um e-mail válido."
     detail = client.post("/auth/forgot-password", json={}, headers=shop.tenant_headers).json()["detail"]
     assert detail[0]["msg"] == "E-mail: preencha este campo."
+
+
+def test_rate_limit_is_shared_through_the_database(client):
+    """Two app machines must count the same attempts: the counter lives in Postgres."""
+    from app.core.rate_limit import RateLimiter
+    from fastapi import HTTPException
+    from starlette.requests import Request
+
+    limiter = RateLimiter(max_requests=2, window_seconds=60, name="teste-compartilhado")
+    other_machine = RateLimiter(max_requests=2, window_seconds=60, name="teste-compartilhado")
+    request = Request({"type": "http", "headers": [(b"x-tenant", b"loja"), (b"fly-client-ip", b"203.0.113.9")], "client": ("203.0.113.9", 1)})
+    limiter.reset()
+    limiter(request)
+    other_machine(request)
+    try:
+        limiter(request)
+        raise AssertionError("third attempt should be refused")
+    except HTTPException as error:
+        assert error.status_code == 429
+    limiter.reset()
