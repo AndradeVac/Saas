@@ -90,6 +90,12 @@ export function PlanPage() {
               <ul className="plan-list">
                 {planHighlights(plan, catalog).map((line) => <li key={line}><Check size={15} /> {line}</li>)}
               </ul>
+              {trial && (() => {
+                const lost = status.plan.features.filter((f) => !plan.features.includes(f))
+                return lost.length > 0
+                  ? <p className="plan-lose"><small>Ao sair do teste para este plano você deixa de ter: {lost.map((f) => catalog.feature_names[f]).join(', ')}.</small></p>
+                  : null
+              })()}
               {current
                 ? <button className="btn block" disabled>Seu plano atual</button>
                 : <SubscribeButton plan={plan} cycle={cycle} className={`btn ${plan.highlight ? 'primary' : ''} block`} />}

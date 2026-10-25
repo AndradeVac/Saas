@@ -502,6 +502,11 @@ function AccountTab({ settings }: { settings: TenantSettings }) {
   return (
     <>
       <div className="card">
+        <h3>Seus dados (LGPD)</h3>
+        <p className="card-sub">Baixe tudo o que a sua loja tem aqui: cardápio, clientes e pedidos, num arquivo só.</p>
+        <button className="btn" onClick={() => { downloadCsv('/tenant/export', undefined, `${settings.slug}-dados.json`).catch(() => toast.error('Não foi possível exportar.')) }}><Download size={16} /> Exportar todos os dados</button>
+      </div>
+      <div className="card">
         <h3>Plano</h3>
         <div className="row between">
           <div>

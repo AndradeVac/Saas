@@ -38,6 +38,27 @@ function LoyaltyPanel({ customerId }: { customerId: string }) {
   )
 }
 
+/** LGPD: the customer asked to have their data erased (sales stay, without the person). */
+function ForgetCustomer({ customerId, onDone }: { customerId: string; onDone: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  async function forget() {
+    try {
+      await api.post(`/customers/${customerId}/anonymize`)
+      toast.success('Dados pessoais apagados.')
+      onDone()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível apagar os dados.'))
+    }
+  }
+  return (
+    <div style={{ marginTop: 12 }}>
+      {confirming
+        ? <button type="button" className="btn danger block" onClick={() => void forget()}>Confirmar: apagar nome, telefone e observações</button>
+        : <button type="button" className="btn ghost block" onClick={() => setConfirming(true)}>Apagar dados pessoais (pedido do cliente, LGPD)</button>}
+    </div>
+  )
+}
+
 export function CustomersPage() {
   const { guard } = usePlan()
   const [data, setData] = useState<{ items: Customer[]; total: number } | null>(null)
@@ -145,6 +166,7 @@ export function CustomersPage() {
             {draft.id && <label className="check"><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Cliente ativo</label>}
           </form>
           {draft.id && <LoyaltyPanel customerId={draft.id} />}
+          {draft.id && <ForgetCustomer customerId={draft.id} onDone={() => { setDraft(null); void load() }} />}
         </Modal>
       )}
     </section>

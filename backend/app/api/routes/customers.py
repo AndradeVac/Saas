@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.spreadsheet import SafeCsvWriter
 from app.core.plans import EXPORTS, require_feature
-from app.core.security import staff_only
+from app.core.security import admin_only, staff_only
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.customer import CustomerCreate, CustomerListItem, CustomerResponse, CustomerUpdate
 from app.services import loyalty
+from app.services.audit import record_audit
 from app.services.customer import CustomerService
 from app.services.reports import XLSX_TYPE, customers_xlsx
 
@@ -63,6 +64,17 @@ def export_customers(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=clientes.csv"},
     )
+
+
+@router.post("/{customer_id}/anonymize", response_model=CustomerResponse)
+def anonymize_customer(customer_id: UUID, db: Session = Depends(get_db), actor: User = Depends(admin_only)):
+    """LGPD: the customer asked to be forgotten. Name, phone and notes go away; sales numbers stay (no person in them)."""
+    customer = CustomerService(db, actor.tenant_id).get_by_id(customer_id)
+    customer.name, customer.phone, customer.phone_digits, customer.notes = "Cliente removido (LGPD)", None, None, None
+    customer.marketing_opt_in, customer.marketing_opt_in_at, customer.active = False, None, False
+    record_audit(db, actor.tenant_id, actor, "CUSTOMER_ANONYMIZED", "CUSTOMER", customer.id, "dados pessoais apagados a pedido")
+    db.commit()
+    return customer
 
 
 @router.get("/{customer_id}/loyalty")
