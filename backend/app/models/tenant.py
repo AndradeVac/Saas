@@ -67,6 +67,10 @@ class Tenant(Base):
     # Shown on the menu: Decreto 7.962/2013 asks online sellers for their legal name and CNPJ/CPF.
     legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     legal_document: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Account closure (Termos, seção 8): set with status SUSPENDED; the data is purged PURGE_AFTER_DAYS later.
+    # REQUEST: the owner closed it in Settings; UNPAID: 60 days without paying.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closure_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     pix_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # MANUAL: `accepting_orders` alone decides. SCHEDULE: also requires being inside `opening_hours`.

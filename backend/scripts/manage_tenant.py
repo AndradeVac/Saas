@@ -59,6 +59,7 @@ def main() -> int:
             tenant.status, tenant.plan = TenantStatus.ACTIVE, args.plan
             tenant.billing_status, tenant.past_due_since = "COURTESY", None
             tenant.paid_until = date.today() + timedelta(days=args.days)
+            tenant.closed_at = tenant.closure_reason = None
             db.commit()
             print(f"{tenant.slug}: cortesia do plano {tenant.plan} até {tenant.paid_until:%d/%m/%Y}")
             return 0
@@ -69,6 +70,8 @@ def main() -> int:
             base = max(tenant.trial_ends_at or datetime.now(timezone.utc), datetime.now(timezone.utc))
             tenant.trial_ends_at = base + timedelta(days=args.days)
             tenant.status = TenantStatus.TRIAL
+        if tenant.status is not TenantStatus.SUSPENDED:
+            tenant.closed_at = tenant.closure_reason = None  # reactivated: the scheduled purge is off
         db.commit()
         print(f"{tenant.slug}: {tenant.status.value} (plano {tenant.plan})")
     return 0

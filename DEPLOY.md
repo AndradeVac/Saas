@@ -227,6 +227,7 @@ Pedidos e pagamento → "Avisar o cliente automaticamente".
 | Ver logs | `fly logs` |
 | Ativar o plano de um cliente | `fly ssh console -C "sh -c 'cd /app/backend && python -m scripts.manage_tenant activate padaria-x --plan pro'"` |
 | Listar clientes | `fly ssh console -C "sh -c 'cd /app/backend && python -m scripts.manage_tenant list'"` |
+| Reativar uma conta encerrada (até 30 dias depois; após isso os dados já foram apagados) | `fly machine exec <id> "sh -c 'cd /app/backend && python -m scripts.manage_tenant activate <slug> --plan pro'"` |
 | Voltar para a versão anterior | `fly releases --image` e depois `fly deploy --image <imagem anterior>` (veja abaixo) |
 
 ### Voltar uma versão

@@ -162,3 +162,21 @@ def test_cancelling_an_unpaid_subscription_keeps_a_plan_set_by_hand(make_tenant,
     assert shop.post("/billing/cancel").status_code == 204
     status = shop.get("/tenant/plan").json()
     assert status["plan"]["key"] == "pro" and status["billing_status"] == "CANCELED"
+
+
+def test_late_payment_brings_back_a_closed_account(make_tenant, client, fake_asaas):
+    """Closed for non-payment, then the boleto is paid: the store comes back and the purge is called off."""
+    from app.services import closure
+
+    shop = make_tenant(plan=None)
+    shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com"})
+    sub = tenant_row(shop.slug).billing_subscription_id
+    with SessionLocal() as db:
+        db.execute(update(Tenant).where(Tenant.slug == shop.slug).values(billing_status="OVERDUE", past_due_since=date.today() - timedelta(days=61)))
+        db.commit()
+    closure.run()
+    assert tenant_row(shop.slug).closed_at is not None and fake_asaas["deletes"] == [sub]
+
+    webhook(client, "PAYMENT_RECEIVED", sub, "evt_late")
+    row = tenant_row(shop.slug)
+    assert row.status.value == "ACTIVE" and row.closed_at is None

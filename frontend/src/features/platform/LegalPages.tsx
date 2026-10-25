@@ -61,7 +61,7 @@ export function TermsPage() {
         <li>Terminado o teste, o cardápio continua visível, mas deixa de receber pedidos até a contratação de um plano.</li>
         <li>Os planos podem ser mensais ou anuais (o anual cobre 12 meses pelo preço de 10), com os preços e recursos publicados no site no momento da contratação. Reajustes serão avisados com pelo menos 30 dias de antecedência.</li>
         <li>O cliente pode cancelar a qualquer momento, sem multa; o acesso segue até o fim do período já pago. Não há reembolso proporcional de mensalidades já iniciadas, salvo previsão legal.</li>
-        <li>A falta de pagamento pode levar à suspensão do recebimento de pedidos e, depois de 60 dias, ao encerramento da conta.</li>
+        <li>A falta de pagamento pode levar à suspensão do recebimento de pedidos e, depois de 60 dias, ao encerramento automático da conta, com aviso por e-mail 10 dias antes. Se a cobrança for paga antes de os dados serem apagados, a conta volta a funcionar.</li>
       </ul>
 
       <h2>4. Responsabilidades do estabelecimento</h2>
@@ -82,7 +82,7 @@ export function TermsPage() {
       <p>A plataforma é uma ferramenta de apoio. Na máxima extensão permitida pela lei, não respondemos por lucros cessantes, pedidos não realizados durante indisponibilidades, nem por atos do estabelecimento perante seus consumidores. Quando houver responsabilidade, ela fica limitada ao valor pago pelo cliente nos 3 meses anteriores ao fato.</p>
 
       <h2>8. Seus dados ao sair</h2>
-      <p>O cliente pode exportar pedidos, clientes e relatórios pelo painel (nos planos que incluem exportação) e pode pedir a exclusão da conta. Depois do encerramento, os dados são apagados em até 90 dias, exceto os que a lei obrigar a guardar.</p>
+      <p>O cliente pode exportar todos os dados da loja pelo painel e pode encerrar a conta a qualquer momento em Configurações → Minha conta. O cardápio sai do ar na hora; os dados ficam guardados por 30 dias, para o caso de o cliente mudar de ideia, e depois são apagados de forma definitiva. As cópias de segurança são substituídas em até mais 30 dias. Ficam guardados apenas os registros que a lei obriga, como os registros de acesso por 6 meses.</p>
 
       <h2>9. Alterações</h2>
       <p>Estes Termos podem ser atualizados. Mudanças relevantes serão comunicadas no painel ou por e-mail com antecedência; o uso continuado depois da vigência significa concordância.</p>
@@ -146,7 +146,7 @@ export function PrivacyPage() {
       <p>Alguns desses fornecedores têm sede fora do Brasil; quando houver transferência internacional, ela ocorre com as garantias previstas na LGPD. Também podemos compartilhar dados por ordem judicial ou exigência legal.</p>
 
       <h2>5. Por quanto tempo guardamos</h2>
-      <p>Enquanto a conta do estabelecimento estiver ativa. Após o encerramento, os dados são apagados em até 90 dias, salvo os que a lei exigir guardar por mais tempo. Registros de acesso ficam 6 meses e cópias de segurança do banco, 30 dias; depois disso são apagados automaticamente. O estabelecimento pode pedir a exclusão de dados de consumidores a qualquer momento pelos canais de contato abaixo.</p>
+      <p>Enquanto a conta do estabelecimento estiver ativa. Após o encerramento da conta (pelo próprio estabelecimento ou por 60 dias sem pagamento), os dados são apagados automaticamente em 30 dias, salvo os que a lei exigir guardar por mais tempo. Registros de acesso ficam 6 meses e cópias de segurança do banco, 30 dias; depois disso são apagados automaticamente. O estabelecimento pode pedir a exclusão de dados de consumidores a qualquer momento pelos canais de contato abaixo.</p>
 
       <h2>6. Segurança</h2>
       <p>Usamos conexão criptografada (HTTPS) em todo o site, senhas com hash forte, separação dos dados de cada estabelecimento no banco de dados, controle de acesso por perfis e registro de auditoria. Nenhum sistema é 100% invulnerável; em caso de incidente relevante, os afetados e a ANPD serão comunicados conforme a lei.</p>
