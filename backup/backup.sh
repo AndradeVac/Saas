@@ -1,14 +1,23 @@
 #!/bin/sh
 # Dump schema "mesa" → restore it into a throwaway PostgreSQL to prove it works → encrypt (AES-256)
-# → upload to Cloudflare R2 → delete copies older than RETENTION_DAYS. A failure e-mails ALERT_EMAIL (Resend).
+# → keep it on the machine's volume (BACKUP_DIR) and/or upload to Cloudflare R2 → delete copies older than
+# RETENTION_DAYS. A failure e-mails ALERT_EMAIL (Resend).
 set -eu
 
-: "${BACKUP_DATABASE_URL:?}" "${BACKUP_PASSPHRASE:?}" "${R2_ACCOUNT_ID:?}" "${R2_ACCESS_KEY_ID:?}" "${R2_SECRET_ACCESS_KEY:?}"
+: "${BACKUP_DATABASE_URL:?}" "${BACKUP_PASSPHRASE:?}"
 BUCKET="${R2_BUCKET:-mesa-digital-backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
-export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" AWS_DEFAULT_REGION=auto
-export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required  # R2 compatibility
-S3="aws s3 --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+BACKUP_DIR="${BACKUP_DIR:-/data/backups}"
+USE_R2=""
+if [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; then
+  USE_R2=1
+  export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" AWS_DEFAULT_REGION=auto
+  export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required  # R2 compatibility
+  S3="aws s3 --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+fi
+USE_DIR=""
+[ -d "$(dirname "$BACKUP_DIR")" ] && mkdir -p "$BACKUP_DIR" && USE_DIR=1
+[ -n "$USE_R2$USE_DIR" ] || { echo "Nenhum destino: monte um volume em $(dirname "$BACKUP_DIR") ou configure o R2."; exit 1; }
 WORK=/tmp/backup
 STEP="início"
 
@@ -39,14 +48,27 @@ STEP="criptografia"
 gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 \
   --output "$WORK/$name" "$WORK/backup.dump"
 
-STEP="envio para o R2"
-$S3 cp "$WORK/$name" "s3://$BUCKET/$name" --only-show-errors
-echo "Enviado: $name ($(wc -c < "$WORK/$name") bytes)"
-
-STEP="limpeza dos backups antigos"
 cutoff=$(date -u -d "@$(( $(date +%s) - RETENTION_DAYS * 86400 ))" +%Y-%m-%d)
-$S3 ls "s3://$BUCKET/" | awk -v c="mesa-digital-$cutoff" '$4 ~ /^mesa-digital-/ && $4 < c {print $4}' | while read -r old; do
-  $S3 rm "s3://$BUCKET/$old" --only-show-errors && echo "Apagado (mais de $RETENTION_DAYS dias): $old"
-done
+if [ -n "$USE_DIR" ]; then
+  STEP="cópia no disco"
+  cp "$WORK/$name" "$BACKUP_DIR/$name"
+  echo "Guardado no disco: $BACKUP_DIR/$name ($(wc -c < "$WORK/$name") bytes)"
+  for old in "$BACKUP_DIR"/mesa-digital-*.dump.gpg; do
+    base=$(basename "$old")
+    if echo "$base mesa-digital-$cutoff" | awk '{ exit !($1 < $2) }'; then
+      rm -f "$old" && echo "Apagado do disco (mais de $RETENTION_DAYS dias): $base"
+    fi
+  done
+  echo "Cópias no disco: $(ls "$BACKUP_DIR" | wc -l)"
+fi
+if [ -n "$USE_R2" ]; then
+  STEP="envio para o R2"
+  $S3 cp "$WORK/$name" "s3://$BUCKET/$name" --only-show-errors
+  echo "Enviado ao R2: $name"
+  STEP="limpeza dos backups antigos no R2"
+  $S3 ls "s3://$BUCKET/" | awk -v c="mesa-digital-$cutoff" '$4 ~ /^mesa-digital-/ && $4 < c {print $4}' | while read -r old; do
+    $S3 rm "s3://$BUCKET/$old" --only-show-errors && echo "Apagado do R2 (mais de $RETENTION_DAYS dias): $old"
+  done
+fi
 rm -rf "$WORK"
 echo "Backup concluído."
