@@ -28,6 +28,8 @@ export type PublicTenant = {
   address: string | null
   city: string | null
   instagram: string | null
+  legal_name?: string | null
+  legal_document?: string | null
   logo_url: string | null
   cover_url: string | null
   primary_color: string

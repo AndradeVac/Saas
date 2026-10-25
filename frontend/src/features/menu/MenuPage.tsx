@@ -1,6 +1,7 @@
 import { Clock, ClipboardList, Instagram, MapPin, MessageCircle, Phone, Plus, Receipt, Repeat2, Search, ShoppingBag, UtensilsCrossed, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import { EmptyState, Skeleton } from '../../components/ui/parts'
 import { DAYS, formatMoney, formatPhone, serviceLabels } from '../../lib/format'
@@ -123,6 +124,7 @@ export function MenuPage() {
     if (!tabToken) return
     const timer = window.setInterval(() => {
       setNow(Date.now())
+      if (document.hidden) return  // phone in the pocket: no need to spend the restaurant's request budget
       getPublicTab(tabToken)
         .then((fresh) => {
           if (ACTIVE_TAB.includes(fresh.status)) return setTab(fresh)
@@ -140,8 +142,9 @@ export function MenuPage() {
     if (!token) { setLatest(null); return }
     let active = true
     let timer = 0
-    const poll = () => trackOrder(token)
-      .then((data) => {
+    const poll = (): Promise<void> | void => {
+      if (document.hidden) { timer = window.setTimeout(poll, 8000); return }
+      return trackOrder(token).then((data) => {
         if (!active) return
         const finished = data.status === 'FINISHED' || data.status === 'CANCELLED'
         setLatest((previous) => {
@@ -153,7 +156,13 @@ export function MenuPage() {
         })
         if (!finished) timer = window.setTimeout(poll, 8000)
       })
-      .catch(() => { if (active) setLatest(null) })
+      .catch((err) => {
+        if (!active) return
+        // Only a missing order hides the banner; a dropped connection or a busy server just tries again.
+        if (isAxiosError(err) && err.response?.status === 404) setLatest(null)
+        else timer = window.setTimeout(poll, 15000)
+      })
+    }
     void poll()
     return () => { active = false; window.clearTimeout(timer) }
   }, [tokens])
@@ -414,7 +423,11 @@ export function MenuPage() {
         })}
         {products.length > 0 && visible.length === 0 && <EmptyState icon={<Search size={24} />} title="Nada encontrado" hint={`Não achamos “${search}” no cardápio.`} />}
         {/* Customers' data: the privacy policy is reachable from every menu, even white-label ones. */}
-        <p className="menu-legal"><a href={platformUrl('/privacidade')} target="_blank" rel="noreferrer">Privacidade</a></p>
+        <p className="menu-legal">
+          {/* Decreto 7.962/2013: who sells online shows its legal name and CNPJ/CPF. */}
+          {tenant.legal_document && <>{tenant.legal_name || tenant.name} · {tenant.legal_document.length > 14 ? 'CNPJ' : 'CPF'} {tenant.legal_document}{tenant.address && <> · {tenant.address}</>}<br /></>}
+          <a href={platformUrl('/privacidade')} target="_blank" rel="noreferrer">Privacidade</a>
+        </p>
         {tenant.show_platform_badge && (
           <a className="menu-footer" href={platformUrl('/')} target="_blank" rel="noreferrer">
             Cardápio digital por <strong>{APP_NAME}</strong> · Crie o seu grátis

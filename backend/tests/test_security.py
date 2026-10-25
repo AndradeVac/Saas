@@ -1,6 +1,7 @@
 """Regression tests for the QA security findings (2026-10-21)."""
 import csv
 import io
+import uuid
 
 from app.core.client_ip import client_ip
 from app.core.rate_limit import login_rate_limit, slug_check_rate_limit
@@ -142,3 +143,17 @@ def test_rate_limit_is_shared_through_the_database(client):
     except HTTPException as error:
         assert error.status_code == 429
     limiter.reset()
+
+
+def test_full_restaurant_on_one_wifi_is_not_blocked(make_tenant, client):
+    """30 phones on the same IP polling their comanda every 8 s (~225 reads/min) must keep working."""
+    shop = make_tenant()
+    codes = {client.get(f"/public/tabs/{uuid.uuid4()}", headers=shop.tenant_headers).status_code for _ in range(240)}
+    assert 429 not in codes
+
+
+def test_coupon_guessing_stays_limited(make_tenant, client):
+    shop = make_tenant()
+    codes = [client.post("/public/coupons/check", json={"code": f"CUPOM{i}", "subtotal": "50.00"}, headers=shop.tenant_headers).status_code
+             for i in range(22)]
+    assert codes[-1] == 429 and 429 not in codes[:20]

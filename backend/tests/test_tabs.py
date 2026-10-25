@@ -182,3 +182,26 @@ def test_table_calls_the_waiter_and_staff_answers(make_tenant, monkeypatch):
     tab = next(t for t in shop.get("/tabs").json() if t["table_label"] == "5")
     assert tab["alerts"]["waiter_call"] == "GUARDANAPO"
     assert shop.post(f"/tabs/{tab['id']}/call/answer").json()["alerts"]["waiter_call"] is None
+
+
+def test_forgotten_pending_table_is_released(make_tenant):
+    """Nobody confirmed table 3 for 12 h: the hourly job cancels it, and the next customer gets a fresh bill."""
+    from app.services.tab import expire_forgotten_tabs
+
+    shop = make_tenant()
+    enable_tabs(shop)
+    beer = shop.add_product("Chope", "12.00")
+    old = shop.public_order(beer["id"], quantity=3, table_label="3", table_code=shop.table_code("3"))
+    assert old.status_code == 201, old.text
+    tab_id = shop.get("/tabs").json()[0]["id"]
+
+    expire_forgotten_tabs()
+    assert shop.get("/tabs").json()[0]["status"] == "PENDING"  # recent: untouched
+
+    with SessionLocal() as db:
+        db.execute(update(Tab).where(Tab.id == tab_id).values(created_at=datetime.now(timezone.utc) - timedelta(hours=13)))
+        db.commit()
+    assert expire_forgotten_tabs() >= 1
+    assert shop.get(f"/tabs/{tab_id}").json()["status"] == "CANCELLED"
+    new = shop.public_order(beer["id"], quantity=3, table_label="3", table_code=shop.table_code("3"))
+    assert new.status_code == 201 and new.json()["tab_token"] != old.json()["tab_token"]

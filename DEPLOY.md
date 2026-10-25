@@ -227,4 +227,17 @@ Pedidos e pagamento → "Avisar o cliente automaticamente".
 | Ver logs | `fly logs` |
 | Ativar o plano de um cliente | `fly ssh console -C "sh -c 'cd /app/backend && python -m scripts.manage_tenant activate padaria-x --plan pro'"` |
 | Listar clientes | `fly ssh console -C "sh -c 'cd /app/backend && python -m scripts.manage_tenant list'"` |
-| Voltar para a versão anterior | `fly releases` e depois `fly deploy --image <imagem anterior>` |
+| Voltar para a versão anterior | `fly releases --image` e depois `fly deploy --image <imagem anterior>` (veja abaixo) |
+
+### Voltar uma versão
+
+1. `fly releases --image` mostra as imagens publicadas; escolha a anterior ao problema.
+2. `fly deploy --image <imagem>`. A etapa de migração (`python -m app.migrate`) percebe que o banco está numa
+   revisão mais nova do que a imagem conhece e **pula as migrações** em vez de travar o rollback.
+3. Isso só é seguro porque as migrações são **aditivas** (tabela nova, coluna que aceita vazio). Regra para toda
+   migração nova: nunca apagar ou renomear coluna no mesmo deploy em que o código para de usá-la. Primeiro publique o
+   código sem usar a coluna; a remoção vai num deploy seguinte.
+4. Imagens anteriores a 25/10/2026 não têm `app.migrate`. Para voltar a uma delas, troque a imagem direto nas
+   máquinas, sem etapa de release: `fly machine update <id> --image <imagem> --yes` (ids em `fly machine list`).
+5. Voltar o **banco** (`alembic downgrade`) apaga as colunas e tabelas novas com os dados delas. Só em último caso,
+   depois de um backup (seção 7b).

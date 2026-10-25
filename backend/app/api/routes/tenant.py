@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import BusinessRuleError
-from app.core.pix import brcode, is_valid_pix_key, normalize_pix_key
+from app.core.pix import brcode, is_valid_pix_key, normalize_pix_key, pix_key_kind
 from app.core.plans import plan_status, public_tenant
 from app.core.security import admin_only, staff_only
 from app.core.tenancy import get_tenant
@@ -57,7 +57,8 @@ def pix_preview(
     """A test QR Code for the key typed in Settings (saved or not): the owner pays it to check the key works."""
     if not is_valid_pix_key(key):
         raise BusinessRuleError("Chave PIX inválida. Use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória.")
-    return PixCode(code=brcode(normalize_pix_key(key), amount, tenant.name, tenant.city or "BRASIL", "TESTE"), amount=amount)
+    code = brcode(normalize_pix_key(key), amount, tenant.name, tenant.city or "BRASIL", "TESTE")
+    return PixCode(code=code, amount=amount, key_kind=pix_key_kind(key))
 
 
 @router.get("/export")

@@ -12,6 +12,8 @@ export type SettingsUpdate = Partial<{
   address: string | null
   city: string | null
   instagram: string | null
+  legal_name: string | null
+  legal_document: string | null
   logo_url: string | null
   cover_url: string | null
   primary_color: string
@@ -56,4 +58,4 @@ export async function uploadImage(file: File) {
 }
 
 export const getMediaUsage = async () => (await api.get<UploadResult>('/media-usage')).data
-export const getPixPreview = async (key: string) => (await api.get<{ code: string; amount: string }>('/tenant/pix-preview', { params: { key } })).data
+export const getPixPreview = async (key: string) => (await api.get<{ code: string; amount: string; key_kind: string }>('/tenant/pix-preview', { params: { key } })).data

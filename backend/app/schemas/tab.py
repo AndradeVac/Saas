@@ -135,6 +135,7 @@ class TabClose(BaseModel):
 class PixCode(BaseModel):
     code: str  # PIX copia e cola (also rendered as a QR Code)
     amount: Decimal
+    key_kind: str | None = None  # only on the owner's test: how the key was understood
 
 
 class PixReport(BaseModel):

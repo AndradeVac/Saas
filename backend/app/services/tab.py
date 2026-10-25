@@ -1,5 +1,5 @@
 """Open bills per table (comanda): dine-in orders pile up on the table's tab and are paid once, at the end."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
@@ -27,6 +27,27 @@ _LOAD = (
     selectinload(Tab.orders).selectinload(Order.customer),
     selectinload(Tab.payments),
 )
+
+
+FORGOTTEN_PENDING_HOURS = 12
+
+
+def expire_forgotten_tabs(now: datetime | None = None) -> int:
+    """Hourly: a table nobody confirmed in 12 h was a prank or a forgotten test. Leaving it PENDING blocks the
+    table for the next customers (their orders pile onto the stale bill), so it is cancelled with its orders."""
+    from app.core.database import SessionLocal
+
+    limit = (now or datetime.now(timezone.utc)) - timedelta(hours=FORGOTTEN_PENDING_HOURS)
+    expired = 0
+    with SessionLocal() as db:
+        stale = db.execute(select(Tab.id, Tab.tenant_id).where(Tab.status == TabStatus.PENDING, Tab.created_at < limit)).all()
+        for tab_id, tenant_id in stale:
+            try:  # another worker may have just done it: skip and go on
+                TabService(db, tenant_id).cancel(tab_id, f"Mesa não confirmada pela equipe em {FORGOTTEN_PENDING_HOURS} h (cancelada automaticamente)", None)
+                expired += 1
+            except BusinessRuleError:
+                db.rollback()
+    return expired
 
 
 def _minutes_since(moment: datetime | None, now: datetime) -> int | None:
@@ -115,7 +136,7 @@ class TabService:
         self.db.commit()
         return tab
 
-    def cancel(self, tab_id: UUID, reason: str, actor: User) -> Tab:
+    def cancel(self, tab_id: UUID, reason: str, actor: User | None) -> Tab:
         """Rejects a pending table or cancels an open bill; its orders are cancelled too."""
         tab = self.get(tab_id)
         if tab.status not in ACTIVE_TAB_STATUSES:
@@ -125,7 +146,7 @@ class TabService:
             if order.status in (OrderStatus.FINISHED, OrderStatus.CANCELLED):
                 continue
             order.status = OrderStatus.CANCELLED
-            order.status_history.append(OrderStatusHistory(status=OrderStatus.CANCELLED, reason=reason, changed_by_user_id=actor.id))
+            order.status_history.append(OrderStatusHistory(status=OrderStatus.CANCELLED, reason=reason, changed_by_user_id=actor.id if actor else None))
             coupons.release(order.coupon_code)
         tab.status, tab.closed_at = TabStatus.CANCELLED, datetime.now(timezone.utc)
         record_audit(self.db, self.tenant_id, actor, "TAB_CANCELLED", "TAB", tab.id, f"mesa {tab.table_label}: {reason}")

@@ -59,6 +59,20 @@ def is_valid_pix_key(raw: str) -> bool:
     return bool(re.fullmatch(r"\d{11}|\d{14}", key))
 
 
+def pix_key_kind(raw: str) -> str:
+    """How the key was understood, shown to the owner: an 11-digit phone can also be a valid CPF."""
+    key = normalize_pix_key(raw) or ""
+    if "@" in key:
+        return "E-mail"
+    if key.startswith("+"):
+        return "Celular"
+    if len(key) == 14 and key.isdigit():
+        return "CNPJ"
+    if len(key) == 11 and key.isdigit():
+        return "CPF"
+    return "Chave aleatória"
+
+
 def _ascii(text: str, limit: int) -> str:
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     plain = re.sub(r"[^A-Za-z0-9 ]", "", plain).strip().upper()

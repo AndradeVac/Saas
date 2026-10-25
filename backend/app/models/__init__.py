@@ -1,3 +1,4 @@
+from app.models.access_log import AccessLog
 from app.models.audit_log import AuditLog
 from app.models.billing_event import BillingEvent
 from app.models.category import Category
@@ -18,6 +19,7 @@ from app.models.tenant import BusinessType, Tenant, TenantStatus
 from app.models.user import User, UserRole
 
 __all__ = [
+    "AccessLog",
     "AuditLog",
     "BillingEvent",
     "BusinessType",

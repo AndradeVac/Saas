@@ -20,7 +20,7 @@ export const getCustomers = async (query: CustomerQuery = {}) =>
   (await api.get<Page<Customer>>('/customers', { params: query })).data
 export const createCustomer = async (payload: { name: string; phone?: string | null; notes?: string | null }) =>
   (await api.post<Customer>('/customers', payload)).data
-export const updateCustomer = async (id: string, payload: Partial<Pick<Customer, 'name' | 'phone' | 'notes' | 'active'>>) =>
+export const updateCustomer = async (id: string, payload: Partial<Pick<Customer, 'name' | 'phone' | 'notes' | 'active' | 'marketing_opt_in'>>) =>
   (await api.patch<Customer>(`/customers/${id}`, payload)).data
 
 export type TeamUser = { id: string; name: string; email: string; role: UserRole; active: boolean }

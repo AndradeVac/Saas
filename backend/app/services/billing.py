@@ -114,10 +114,9 @@ class BillingService:
         if not tenant.billing_subscription_id or tenant.billing_status == "CANCELED":
             raise BusinessRuleError("Não há assinatura ativa para cancelar.")
         asaas.delete_subscription(tenant.billing_subscription_id)
+        # Subscribing never touched plan/status before the first payment, so cancelling does not either: a trial stays
+        # a trial, and a plan set by hand (courtesy, partner) is kept. QA 2026-10-25: it used to fall back to trial.
         tenant.billing_status = "CANCELED"
-        if not tenant.paid_until:
-            # Never paid: goes back to the free trial rules (which may already be over).
-            tenant.status, tenant.plan = TenantStatus.TRIAL, "trial"
         record_audit(self.db, tenant.id, actor, "BILLING_CANCEL", "TENANT", tenant.id, f"acesso até {tenant.paid_until}")
         self.db.commit()
 

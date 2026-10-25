@@ -153,3 +153,12 @@ def test_annual_plan_charges_ten_months_and_lasts_a_year(make_tenant, client, fa
     status = shop.get("/tenant/plan").json()
     assert status["billing_cycle"] == "YEARLY" and date.fromisoformat(status["paid_until"]) > date.today() + timedelta(days=330)
     assert shop.post("/billing/subscribe", {"plan": "pro", "document": CNPJ, "email": "d@x.com", "cycle": "WEEKLY"}).status_code == 422
+
+
+def test_cancelling_an_unpaid_subscription_keeps_a_plan_set_by_hand(make_tenant, fake_asaas):
+    """A courtesy Pro store tried the checkout and gave up: it must stay Pro, not drop to the trial."""
+    shop = make_tenant()  # Pro set by hand
+    shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com"})
+    assert shop.post("/billing/cancel").status_code == 204
+    status = shop.get("/tenant/plan").json()
+    assert status["plan"]["key"] == "pro" and status["billing_status"] == "CANCELED"

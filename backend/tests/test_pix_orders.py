@@ -20,6 +20,14 @@ def test_settings_reject_invalid_pix_key(make_tenant):
     assert shop.get("/tenant/pix-preview", params={"key": "x"}).status_code == 422
 
 
+def test_owner_sees_how_an_ambiguous_key_was_understood(make_tenant):
+    """(11) 90000-0083 is also a valid CPF: the test QR says "CPF", and "+55" forces the phone."""
+    shop = make_tenant()
+    assert shop.get("/tenant/pix-preview", params={"key": "(11) 90000-0083"}).json()["key_kind"] == "CPF"
+    phone = shop.get("/tenant/pix-preview", params={"key": "+55 11 90000-0083"}).json()
+    assert phone["key_kind"] == "Celular" and "+5511900000083" in phone["code"]
+
+
 def test_pix_order_gets_qr_with_exact_total(make_tenant):
     shop = make_tenant()
     shop.patch("/tenant/settings", {"pix_key": "dono@padaria.com", "accepted_payments": ["PIX", "CASH"]})
