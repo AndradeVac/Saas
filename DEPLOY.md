@@ -242,3 +242,12 @@ Pedidos e pagamento → "Avisar o cliente automaticamente".
    máquinas, sem etapa de release: `fly machine update <id> --image <imagem> --yes` (ids em `fly machine list`).
 5. Voltar o **banco** (`alembic downgrade`) apaga as colunas e tabelas novas com os dados delas. Só em último caso,
    depois de um backup (seção 7b).
+
+### Row Level Security (migração 0023)
+
+- Requisições do site e do painel só enxergam a loja do endereço: o banco recusa o resto, mesmo se o código esquecer
+  o filtro. Rotinas internas, migrações e o backup não definem `app.tenant_id` e veem todas as lojas.
+- O `pg_dump` do backup precisa de `--enable-row-security` (já está em `backup/backup.sh`); sem ele, falha com
+  "query would be affected by row-level security policy".
+- Nunca dê BYPASSRLS ao `mesa_app`: isso desligaria a proteção. Em desenvolvimento, o usuário do Neon tem BYPASSRLS,
+  por isso `.env.development` usa `DB_ROLE=mesa_dev`.

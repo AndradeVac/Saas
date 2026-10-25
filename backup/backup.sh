@@ -32,7 +32,7 @@ rm -rf "$WORK" && mkdir -p "$WORK" && chown postgres "$WORK"
 name="mesa-digital-$(date -u +%Y-%m-%d).dump.gpg"
 
 STEP="cópia do banco (pg_dump)"
-pg_dump "$BACKUP_DATABASE_URL" --schema=mesa --no-owner --no-privileges --format=custom --file="$WORK/backup.dump"
+pg_dump "$BACKUP_DATABASE_URL" --schema=mesa --no-owner --no-privileges --enable-row-security --format=custom --file="$WORK/backup.dump"
 
 STEP="restauração de prova"
 su-exec postgres initdb -D "$WORK/pg" -U postgres --auth=trust >/dev/null

@@ -223,9 +223,11 @@ dev.sh                   # sobe tudo localmente
 - Banco único. Toda tabela de dados tem `tenant_id`, e todo repositório filtra por ele.
 - Chaves estrangeiras compostas `(tenant_id, id)` impedem, no próprio banco, ligar um produto a uma categoria de outra
   loja.
-- **Row Level Security** está ligado em todas as tabelas do schema `mesa`, sem políticas: isso fecha as tabelas para a
-  API pública do Supabase (anon/authenticated). A API usa um usuário próprio (`mesa_app`), dono das tabelas, que não é
-  afetado pelo RLS; o isolamento entre lojas é feito pelo filtro de `tenant_id` no código e pelas chaves compostas.
+- **Row Level Security por loja** (migração 0023): cada tabela tem uma política que só mostra as linhas da loja da
+  requisição (`app.tenant_id`, definido em `app/core/database.py`), obrigatória até para o dono das tabelas (`FORCE`).
+  Uma consulta que esqueça o filtro de `tenant_id` continua sem enxergar outra loja. Rotinas internas (e-mails,
+  backup, migrações) não definem a loja e veem tudo; rotas da plataforma usam `allow_all_tenants()` de propósito.
+- Em desenvolvimento, `DB_ROLE=mesa_dev` faz o app usar um dono de tabelas sem BYPASSRLS, como o `mesa_app` em produção.
 - O frontend lê o subdomínio e envia `X-Tenant`. O token de login (JWT) carrega a loja e só vale nela.
 - `tests/test_isolation.py` garante que uma loja nunca vê nem altera dados de outra: catálogo, pedidos, clientes,
   equipe, auditoria, comandas, links públicos, cupons, relatórios, caixa e exportação LGPD.

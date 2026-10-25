@@ -10,7 +10,7 @@ import re
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core.database import get_db, set_tenant_scope
 from app.core.exceptions import NotFoundError
 from app.models.tenant import Tenant, TenantStatus
 from app.repositories.tenant import TenantRepository
@@ -43,4 +43,5 @@ def get_tenant(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Este estabelecimento está temporariamente indisponível.",
         )
+    set_tenant_scope(db, tenant.id)  # the database itself now hides every other store (RLS, migration 0023)
     return tenant

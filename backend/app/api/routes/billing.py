@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import allow_all_tenants, get_db
 from app.core.security import admin_only
 from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
@@ -50,5 +50,6 @@ async def webhook(request: Request, db: Session = Depends(get_db), asaas_access_
     expected = settings.asaas_webhook_token
     if not expected or not asaas_access_token or not hmac.compare_digest(asaas_access_token, expected):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+    allow_all_tenants(db)  # the store is found by the subscription id in the payload
     result = BillingService(db).handle_webhook(await request.json())
     return {"received": True, "result": result}

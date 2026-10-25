@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import allow_all_tenants, get_db
 from app.core.plans import PLANS
 from app.models.order import Order, OrderStatus
 from app.models.tenant import Tenant, TenantStatus
@@ -24,6 +24,7 @@ def platform_admin(x_admin_token: str | None = Header(default=None)) -> None:
 
 @router.get("/overview", dependencies=[Depends(platform_admin)])
 def overview(db: Session = Depends(get_db)):
+    allow_all_tenants(db)  # platform owner: every store
     now = datetime.now(timezone.utc)
     week = now - timedelta(days=7)
     orders_week = dict(db.execute(select(Order.tenant_id, func.count(Order.id)).where(Order.created_at >= week, Order.status != OrderStatus.CANCELLED).group_by(Order.tenant_id)).all())

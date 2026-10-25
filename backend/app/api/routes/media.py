@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import allow_all_tenants, get_db
 from app.core.exceptions import NotFoundError
 from app.core.security import admin_only
 from app.models.media import Media
@@ -48,6 +48,7 @@ def get_image_webp(media_id: UUID, db: Session = Depends(get_db)):
 @router.get("/media/{media_id}")
 def get_image(media_id: UUID, db: Session = Depends(get_db)):
     """Public: <img> tags cannot send the tenant header, and the id is an unguessable UUID."""
+    allow_all_tenants(db)  # no store in the request; the random id is the access control here
     media = db.get(Media, media_id)
     if media is None:
         raise NotFoundError("Imagem não encontrada.")

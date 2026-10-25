@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     email_from: str = "Mesa Digital <nao-responda@mesadig.com.br>"
     # Connection pool per API process (Neon's pooler fans these into its own limits).
     db_pool_size: int = 10
+    # Development only: Neon's default user has BYPASSRLS, which would hide RLS mistakes. With DB_ROLE=mesa_dev every
+    # connection runs `SET ROLE mesa_dev` (table owner without BYPASSRLS), the same situation as mesa_app in production.
+    db_role: str = ""
     db_max_overflow: int = 20
     # Uploaded images are stored in the database: per-file input limit and per-tenant quota.
     media_max_upload_mb: int = 6
