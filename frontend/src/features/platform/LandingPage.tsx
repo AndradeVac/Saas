@@ -30,7 +30,7 @@ const steps = [
 const faq = [
   { q: 'Preciso de cartão de crédito para testar?', a: 'Não. Por 14 dias está tudo liberado, sem limite de produtos ou pedidos e sem informar pagamento.' },
   { q: 'Vocês cadastram o meu cardápio?', a: 'Sim. Você pode importar por foto em minutos ou pedir para a nossa equipe cadastrar tudo para você.' },
-  { q: 'Tem fidelidade ou multa para cancelar?', a: 'Não. O plano mensal é sem fidelidade: cancele quando quiser pelo próprio painel. No plano anual você paga 10 meses e usa 12.' },
+  { q: 'Tem fidelidade ou multa para cancelar?', a: 'Não. O plano mensal é sem fidelidade: cancele quando quiser pelo próprio painel.' },
   { q: 'Vocês cobram comissão por pedido?', a: 'Não. Você paga só a mensalidade do plano. O cliente pede direto com você e o dinheiro é todo seu.' },
   { q: 'O cliente precisa baixar aplicativo?', a: 'Não. O cardápio abre no navegador do celular, pelo QR Code ou pelo link.' },
   { q: 'Consigo mudar preços e fotos sozinho?', a: 'Sim. Tudo é editado pelo painel e aparece no cardápio na hora, inclusive marcar um item como esgotado.' },

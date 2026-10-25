@@ -124,7 +124,7 @@ def run(now: datetime | None = None) -> int:
                     if days_left == 3:
                         sent += send_once(db, tenant, "trial_3d", end, "{nome}, faltam 3 dias do seu teste", [
                             "Seu período de teste do Mesa Digital termina em 3 dias. Para continuar recebendo pedidos sem interrupção, escolha um plano.",
-                            "No plano anual você paga 10 meses e usa 12.",
+                            "Mensal, sem fidelidade: pague com PIX, boleto ou cartão e cancele quando quiser.",
                         ], "Escolher meu plano", "/painel/plano")
                     elif days_left == 0:
                         sent += send_once(db, tenant, "trial_last_day", end, "Hoje é o último dia do seu teste", [

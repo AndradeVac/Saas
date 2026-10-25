@@ -48,6 +48,14 @@ def create_customer(name: str, document: str, email: str, phone: str | None, ref
     return _request("POST", "/customers", body)["id"]
 
 
+def _late_fees() -> dict:
+    """Fine (% of the amount) and interest (% per month) charged by Asaas after the due date."""
+    return {
+        "fine": {"value": settings.billing_fine_percent, "type": "PERCENTAGE"},
+        "interest": {"value": settings.billing_interest_percent_month},
+    }
+
+
 def create_subscription(customer_id: str, value: str, description: str, reference: str, next_due_date: str, cycle: str = "MONTHLY") -> dict:
     return _request("POST", "/subscriptions", {
         "customer": customer_id,
@@ -57,12 +65,13 @@ def create_subscription(customer_id: str, value: str, description: str, referenc
         "cycle": cycle,  # MONTHLY or YEARLY
         "description": description,
         "externalReference": reference,
+        **_late_fees(),
     })
 
 
 def update_subscription(subscription_id: str, value: str, description: str, cycle: str = "MONTHLY") -> dict:
     return _request("POST", f"/subscriptions/{subscription_id}", {
-        "value": value, "description": description, "cycle": cycle, "updatePendingPayments": True,
+        "value": value, "description": description, "cycle": cycle, "updatePendingPayments": True, **_late_fees(),
     })
 
 

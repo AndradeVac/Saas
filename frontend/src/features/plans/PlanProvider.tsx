@@ -171,7 +171,7 @@ function SubscribeModal({ plan, cycle, onClose }: { plan: PlanInfo; cycle: Cycle
       <p className="muted">Você paga com <strong>PIX, boleto ou cartão</strong> na página segura do Asaas. Assim que o pagamento for confirmado, o plano é liberado automaticamente.</p>
       <label className="field"><span>CPF ou CNPJ de quem paga</span><input inputMode="numeric" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="000.000.000-00" autoFocus /></label>
       <label className="field"><span>E-mail para a nota e os avisos de cobrança</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <p className="muted"><small>{yearly ? 'Cobrança anual: 12 meses pelo preço de 10.' : 'Cobrança mensal, sem fidelidade: cancele quando quiser pelo próprio painel.'}</small></p>
+      <p className="muted"><small>{yearly ? 'Cobrança anual: 12 meses pelo preço de 10.' : 'Cobrança mensal, sem fidelidade: cancele quando quiser pelo próprio painel. Em caso de atraso, há multa de 2% e juros de 1% ao mês.'}</small></p>
       {error && <div className="alert error" role="alert">{error}</div>}
     </Modal>
   )

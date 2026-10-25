@@ -59,7 +59,8 @@ export function TermsPage() {
       <ul>
         <li>Novas contas começam com um período de teste gratuito de 14 dias, com os recursos descritos na página de preços.</li>
         <li>Terminado o teste, o cardápio continua visível, mas deixa de receber pedidos até a contratação de um plano.</li>
-        <li>Os planos podem ser mensais ou anuais (o anual cobre 12 meses pelo preço de 10), com os preços e recursos publicados no site no momento da contratação. Reajustes serão avisados com pelo menos 30 dias de antecedência.</li>
+        <li>Os planos são mensais, com os preços e recursos publicados no site no momento da contratação, e podem ser pagos por PIX, boleto ou cartão de crédito. Reajustes serão avisados com pelo menos 30 dias de antecedência.</li>
+        <li>Mensalidades pagas depois do vencimento têm multa de 2% e juros de 1% ao mês, calculados pelo processador de pagamentos.</li>
         <li>O cliente pode cancelar a qualquer momento, sem multa; o acesso segue até o fim do período já pago. Não há reembolso proporcional de mensalidades já iniciadas, salvo previsão legal.</li>
         <li>A falta de pagamento pode levar à suspensão do recebimento de pedidos e, depois de 60 dias, ao encerramento automático da conta, com aviso por e-mail 10 dias antes. Se a cobrança for paga antes de os dados serem apagados, a conta volta a funcionar.</li>
       </ul>

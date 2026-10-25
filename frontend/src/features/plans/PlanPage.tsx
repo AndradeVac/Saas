@@ -70,7 +70,7 @@ export function PlanPage() {
       {status.billing_status !== 'NONE' && <BillingCard />}
 
       <h2 id="assinar" className="section-heading">{status.billing_status === 'ACTIVE' ? 'Trocar de plano' : 'Escolha o seu plano'}</h2>
-      {catalog.online_billing && (
+      {catalog.online_billing && catalog.annual_billing && (
         <div className="segmented choice cycle-toggle" role="radiogroup" aria-label="Forma de cobrança">
           <button className={cycle === 'MONTHLY' ? 'active' : ''} onClick={() => setCycle('MONTHLY')} role="radio" aria-checked={cycle === 'MONTHLY'}>Mensal</button>
           <button className={cycle === 'YEARLY' ? 'active' : ''} onClick={() => setCycle('YEARLY')} role="radio" aria-checked={cycle === 'YEARLY'}>Anual · 2 meses grátis</button>
