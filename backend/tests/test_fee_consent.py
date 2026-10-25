@@ -42,3 +42,16 @@ def test_marketing_consent_comes_only_from_the_customer(make_tenant):
     assert yes["marketing_opt_in"] is True and no["marketing_opt_in"] is False
     assert shop.patch(f"/customers/{no['id']}", {"marketing_opt_in": True}).status_code == 422  # staff cannot opt someone in
     assert shop.patch(f"/customers/{yes['id']}", {"marketing_opt_in": False}).json()["marketing_opt_in"] is False
+
+
+def test_lgpd_export_and_forget_a_customer(make_tenant):
+    shop = make_tenant()
+    _setup(shop)
+    product = shop.add_product(price="10.00")
+    shop.public_order(product["id"], phone="11955550009", customer_name="Pessoa Real", service_type="TAKEAWAY", payment_method="CASH")
+    data = shop.get("/tenant/export").json()
+    assert data["store"]["slug"] == shop.slug and data["orders"] and any(c["phone"] == "11955550009" for c in data["customers"])
+    customer = next(c for c in shop.get("/customers").json()["items"] if c["phone"] == "11955550009")
+    forgotten = shop.post(f"/customers/{customer['id']}/anonymize").json()
+    assert forgotten["phone"] is None and "removido" in forgotten["name"]
+    assert not any(c["phone"] == "11955550009" for c in shop.get("/tenant/export").json()["customers"])

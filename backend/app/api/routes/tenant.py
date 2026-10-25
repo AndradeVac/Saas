@@ -58,3 +58,37 @@ def pix_preview(
     if not is_valid_pix_key(key):
         raise BusinessRuleError("Chave PIX inválida. Use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória.")
     return PixCode(code=brcode(normalize_pix_key(key), amount, tenant.name, tenant.city or "BRASIL", "TESTE"), amount=amount)
+
+
+@router.get("/export")
+def export_account(tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), _: User = Depends(admin_only)):
+    """LGPD portability: everything the store has here, in one JSON file (menu, customers, orders)."""
+    import json
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models.category import Category
+    from app.models.customer import Customer
+    from app.models.order import Order
+    from app.models.product import Product
+
+    def rows(model, *options):
+        return db.scalars(select(model).where(model.tenant_id == tenant.id).options(*options)).all()
+
+    data = {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "store": TenantSettingsResponse.model_validate(tenant).model_dump(mode="json"),
+        "categories": [{"id": str(c.id), "name": c.name, "active": c.active} for c in rows(Category)],
+        "products": [{"id": str(p.id), "category_id": str(p.category_id), "name": p.name, "description": p.description, "price": str(p.price),
+                      "cost": str(p.cost) if p.cost is not None else None, "active": p.active, "options": p.options} for p in rows(Product)],
+        "customers": [{"id": str(c.id), "name": c.name, "phone": c.phone, "notes": c.notes, "marketing_opt_in": c.marketing_opt_in,
+                       "created_at": c.created_at.isoformat()} for c in rows(Customer)],
+        "orders": [{"number": o.order_number, "created_at": o.created_at.isoformat(), "status": o.status.value, "service": o.service_type.value,
+                    "payment": o.payment_method.value, "paid": o.payment_status.value, "customer_id": str(o.customer_id), "total": str(o.total),
+                    "items": [{"name": i.product_name, "quantity": i.quantity, "total": str(i.total_price), "options": i.options} for i in o.items]}
+                   for o in rows(Order, selectinload(Order.items))],
+    }
+    return Response(json.dumps(data, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": f"attachment; filename={tenant.slug}-dados.json"})

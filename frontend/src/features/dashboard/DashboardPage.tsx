@@ -9,6 +9,7 @@ import { apiErrorMessage, isPlanLimitError } from '../../services/api'
 import { downloadDashboard, getDashboard, type Dashboard, type Period } from '../../services/analytics'
 import { getProducts } from '../../services/catalog'
 import { getTenantSettings } from '../../services/tenant'
+import { pushState } from '../../lib/push'
 import { Bars, ColumnChart, LineChart } from './Charts'
 import { usePlan } from '../plans/PlanProvider'
 
@@ -56,18 +57,21 @@ export function DashboardPage() {
   }, [period, start, end])
 
   useEffect(() => {
-    Promise.all([getTenantSettings(), getProducts(), getDashboard('all')]).then(([settings, products, all]) => {
+    Promise.all([getTenantSettings(), getProducts(), getDashboard('all'), pushState().catch(() => 'unsupported' as const)]).then(([settings, products, all, push]) => {
       setSteps([
         { done: Boolean(settings.logo_url), text: 'Envie a logo e escolha a cor da sua marca', to: '/painel/configuracoes?aba=look', cta: 'Personalizar' },
         { done: products.filter((p) => p.active).length >= 3, text: 'Cadastre seus primeiros produtos (pelo menos 3)', to: '/painel/produtos', cta: 'Cadastrar' },
         { done: Boolean(settings.phone && settings.address), text: 'Informe telefone e endereço do negócio', to: '/painel/configuracoes', cta: 'Preencher' },
         { done: settings.hours_mode === 'SCHEDULE', text: 'Defina os horários de funcionamento', to: '/painel/configuracoes?aba=hours', cta: 'Definir' },
+        { done: Boolean(settings.pix_key), text: 'Cadastre a chave PIX e faça o teste de R$ 1,00 (o cliente paga pelo QR Code com o valor exato)', to: '/painel/configuracoes?aba=orders', cta: 'Cadastrar PIX' },
+        ...(push === 'unsupported' ? [] : [{ done: push === 'on', text: 'Ative os avisos de pedido novo no seu celular', to: '/painel/pedidos', cta: 'Ativar avisos' }]),
         ...(settings.tabs_enabled
           ? [
             { done: readJson<boolean>(`mesa:${settings.slug}:qr-generated`, false), text: 'Gere e imprima os QR Codes das mesas', to: '/painel/configuracoes?aba=tables', cta: 'Gerar QR Codes' },
             { done: all.order_count > 0, text: 'Faça um pedido de teste: leia o QR Code de uma mesa com o celular', to: '/painel/configuracoes?aba=tables', cta: 'Ver QR Codes' },
           ]
           : [{ done: all.order_count > 0, text: 'Receba o primeiro pedido (faça um teste pelo seu cardápio)', to: '/painel/pedidos/novo', cta: 'Lançar pedido' }]),
+        { done: readJson<boolean>(`mesa:${settings.slug}:qr-generated`, false), text: 'Baixe o cartaz e o post para divulgar o seu cardápio', to: '/painel/configuracoes?aba=tables', cta: 'Baixar material' },
       ])
     }).catch(() => setSteps(null))
   }, [])

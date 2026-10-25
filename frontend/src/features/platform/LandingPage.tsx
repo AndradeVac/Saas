@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { formatMoney, slugify } from '../../lib/format'
 import { APP_NAME, tenantUrl } from '../../lib/tenant'
+import { LEGAL } from '../../lib/legal'
 import { getPlanCatalog, paidPlans, salesLink, type PlanCatalog } from '../../services/plans'
 
 // Account shown inside the phone mockup; `python -m scripts.seed_demo` creates it locally.
@@ -213,6 +214,7 @@ export function LandingPage() {
 
       <footer className="landing-footer">
         © {new Date().getFullYear()} {APP_NAME} · <Link to="/termos">Termos de Uso</Link> · <Link to="/privacidade">Política de Privacidade</Link>
+        <br /><small>{LEGAL.companyName} · {LEGAL.document}{LEGAL.privacyEmail ? ` · ${LEGAL.privacyEmail}` : ''}</small>
       </footer>
     </div>
   )

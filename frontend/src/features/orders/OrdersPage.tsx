@@ -84,15 +84,16 @@ export function OrdersPage() {
         actions={
           <div className="board-tools">
             <span className={`live-pill ${offline ? 'err' : ''}`}><i />{offline ? 'Sem conexão' : 'Ao vivo'}</span>
-            <button className="btn" onClick={() => setSoundOn(!soundOn)} aria-pressed={soundOn} title="Som de novo pedido">
-              {soundOn ? <Bell size={16} /> : <BellOff size={16} />} Som {soundOn ? 'ligado' : 'desligado'}
-            </button>
-            {push !== 'on' && push !== 'unsupported' && (
-              <button className="btn" onClick={() => void turnOnPush()} title="Receba os pedidos no celular, mesmo com o painel fechado"><BellRing size={16} /> Avisar no celular</button>
-            )}
-            <button className="btn" onClick={() => { setAutoPrint(!autoPrint); toast.message(autoPrint ? 'Impressão automática desligada.' : 'Cada pedido novo vai abrir a impressão da comanda.') }} aria-pressed={autoPrint} title="Imprimir a comanda de cada pedido novo">
-              <Printer size={16} /> {autoPrint ? 'Impressão automática' : 'Imprimir automático'}
-            </button>
+            <details className="tools-menu">
+              <summary className="btn">{soundOn ? <Bell size={16} /> : <BellOff size={16} />} Avisos{push !== 'on' && push !== 'unsupported' && <i className="tools-dot" />}</summary>
+              <div className="tools-pop">
+                <button className="btn block" onClick={() => setSoundOn(!soundOn)} aria-pressed={soundOn}>{soundOn ? <Bell size={16} /> : <BellOff size={16} />} Som {soundOn ? 'ligado' : 'desligado'}</button>
+                {push !== 'unsupported' && (
+                  <button className="btn block" disabled={push === 'on'} onClick={() => void turnOnPush()}><BellRing size={16} /> {push === 'on' ? 'Avisos no celular ativos' : 'Avisar no celular'}</button>
+                )}
+                <button className="btn block" aria-pressed={autoPrint} onClick={() => { setAutoPrint(!autoPrint); toast.message(autoPrint ? 'Impressão automática desligada.' : 'Cada pedido novo vai abrir a impressão da comanda.') }}><Printer size={16} /> Impressão automática: {autoPrint ? 'ligada' : 'desligada'}</button>
+              </div>
+            </details>
             <Link className="btn" to="/painel/cozinha"><ChefHat size={16} /> Tela da cozinha</Link>
             <button className="btn primary" onClick={() => navigate('/painel/pedidos/novo')}><Plus size={16} /> Novo pedido</button>
           </div>

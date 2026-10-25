@@ -961,3 +961,11 @@ a.landing-logo { text-decoration: none; }
 .waiter-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
 .waiter-called { margin: 10px 0; }
 .waiter-call { border-color: var(--warn) !important; background: var(--warn-bg) !important; }
+/* Orders: alerts menu */
+.tools-menu { position: relative; }
+.tools-menu summary { list-style: none; cursor: pointer; position: relative; }
+.tools-menu summary::-webkit-details-marker { display: none; }
+.tools-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+.tools-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 260px; display: grid; gap: 6px; padding: 8px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-3); }
+.tools-pop .btn { justify-content: flex-start; }
+.plan-lose { margin: 0 0 10px; color: var(--warn); }
