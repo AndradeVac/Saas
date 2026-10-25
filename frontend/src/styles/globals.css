@@ -210,7 +210,7 @@ img { max-width: 100%; }
 .empty-state { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 44px 20px; }
 .empty-state p { max-width: 380px; margin: 0 0 8px; }
 .empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; margin-bottom: 6px; }
-.skeleton-stack { display: grid; gap: 10px; padding: 8px 0; }
+.skeleton-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 8px 0; }
 .skeleton { border-radius: 8px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }

@@ -7,6 +7,7 @@ import { readJson, writeJson } from '../../lib/storage'
 import { apiErrorMessage } from '../../services/api'
 import { checkCoupon, createPublicOrder, type MenuProduct } from '../../services/publicMenu'
 import { mediaUrl } from '../../lib/media'
+import { platformUrl } from '../../lib/tenant'
 import type { PaymentMethod, PublicTenant, ServiceType } from '../../types'
 import { cartSubtotal, type CartLine } from './cart'
 
@@ -326,8 +327,10 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
       )}
       <label className="check-line">
         <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
-        <span>Quero receber novidades e promoções de {tenant.name.trim()} pelo WhatsApp.</span>
+        <span>Quero receber novidades e promoções de {tenant.name.trim()} pelo WhatsApp. Posso pedir para parar quando quiser.</span>
       </label>
+      {/* LGPD art. 9: say what the data is for at the moment it is collected. */}
+      <p className="muted"><small>Seu nome e telefone são usados por {tenant.name.trim()} para preparar e avisar sobre este pedido. <a href={platformUrl('/privacidade')} target="_blank" rel="noreferrer">Política de Privacidade</a></small></p>
       {belowMinimum && minOrder > 0 && <div className="alert warn">Pedido mínimo de {formatMoney(minOrder)}. Faltam {formatMoney(minOrder - subtotal)}.</div>}
       {error && <div className="alert error" role="alert">{error}</div>}
         </>
