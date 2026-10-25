@@ -146,40 +146,37 @@ conhecesse entraria nas contas demo. As senhas geradas aparecem uma vez na saíd
 
 ## 7b. Backup e restauração
 
-Uma vez por dia, uma máquina agendada do Fly (app `mesa-digital-backup`, código em `backup/`) copia o schema
-`mesa` da produção, **restaura a cópia num PostgreSQL 17 temporário para provar que funciona**, criptografa
-(AES-256) e envia para o **Cloudflare R2** (bucket `mesa-digital-backups`), apagando cópias com mais de 30 dias.
-Se falhar, manda um e-mail (Resend) para `ALERT_EMAIL`.
+**Ligado desde 25/10/2026.** Uma vez por dia, a máquina agendada `backup-diario` (app `mesa-digital-backup`, código em
+`backup/`) copia o schema `mesa`, **restaura a cópia num PostgreSQL 17 temporário para provar que funciona**,
+criptografa (AES-256) e guarda no **disco do Fly** (volume `backups`, 1 GB, em `/data/backups`), mantendo 30 dias.
+O Fly ainda tira snapshots diários do disco (5 guardados). Se o R2 for configurado (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` nos segredos do app), cada cópia também vai para o R2, fora do Fly.
 
-- **A senha (`BACKUP_PASSPHRASE`) está em `backend/.env.production.secret`. Guarde-a também num gerenciador
-  de senhas: sem ela os backups não abrem.**
-- Alternativa manual: `.github/workflows/backup.yml` (Actions → Backup do banco → Run workflow).
+- **A senha (`BACKUP_PASSPHRASE`) está em `backend/.env.production.secret`. Guarde-a num gerenciador de senhas: sem ela
+  os backups não abrem.**
+- Ver o resultado: `fly logs -a mesa-digital-backup` (procure "Restaurado com sucesso" e "Backup concluído").
+- Rodar agora: `fly machine start <id> -a mesa-digital-backup` (`fly machines list -a mesa-digital-backup` mostra o id).
+- Atualizar o script: `cd backup && fly deploy --build-only --push --image-label latest -a mesa-digital-backup` e
+  `fly machine update <id> --image registry.fly.io/mesa-digital-backup:latest -a mesa-digital-backup`.
 
-Instalação (uma vez):
+Baixar uma cópia para o computador:
 
 ```bash
-cd backup
-fly apps create mesa-digital-backup
-fly secrets set -a mesa-digital-backup --stage BACKUP_DATABASE_URL='postgresql://...' BACKUP_PASSPHRASE='...' \
-  R2_ACCOUNT_ID='...' R2_ACCESS_KEY_ID='...' R2_SECRET_ACCESS_KEY='...' RESEND_API_KEY='...' ALERT_EMAIL='...'
-fly deploy --build-only --push --image-label latest
-fly machine run registry.fly.io/mesa-digital-backup:latest --schedule daily --restart no \
-  --vm-memory 512 --region gru -a mesa-digital-backup
+fly machine update <id> -a mesa-digital-backup --command "sleep 900" --yes   # mantém a máquina ligada 15 min
+fly machine start <id> -a mesa-digital-backup
+fly ssh sftp get /data/backups/mesa-digital-AAAA-MM-DD.dump.gpg -a mesa-digital-backup
+fly machine update <id> -a mesa-digital-backup --command "" --yes            # volta ao backup normal
 ```
 
-Depois de mudar `backup.sh`: `fly deploy --build-only --push --image-label latest` e
-`fly machine update <id> --image registry.fly.io/mesa-digital-backup:latest -a mesa-digital-backup`.
-Rodar agora: `fly machine start <id> -a mesa-digital-backup`; ver o resultado: `fly logs -a mesa-digital-backup`.
-
-Restaurar (precisa do cliente do PostgreSQL 17 e do gpg; baixe o arquivo no painel do R2):
+Restaurar (precisa do cliente do PostgreSQL 17 e do gpg):
 
 ```bash
 gpg --decrypt mesa-digital-AAAA-MM-DD.dump.gpg > backup.dump          # pede a senha
-# Num banco vazio (ex.: novo projeto Supabase ou branch do Neon):
-pg_restore --dbname="postgresql://...novo-banco..." --no-owner --no-privileges backup.dump
+pg_restore --dbname="postgresql://...banco-novo..." --no-owner --no-privileges backup.dump
 ```
 
 Depois de restaurar num banco novo, aponte o `DATABASE_URL` do Fly para ele e rode `fly deploy`.
+Alternativa manual: `.github/workflows/backup.yml`.
 
 ## 7c. Aviso de erros (Sentry)
 
