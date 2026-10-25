@@ -25,6 +25,7 @@ class PlanCatalog(BaseModel):
     online_billing: bool = False
     # Annual plan: months charged for 12 months of use (10 = two months free).
     annual_months_charged: int = 10
+    annual_billing: bool = False
     # Automatic WhatsApp to customers is configured on the platform (else the panel offers a one-tap WhatsApp link).
     whatsapp_auto: bool = False
     # True when "Importar cardápio por foto" is available (Claude API key set).

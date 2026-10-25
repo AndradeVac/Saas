@@ -194,6 +194,7 @@ def plan_catalog():
         feature_names=FEATURE_NAMES,
         trial_days=settings.trial_days,
         online_billing=bool(settings.asaas_api_key),
+        annual_billing=settings.annual_billing,
         menu_import=bool(settings.anthropic_api_key),
         whatsapp_auto=bool(settings.whatsapp_token and settings.whatsapp_phone_number_id),
         sales_whatsapp="".join(ch for ch in settings.sales_whatsapp if ch.isdigit()),

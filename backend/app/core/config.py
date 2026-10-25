@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     asaas_webhook_token: str = ""
     # Days a paid plan keeps working after a missed payment before orders stop.
     billing_grace_days: int = 5
+    # Annual plan (12 months for the price of 10). Off for now: only the monthly plan is sold (decided 2026-10-25).
+    annual_billing: bool = False
+    # Late payment on subscriptions (Asaas): fine on the amount and interest per month. 2% + 1%/month is the
+    # usual market rate and stays within CDC art. 52 §1 in case a court treats the restaurant as a consumer.
+    billing_fine_percent: float = 2.0
+    billing_interest_percent_month: float = 1.0
     # Claude (Anthropic) reads menu photos into a draft of categories and products. Empty = feature hidden.
     anthropic_api_key: str = ""
     # Web Push (new-order alerts on staff phones). Both empty = off. Private key: base64url PKCS8 DER.

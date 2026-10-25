@@ -143,7 +143,8 @@ def test_courtesy_gives_the_full_plan_until_a_date(make_tenant, client, fake_asa
     assert status["billing_status"] == "ACTIVE" and status["plan"]["key"] == "essencial" and status["billing_blocked"] is False
 
 
-def test_annual_plan_charges_ten_months_and_lasts_a_year(make_tenant, client, fake_asaas):
+def test_annual_plan_charges_ten_months_and_lasts_a_year(make_tenant, client, fake_asaas, monkeypatch):
+    monkeypatch.setattr(settings, "annual_billing", True)  # off in production for now
     shop = make_tenant(plan=None)
     response = shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com", "cycle": "YEARLY"})
     assert response.status_code == 200
@@ -180,3 +181,21 @@ def test_late_payment_brings_back_a_closed_account(make_tenant, client, fake_asa
     webhook(client, "PAYMENT_RECEIVED", sub, "evt_late")
     row = tenant_row(shop.slug)
     assert row.status.value == "ACTIVE" and row.closed_at is None
+
+
+def test_only_the_monthly_plan_is_sold_for_now(make_tenant, fake_asaas, client):
+    shop = make_tenant(plan=None)
+    refused = shop.post("/billing/subscribe", {"plan": "essencial", "document": CNPJ, "email": "dono@x.com", "cycle": "YEARLY"})
+    assert refused.status_code == 422 and fake_asaas["subscriptions"] == []
+    assert client.get("/platform/plans").json()["annual_billing"] is False
+
+
+def test_subscription_charges_late_fees(monkeypatch):
+    """2% fine + 1% a month after the due date, on new subscriptions and on plan changes."""
+    sent = []
+    monkeypatch.setattr(asaas, "_request", lambda method, path, body=None: sent.append(body) or {"id": "sub_x"})
+    asaas.create_subscription("cus_1", "79.90", "Mesa Digital · plano Essencial", "ref", "2026-11-01")
+    asaas.update_subscription("sub_x", "149.90", "Mesa Digital · plano Profissional")
+    for body in sent:
+        assert body["fine"] == {"value": 2.0, "type": "PERCENTAGE"} and body["interest"] == {"value": 1.0}
+    assert sent[0]["billingType"] == "UNDEFINED"  # PIX, boleto or card: the customer chooses

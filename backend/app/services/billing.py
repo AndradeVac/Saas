@@ -79,6 +79,8 @@ class BillingService:
             raise BusinessRuleError("Informe um CPF ou CNPJ válido.")
         if cycle not in ("MONTHLY", "YEARLY"):
             raise BusinessRuleError("Escolha mensal ou anual.")
+        if cycle == "YEARLY" and not settings.annual_billing:
+            raise BusinessRuleError("Por enquanto só temos o plano mensal.")
         # Annual: 12 months for the price of 10.
         value = f"{(plan.price * ANNUAL_MONTHS_CHARGED if cycle == 'YEARLY' else plan.price):.2f}"
         description = f"Mesa Digital · plano {plan.name}{' (anual)' if cycle == 'YEARLY' else ''}"
