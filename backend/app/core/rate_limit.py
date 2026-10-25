@@ -30,11 +30,13 @@ _UPSERT = text("""
 
 
 class RateLimiter:
-    def __init__(self, max_requests: int, window_seconds: int, per_tenant: bool = True, name: str = ""):
+    def __init__(self, max_requests: int, window_seconds: int, per_tenant: bool = True, name: str = "", shared: bool = True):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.per_tenant = per_tenant
         self.name = name or f"rl{max_requests}-{window_seconds}"
+        # Shared (Postgres) for sensitive actions; high-volume read-only lookups stay in memory to spare connections.
+        self.shared = shared
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = Lock()
 
@@ -62,7 +64,7 @@ class RateLimiter:
     def __call__(self, request: Request) -> None:
         tenant = request.headers.get("x-tenant", "").strip().lower()[:40] if self.per_tenant else ""
         key = f"{client_ip(request)}|{tenant}"
-        shared = self._shared_hits(key)
+        shared = self._shared_hits(key) if self.shared else None
         if shared is not None:
             if shared > self.max_requests:
                 self._refuse()
@@ -105,7 +107,7 @@ def purge_old_counters() -> None:
 login_rate_limit = RateLimiter(max_requests=10, window_seconds=60, name="login")
 signup_rate_limit = RateLimiter(max_requests=5, window_seconds=600, per_tenant=False, name="signup")
 password_reset_rate_limit = RateLimiter(max_requests=5, window_seconds=900, name="password_reset")
-slug_check_rate_limit = RateLimiter(max_requests=30, window_seconds=60, per_tenant=False, name="slug_check")
+slug_check_rate_limit = RateLimiter(max_requests=30, window_seconds=60, per_tenant=False, name="slug_check", shared=False)
 public_order_rate_limit = RateLimiter(max_requests=20, window_seconds=60, name="public_order")
-public_lookup_rate_limit = RateLimiter(max_requests=60, window_seconds=60, name="public_lookup")
+public_lookup_rate_limit = RateLimiter(max_requests=60, window_seconds=60, name="public_lookup", shared=False)
 menu_import_rate_limit = RateLimiter(max_requests=6, window_seconds=3600, name="menu_import")  # each reading costs money

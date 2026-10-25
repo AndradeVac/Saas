@@ -65,6 +65,8 @@ class TabAlerts(BaseModel):
     late_orders: int
     # PIX payments reported by customers that staff still has to check.
     payments_to_confirm: int = 0
+    # The table called the waiter: reason (GARCOM, CONTA, GUARDANAPO, TALHERES, OUTRO) until someone answers.
+    waiter_call: str | None = None
     minutes_open: int
     minutes_since_last_order: int | None
 
@@ -98,10 +100,15 @@ class PublicTab(BaseModel):
     requested_payment_method: PaymentMethod | None
     split_count: int | None
     service_fee_waived: bool = False
+    waiter_call: str | None = None
     last_order_at: datetime | None
     totals: TabTotals
     orders: list[TabOrder]
     payments: list[TabPaymentOut] = []
+
+
+class WaiterCall(BaseModel):
+    reason: str = Field(pattern="^(GARCOM|CONTA|GUARDANAPO|TALHERES|OUTRO)$")
 
 
 class ServiceFeeChoice(BaseModel):

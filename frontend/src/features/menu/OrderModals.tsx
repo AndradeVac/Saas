@@ -226,6 +226,7 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
       {status === 'RECEIVED' && order.payment_status !== 'PAID' && !order.table_label && (
         <button className={`btn block ${confirmCancel ? 'danger' : 'ghost'}`} onClick={() => void cancel()}>{confirmCancel ? 'Toque de novo para confirmar o cancelamento' : 'Cancelar pedido'}</button>
       )}
+      <button className="btn ghost block" onClick={() => { void navigator.clipboard?.writeText(`${window.location.origin}/?pedido=${token}`); toast.success('Link do pedido copiado. Abre em qualquer celular.') }}><Copy size={15} /> Copiar link do pedido</button>
       {whatsapp && <a className="btn block" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Falar com o estabelecimento</a>}
     </Modal>
   )

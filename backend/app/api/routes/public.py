@@ -37,7 +37,7 @@ from app.schemas.public import (
 )
 from app.core.plans import public_tenant
 from app.core.tables import normalize_table_label, valid_table_code
-from app.schemas.tab import PixCode, PixReport, PublicTab, ServiceFeeChoice, TabCloseRequest
+from app.schemas.tab import PixCode, PixReport, PublicTab, ServiceFeeChoice, TabCloseRequest, WaiterCall
 from app.services.coupon import CouponService
 from app.services.tab import TabService
 from app.services.order import OrderService
@@ -199,6 +199,18 @@ def request_tab_close(token: UUID, data: TabCloseRequest, tenant: Tenant = Depen
     """The customer asks for the bill: the table lights up on the staff's Mesas screen."""
     service = TabService(db, tenant.id)
     return service.to_public(service.request_close(token, tenant, data.payment_method, data.split_count))
+
+
+WAITER_REASONS = {"GARCOM": "chamou o garçom", "CONTA": "pediu a conta", "GUARDANAPO": "pediu guardanapo", "TALHERES": "pediu talheres", "OUTRO": "precisa de ajuda"}
+
+
+@router.post("/tabs/{token}/call", response_model=PublicTab, dependencies=[Depends(public_order_rate_limit)])
+def call_waiter(token: UUID, data: WaiterCall, background: BackgroundTasks, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
+    """"Chamar garçom" from the table: alerts the floor (Mesas screen, sound and staff phones)."""
+    service = TabService(db, tenant.id)
+    tab = service.call_waiter(service.get_by_token(token), data.reason)
+    background.add_task(push.notify_tenant, tenant.id, f"Mesa {tab.table_label} {WAITER_REASONS[data.reason]}", "Toque para ver as mesas", "/painel/mesas")
+    return service.to_public(tab)
 
 
 @router.post("/tabs/{token}/service-fee", response_model=PublicTab, dependencies=[Depends(public_order_rate_limit)])

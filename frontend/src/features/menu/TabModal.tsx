@@ -6,7 +6,7 @@ import { Modal } from '../../components/ui/Modal'
 import { formatMoney, formatTime, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
 import { readJson } from '../../lib/storage'
-import { getTabPix, reportTabPix, requestTabClose, setTabServiceFee, tabStatusLabels, type PublicTab, type TabOrder } from '../../services/tabs'
+import { callWaiter, getTabPix, reportTabPix, requestTabClose, setTabServiceFee, tabStatusLabels, WAITER_REASONS, type PublicTab, type TabOrder } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod, PublicTenant } from '../../types'
 
 type Props = {
@@ -28,6 +28,16 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
   const [payment, setPayment] = useState<PaymentMethod>(tab.requested_payment_method ?? tenant.accepted_payments[0])
   const [split, setSplit] = useState(tab.split_count ?? 1)
   const [mine, setMine] = useState<Set<string>>(new Set())
+  const [calling, setCalling] = useState(false)
+  async function call(reason: string) {
+    try {
+      onUpdated(await callWaiter(tab.public_token, reason))
+      setCalling(false)
+      toast.success('Pronto! A equipe já foi avisada.')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível chamar o garçom.'))
+    }
+  }
   const [sending, setSending] = useState(false)
 
   const live = tab.orders.filter((order) => order.status !== 'CANCELLED')
@@ -228,6 +238,19 @@ export function TabModal({ tab, tenant, highlight, onClose, onOrderMore, onRepea
         <span className={`badge tab-${tab.status.toLowerCase()}`}>{tabStatusLabels[tab.status]}</span>
         <span className="muted">Comanda #{tab.number}</span>
       </div>
+
+      {(tab.status === 'OPEN' || tab.status === 'CLOSING' || tab.status === 'PENDING') && (
+        tab.waiter_call
+          ? <div className="alert ok waiter-called"><span>🙋 Chamado enviado: <strong>{WAITER_REASONS[tab.waiter_call]}</strong>. Já estamos indo!</span></div>
+          : calling
+            ? (
+              <div className="waiter-options">
+                {Object.entries(WAITER_REASONS).map(([key, text]) => <button key={key} className="btn" onClick={() => void call(key)}>{text}</button>)}
+                <button className="btn ghost" onClick={() => setCalling(false)}>Cancelar</button>
+              </div>
+            )
+            : <button className="btn block waiter-btn" onClick={() => setCalling(true)}>🙋 Chamar o garçom</button>
+      )}
 
       {tab.status === 'PENDING' && (
         <div className="alert info">O garçom vai confirmar a sua mesa em instantes. Depois disso o pedido segue para a cozinha.</div>

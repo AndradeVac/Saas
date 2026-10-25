@@ -29,6 +29,7 @@ export type PublicTab = {
   requested_payment_method: PaymentMethod | null
   split_count: number | null
   service_fee_waived: boolean
+  waiter_call: string | null
   last_order_at: string | null
   totals: TabTotals
   orders: TabOrder[]
@@ -38,6 +39,7 @@ export type PublicTab = {
 export type TabAlerts = {
   needs_approval: boolean
   wants_to_close: boolean
+  waiter_call: string | null
   idle: boolean
   late_orders: number
   payments_to_confirm: number
@@ -82,6 +84,9 @@ export const getTableQrCodes = async (labels: string[]) =>
   (await api.get<TableQr[]>('/tabs/qr-codes', { params: { labels }, paramsSerializer: { indexes: null } })).data
 
 // PIX straight to the restaurant's key (whole bill or one person's share)
+export const WAITER_REASONS: Record<string, string> = { GARCOM: 'Chamar o garçom', CONTA: 'Trazer a conta', GUARDANAPO: 'Guardanapo', TALHERES: 'Talheres', OUTRO: 'Outra coisa' }
+export const callWaiter = async (token: string, reason: string) => (await api.post<PublicTab>(`/public/tabs/${token}/call`, { reason })).data
+export const answerWaiterCall = async (tabId: string) => (await api.post<unknown>(`/tabs/${tabId}/call/answer`)).data
 export const setTabServiceFee = async (token: string, waived: boolean) =>
   (await api.post<PublicTab>(`/public/tabs/${token}/service-fee`, { waived })).data
 export const setStaffTabServiceFee = async (tabId: string, waived: boolean) =>

@@ -955,3 +955,9 @@ a.landing-logo { text-decoration: none; }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .status-icon, .aob-icon, .status-bar b::after, .status-live i { animation: none !important; } }
 .active-order-bar.tone-ready .aob-bar b { width: 100% !important; }
+.menu-more { display: inline-block; margin-top: 8px; font-size: 13.5px; }
+/* Call the waiter */
+.waiter-btn { margin: 10px 0; }
+.waiter-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.waiter-called { margin: 10px 0; }
+.waiter-call { border-color: var(--warn) !important; background: var(--warn-bg) !important; }
