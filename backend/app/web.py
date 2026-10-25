@@ -50,6 +50,7 @@ async def start_background_jobs() -> None:
 
     from app.core.rate_limit import purge_old_counters
     from app.services import lifecycle
+    from app.services import closure
     from app.services.access_log import purge_old_access_logs
     from app.services.tab import expire_forgotten_tabs
 
@@ -65,6 +66,7 @@ async def start_background_jobs() -> None:
                 await run_in_threadpool(purge_old_counters)
                 await run_in_threadpool(expire_forgotten_tabs)
                 await run_in_threadpool(purge_old_access_logs)
+                await run_in_threadpool(closure.run)
             except Exception:  # never let the loop die
                 import logging
 

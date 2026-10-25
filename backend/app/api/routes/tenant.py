@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -93,3 +94,24 @@ def export_account(tenant: Tenant = Depends(get_tenant), db: Session = Depends(g
     }
     return Response(json.dumps(data, ensure_ascii=False, indent=1), media_type="application/json",
                     headers={"Content-Disposition": f"attachment; filename={tenant.slug}-dados.json"})
+
+
+class CloseAccountRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=200)
+    confirm_slug: str = Field(min_length=1, max_length=60)
+
+
+@router.post("/close", status_code=204)
+def close_account(data: CloseAccountRequest, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), actor: User = Depends(admin_only)):
+    """The owner closes the store: it goes offline now and its data is deleted 30 days later (see services.closure)."""
+    from app.core.config import settings
+    from app.services import closure
+    from app.services.user import UserService
+
+    if not UserService(db, tenant.id).verify_password(data.password, actor.password_hash):
+        raise BusinessRuleError("Senha incorreta.")
+    if data.confirm_slug.strip().lower() != tenant.slug:
+        raise BusinessRuleError(f"Digite o endereço da loja ({tenant.slug}) para confirmar.")
+    if tenant.slug in {s.strip() for s in settings.demo_slugs.split(",")}:
+        raise BusinessRuleError("Lojas de demonstração não podem ser encerradas.")
+    closure.close_tenant(db, tenant, "REQUEST", actor)

@@ -11,7 +11,7 @@ import { Toggle } from '../../components/ui/Toggle'
 import { Modal } from '../../components/ui/Modal'
 import { DAYS, businessTypeLabels, formatDate, maskPhone, paymentMethodLabels, realPaymentMethods, serviceLabels } from '../../lib/format'
 import { tenantUrl } from '../../lib/tenant'
-import { apiErrorMessage } from '../../services/api'
+import { api, apiErrorMessage } from '../../services/api'
 import { changePassword } from '../../services/auth'
 import { useSearchParams } from 'react-router-dom'
 import { writeJson } from '../../lib/storage'
@@ -19,6 +19,7 @@ import { getTableQrCodes } from '../../services/tabs'
 import { getMediaUsage, getPixPreview, getTenantSettings, updateTenantSettings, type UploadResult } from '../../services/tenant'
 import type { BusinessType, DayKey, DeliveryZone, OpeningHours, ServiceType, TenantSettings } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
+import { useAuth } from '../auth/AuthProvider'
 
 type Tab = 'business' | 'look' | 'hours' | 'orders' | 'tables' | 'account'
 const tabs: Array<{ key: Tab; label: string }> = [
@@ -532,6 +533,50 @@ function AccountTab({ settings }: { settings: TenantSettings }) {
         </div>
         <button className="btn" disabled={busy}>{busy ? 'Alterando…' : 'Alterar senha'}</button>
       </form>
+      <CloseAccount slug={settings.slug} />
     </>
+  )
+}
+
+/** Termos de Uso, seção 8: the owner closes the store; the data is deleted 30 days later. */
+function CloseAccount({ slug }: { slug: string }) {
+  const { logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function close(event: React.FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      await api.post('/tenant/close', { password, confirm_slug: typed })
+      toast.success('Conta encerrada. Enviamos a confirmação por e-mail.', { duration: 8000 })
+      logout()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível encerrar a conta.'))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3>Encerrar conta</h3>
+      <p className="card-sub">O cardápio sai do ar na hora e as cobranças param. Os dados ficam guardados por 30 dias (para você mudar de ideia) e depois são apagados de vez. Baixe seus dados antes, no botão “Exportar todos os dados” acima.</p>
+      {!open ? (
+        <button type="button" className="btn ghost" onClick={() => setOpen(true)}>Quero encerrar minha conta</button>
+      ) : (
+        <form onSubmit={close}>
+          <div className="grid-2">
+            <label className="field"><span>Sua senha</span><input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+            <label className="field"><span>Digite <strong>{slug}</strong> para confirmar</span><input required autoCapitalize="none" value={typed} onChange={(e) => setTyped(e.target.value)} /></label>
+          </div>
+          <div className="row">
+            <button type="button" className="btn" onClick={() => { setOpen(false); setPassword(''); setTyped('') }}>Cancelar</button>
+            <button className="btn danger" disabled={busy || typed.trim().toLowerCase() !== slug}>{busy ? 'Encerrando…' : 'Encerrar conta e tirar o cardápio do ar'}</button>
+          </div>
+        </form>
+      )}
+    </div>
   )
 }

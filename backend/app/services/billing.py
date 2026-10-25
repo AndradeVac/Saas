@@ -147,6 +147,7 @@ class BillingService:
             tenant.paid_until = max(tenant.paid_until or period_end, period_end)
             tenant.billing_status, tenant.past_due_since = "ACTIVE", None
             tenant.status, tenant.plan = TenantStatus.ACTIVE, tenant.billing_plan or tenant.plan
+            tenant.closed_at = tenant.closure_reason = None  # paid after being closed: back, and never purged
         elif event == "PAYMENT_OVERDUE" and tenant.billing_status != "CANCELED":
             tenant.billing_status = "OVERDUE"
             tenant.past_due_since = tenant.past_due_since or due
