@@ -8,7 +8,7 @@ export const LEGAL = {
   companyName: '63.148.827 VINICIUS ANDRADE CASTEGLIONI',
   document: 'CNPJ 63.148.827/0001-67',
   /** E-mail for privacy requests (encarregado/DPO) and support. */
-  privacyEmail: '',
+  privacyEmail: 'contato@mesadig.com.br',
   /** City/UF whose courts settle disputes (foro). */
   forum: 'São Caetano do Sul/SP',
 }
