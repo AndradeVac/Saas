@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import allow_all_tenants, get_db
 from app.core.plans import plan_catalog
 from app.core.rate_limit import signup_rate_limit, slug_check_rate_limit
 from app.schemas.plan import PlanCatalog
@@ -28,6 +28,7 @@ def list_plans():
 
 @router.post("/signup", response_model=SignupResponse, status_code=201, dependencies=[Depends(signup_rate_limit)])
 def signup(data: SignupRequest, request: Request, background: BackgroundTasks, db: Session = Depends(get_db)):
+    allow_all_tenants(db)  # the store does not exist yet: it is created here, with its owner and first category
     tenant = TenantService(db).signup(data)
     record_access(db, request, "SIGNUP", tenant.id)
     background.add_task(lifecycle.welcome, tenant.id)

@@ -46,6 +46,9 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        if settings.db_role:  # development: create tables as the same non-bypass owner the app uses
+            connection.exec_driver_sql(f"SET ROLE {settings.db_role}")
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

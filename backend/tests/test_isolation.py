@@ -112,3 +112,37 @@ def test_coupons_reports_and_export_are_isolated(make_tenant):
     assert second.get("/analytics/cash").json()["orders"] == 0
     exported = second.get("/tenant/export").json()
     assert exported["customers"] == [] and exported["orders"] == []
+
+
+def test_database_hides_other_stores_even_without_a_tenant_filter(make_tenant):
+    """Row Level Security (migration 0023): a query that forgets `tenant_id` still only sees the request's store."""
+    from sqlalchemy import func, select, update
+
+    from app.core.database import NO_TENANT, SessionLocal, allow_all_tenants, set_tenant_scope
+    from app.models.product import Product
+    from app.models.tenant import Tenant
+
+    first, second = make_tenant(), make_tenant()
+    first.add_product("Só da primeira")
+    second.add_product("Só da segunda")
+    with SessionLocal() as db:
+        first_id = db.scalar(select(Tenant.id).where(Tenant.slug == first.slug))
+        second_id = db.scalar(select(Tenant.id).where(Tenant.slug == second.slug))
+
+    with SessionLocal() as db:
+        set_tenant_scope(db, first_id)
+        names = set(db.scalars(select(Product.name)))  # no tenant filter on purpose
+        assert "Só da primeira" in names and "Só da segunda" not in names
+        # Writing into another store is refused too: the row is simply not there.
+        assert db.execute(update(Product).where(Product.tenant_id == second_id).values(price=1)).rowcount == 0
+        db.commit()  # a new transaction keeps the scope
+        assert "Só da segunda" not in set(db.scalars(select(Product.name)))
+
+    with SessionLocal() as db:
+        set_tenant_scope(db, NO_TENANT)  # how every request session starts
+        assert db.scalar(select(func.count(Product.id))) == 0
+
+    with SessionLocal() as db:
+        allow_all_tenants(db)  # platform routes / background jobs
+        names = set(db.scalars(select(Product.name).where(Product.tenant_id.in_([first_id, second_id]))))
+        assert names == {"Só da primeira", "Só da segunda"}
