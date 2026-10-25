@@ -49,6 +49,9 @@ class Tab(Base):
     split_count: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     # Service fee is optional by law (tip): the customer or the staff can remove it from the whole bill.
     service_fee_waived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # "Chamar garçom" from the table: what the customer needs (waiter, bill, napkins...) until staff answers.
+    waiter_call: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    waiter_called_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     payment_method: Mapped[PaymentMethod | None] = mapped_column(Enum(PaymentMethod, native_enum=False, length=20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

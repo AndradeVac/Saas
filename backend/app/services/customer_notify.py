@@ -107,7 +107,7 @@ def order_changed(order_id: UUID, status: OrderStatus) -> None:
         if text is None:
             return
         title, body = text
-        _push(db, order, title, body, settings.tenant_url(tenant.slug, "/"))
+        _push(db, order, title, body, settings.tenant_url(tenant.slug, f"/?pedido={order.public_token}"))
         if order.notify_whatsapp and whatsapp_enabled() and order.tab_id is None:
             customer = db.get(Customer, order.customer_id)
             to = _whatsapp_number(customer.phone if customer else None)

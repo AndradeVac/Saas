@@ -54,6 +54,12 @@ def approve_tab(tab_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session 
     return service.to_response(service.approve(tab_id, actor), tenant)
 
 
+@router.post("/{tab_id}/call/answer", response_model=TabResponse)
+def answer_waiter_call(tab_id: UUID, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), _: User = Depends(staff_only)):
+    service = TabService(db, tenant.id)
+    return service.to_response(service.answer_call(service.get(tab_id)), tenant)
+
+
 @router.post("/{tab_id}/service-fee", response_model=TabResponse)
 def tab_service_fee(
     tab_id: UUID, data: ServiceFeeChoice, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db), _: User = Depends(staff_only),

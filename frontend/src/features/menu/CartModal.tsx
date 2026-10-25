@@ -45,6 +45,7 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
   const [couponInput, setCouponInput] = useState('')
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null)
   const [couponError, setCouponError] = useState('')
+  const [step, setStep] = useState<'items' | 'checkout'>('items')
   const [withFee, setWithFee] = useState(true)
   const [optIn, setOptIn] = useState(false)
   const [notifyWhatsapp, setNotifyWhatsapp] = useState(true)
@@ -147,17 +148,30 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
 
   return (
     <Modal
-      title="Seu pedido"
+      title={step === 'items' ? 'Seu pedido' : 'Finalizar pedido'}
       onClose={onClose}
       footer={
         <div className="stack" style={{ width: '100%' }}>
-          <div className="total-row" style={{ padding: 0 }}><span>Total</span><strong>{formatMoney(total)}</strong></div>
-          <button className="btn primary large block" disabled={sending || lines.length === 0} onClick={() => void submit()}>
-            {sending ? 'Enviando…' : onTab && table.trim() ? `Enviar para a mesa ${table.trim()}` : 'Enviar pedido'}
-          </button>
+          <div className="total-row" style={{ padding: 0 }}>
+            {step === 'items' ? <><span>Subtotal</span><strong>{formatMoney(subtotal - discount)}</strong></> : <><span>Total</span><strong>{formatMoney(total)}</strong></>}
+          </div>
+          {step === 'items' ? (
+            <button className="btn primary large block" disabled={lines.length === 0 || (belowMinimum && minOrder > 0 && !onTab)} onClick={() => { setError(''); setStep('checkout') }}>
+              Continuar
+            </button>
+          ) : (
+            <div className="row nowrap">
+              <button className="btn large" onClick={() => setStep('items')}>Voltar</button>
+              <button className="btn primary large" style={{ flex: 1 }} disabled={sending || lines.length === 0} onClick={() => void submit()}>
+                {sending ? 'Enviando…' : onTab && table.trim() ? `Enviar para a mesa ${table.trim()}` : 'Enviar pedido'}
+              </button>
+            </div>
+          )}
         </div>
       }
     >
+      {step === 'items' ? (
+        <>
       {lines.length === 0 && <div className="empty">Seu pedido está vazio.</div>}
       {lines.map((line) => (
         <div className="cart-line" key={line.key}>
@@ -192,6 +206,29 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
         </div>
       )}
 
+      <h4>Cupom de desconto</h4>
+      {coupon ? (
+        <div className="alert ok"><span><Tag size={14} style={{ verticalAlign: -2 }} /> <strong>{coupon.code}</strong> aplicado: −{formatMoney(discount)}</span><button className="btn small" onClick={() => setCoupon(null)}>Remover</button></div>
+      ) : (
+        <>
+          <div className="coupon-row">
+            <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Código do cupom" aria-label="Código do cupom" />
+            <button className="btn" disabled={!couponInput.trim()} onClick={() => void applyCoupon()}>Aplicar</button>
+          </div>
+          {couponError && <small className="field-error">{couponError}</small>}
+        </>
+      )}
+
+      <label className="field" style={{ marginTop: 14 }}><span>Observações do pedido</span><textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+
+      <div className="card flat">
+        <div className="total-row sub"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
+        {discount > 0 && <div className="total-row sub discount"><span>Desconto</span><span>−{formatMoney(discount)}</span></div>}
+      </div>
+          {belowMinimum && minOrder > 0 && <div className="alert warn">Pedido mínimo de {formatMoney(minOrder)}. Faltam {formatMoney(minOrder - subtotal)}.</div>}
+        </>
+      ) : (
+        <>
       <h4>Como você quer receber?</h4>
       <div className="segmented choice" role="radiogroup" aria-label="Tipo de atendimento">
         {services.map((type) => (
@@ -269,21 +306,6 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
       )}
       </>)}
 
-      <h4>Cupom de desconto</h4>
-      {coupon ? (
-        <div className="alert ok"><span><Tag size={14} style={{ verticalAlign: -2 }} /> <strong>{coupon.code}</strong> aplicado: −{formatMoney(discount)}</span><button className="btn small" onClick={() => setCoupon(null)}>Remover</button></div>
-      ) : (
-        <>
-          <div className="coupon-row">
-            <input value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Código do cupom" aria-label="Código do cupom" />
-            <button className="btn" disabled={!couponInput.trim()} onClick={() => void applyCoupon()}>Aplicar</button>
-          </div>
-          {couponError && <small className="field-error">{couponError}</small>}
-        </>
-      )}
-
-      <label className="field" style={{ marginTop: 14 }}><span>Observações do pedido</span><textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
-
       <div className="card flat">
         <div className="total-row sub"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
         {discount > 0 && <div className="total-row sub discount"><span>Desconto</span><span>−{formatMoney(discount)}</span></div>}
@@ -308,6 +330,8 @@ export function CartModal({ tenant, closedNow, lines, setLines, suggestions, onS
       </label>
       {belowMinimum && minOrder > 0 && <div className="alert warn">Pedido mínimo de {formatMoney(minOrder)}. Faltam {formatMoney(minOrder - subtotal)}.</div>}
       {error && <div className="alert error" role="alert">{error}</div>}
+        </>
+      )}
     </Modal>
   )
 }

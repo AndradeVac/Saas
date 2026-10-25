@@ -165,3 +165,20 @@ def test_bill_with_everything_cancelled_closes_itself(make_tenant):
         shop.patch(f"/orders/{order['id']}/status", {"status": "CANCELLED", "reason": "cliente desistiu"})
     assert shop.get(f"/tabs/{tab['id']}").json()["status"] == "CANCELLED"
     assert shop.get("/tabs").json() == []
+
+
+def test_table_calls_the_waiter_and_staff_answers(make_tenant, monkeypatch):
+    from app.services import push
+    sent = []
+    monkeypatch.setattr(push, "notify_tenant", lambda *args: sent.append(args))
+    shop = make_tenant()
+    shop.patch("/tenant/settings", {"tabs_enabled": True, "tabs_auto_approve": True, "enabled_services": ["DINE_IN"]})
+    product = shop.add_product(price="10.00")
+    order = shop.public_order(product["id"], service_type="DINE_IN", table_label="5", table_code=shop.table_code("5"), payment_method="TAB").json()
+    token = order["tab_token"]
+    assert shop.public_post(f"/public/tabs/{token}/call", {"reason": "SAIDEIRA"}).status_code == 422
+    called = shop.public_post(f"/public/tabs/{token}/call", {"reason": "GUARDANAPO"}).json()
+    assert called["waiter_call"] == "GUARDANAPO" and any(s[1] == "Mesa 5 pediu guardanapo" for s in sent)
+    tab = next(t for t in shop.get("/tabs").json() if t["table_label"] == "5")
+    assert tab["alerts"]["waiter_call"] == "GUARDANAPO"
+    assert shop.post(f"/tabs/{tab['id']}/call/answer").json()["alerts"]["waiter_call"] is None

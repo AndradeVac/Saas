@@ -6,14 +6,14 @@ import { Modal } from '../../components/ui/Modal'
 import { EmptyState, PageHeader, Skeleton } from '../../components/ui/parts'
 import { formatMoney, orderStatusLabels, paymentMethodLabels } from '../../lib/format'
 import { apiErrorMessage } from '../../services/api'
-import { addTabPayment, approveTab, cancelTab, closeTab, resolveTabPayment, setStaffTabServiceFee, tabStatusLabels, type StaffTab } from '../../services/tabs'
+import { addTabPayment, answerWaiterCall, approveTab, cancelTab, closeTab, resolveTabPayment, setStaffTabServiceFee, tabStatusLabels, WAITER_REASONS, type StaffTab } from '../../services/tabs'
 import type { OrderStatus, PaymentMethod } from '../../types'
 import { useTenant } from '../tenant/TenantProvider'
 import { useTablesLive } from './TablesLive'
 
 /** Who needs the floor staff first: new tables, bills requested, idle tables, then the rest by table number. */
 function priority(tab: StaffTab) {
-  if (tab.alerts.needs_approval) return 0
+  if (tab.alerts.needs_approval || tab.alerts.waiter_call) return 0
   if (tab.alerts.payments_to_confirm > 0 || tab.alerts.wants_to_close) return 1
   if (tab.alerts.late_orders > 0) return 2
   if (tab.alerts.idle) return 3
@@ -33,6 +33,14 @@ function duration(minutes: number) {
 export function TablesPage() {
   const { tenant } = useTenant()
   const { tabs, loading, refresh } = useTablesLive()
+  async function answerCall(tab: StaffTab) {
+    try {
+      await answerWaiterCall(tab.id)
+      await refresh()
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Não foi possível marcar como atendido.'))
+    }
+  }
   const [closing, setClosing] = useState<StaffTab | null>(null)
   const [cancelling, setCancelling] = useState<StaffTab | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -112,6 +120,12 @@ export function TablesPage() {
                 </header>
 
                 <div className="table-alerts">
+                  {alerts.waiter_call && (
+                    <div className="pix-check waiter-call">
+                      <span>🙋 <strong>{WAITER_REASONS[alerts.waiter_call]}</strong></span>
+                      <button className="btn small primary" onClick={() => void answerCall(tab)}><Check size={14} /> Atendido</button>
+                    </div>
+                  )}
                   {alerts.needs_approval && <span className="alert-chip danger"><BellRing size={14} /> Cliente novo: confirme a mesa</span>}
                   {alerts.wants_to_close && (
                     <span className="alert-chip ok">

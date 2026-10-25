@@ -271,6 +271,18 @@ class TabService:
         self.db.commit()
         return tab
 
+    def call_waiter(self, tab: Tab, reason: str) -> Tab:
+        if tab.status not in ACTIVE_TAB_STATUSES:
+            raise BusinessRuleError("Esta comanda não está aberta.")
+        tab.waiter_call, tab.waiter_called_at = reason, datetime.now(timezone.utc)
+        self.db.commit()
+        return tab
+
+    def answer_call(self, tab: Tab) -> Tab:
+        tab.waiter_call, tab.waiter_called_at = None, None
+        self.db.commit()
+        return tab
+
     def set_service_fee(self, tab: Tab, tenant: Tenant, waived: bool) -> Tab:
         """Takes the (optional) service fee out of the whole bill, or puts it back, round by round."""
         if tab.status not in ACTIVE_TAB_STATUSES:
@@ -339,6 +351,7 @@ class TabService:
             ),
             late_orders=sum(1 for order in cooking if _minutes_since(order.created_at, now) >= LATE_ORDER_MINUTES),
             payments_to_confirm=sum(1 for p in tab.payments if p.status is TabPaymentStatus.REPORTED),
+            waiter_call=tab.waiter_call,
             minutes_open=_minutes_since(tab.created_at, now) or 0,
             minutes_since_last_order=since_last,
         )
@@ -356,5 +369,5 @@ class TabService:
         return PublicTab(
             number=tab.number, public_token=tab.public_token, table_label=tab.table_label, status=tab.status,
             requested_payment_method=tab.requested_payment_method, split_count=tab.split_count,
-            service_fee_waived=tab.service_fee_waived, last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab),
+            service_fee_waived=tab.service_fee_waived, waiter_call=tab.waiter_call, last_order_at=tab.last_order_at, totals=self.totals(tab), orders=self._orders(tab), payments=self._payments(tab),
         )

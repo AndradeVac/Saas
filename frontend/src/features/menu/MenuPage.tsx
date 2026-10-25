@@ -61,6 +61,8 @@ export function MenuPage() {
   const [lines, setLines] = useState<CartLine[]>([])
   const [modal, setModal] = useState<Modal>(null)
   const [showHours, setShowHours] = useState(false)
+  // Food first on the phone: the store details stay folded until asked for.
+  const [showInfo, setShowInfo] = useState(false)
   const [tokens, setTokens] = useState<string[]>([])
   const [latest, setLatest] = useState<{ token: string; data: Tracking } | null>(null)
   const sections = useRef(new Map<string, HTMLElement>())
@@ -80,7 +82,20 @@ export function MenuPage() {
   useEffect(load, [load])
 
   const slug = menu?.tenant.slug
-  useEffect(() => { if (slug) setTokens(readJson<string[]>(`mesa:${slug}:tokens`, [])) }, [slug])
+  // ?pedido=<token> (link sent on WhatsApp / in the notification) opens that order, on any phone.
+  const linkedOrder = params.get('pedido') ?? ''
+  useEffect(() => {
+    if (!slug) return
+    const saved = readJson<string[]>(`mesa:${slug}:tokens`, [])
+    if (linkedOrder && /^[0-9a-f-]{36}$/i.test(linkedOrder)) {
+      const next = [linkedOrder, ...saved.filter((t) => t !== linkedOrder)].slice(0, 10)
+      writeJson(`mesa:${slug}:tokens`, next)
+      setTokens(next)
+      setModal({ kind: 'track', token: linkedOrder, isNew: false })
+    } else {
+      setTokens(saved)
+    }
+  }, [slug, linkedOrder])
 
   // Comanda: find the bill already open at this table (another phone may have opened it) or the one this phone follows.
   const tabsEnabled = Boolean(menu?.tenant.tabs_enabled)
@@ -319,6 +334,8 @@ export function MenuPage() {
             <span className={`chip ${tenant.is_open ? 'ok' : 'off'}`}><i className="dot-live" />{tenant.is_open ? 'Aberto agora' : tenant.accepting_orders ? 'Fora do horário' : 'Fechado'}</span>
           </div>
         </div>
+        <button className="link-btn menu-more" onClick={() => setShowInfo((v) => !v)} aria-expanded={showInfo}>{showInfo ? 'Menos informações' : 'Endereço, horários e entrega'}</button>
+        {showInfo && <>
         {tenant.description && <p className="menu-desc">{tenant.description}</p>}
         <div className="menu-meta">
           {tenant.address && <span><MapPin size={14} /> {tenant.address}</span>}
@@ -327,11 +344,12 @@ export function MenuPage() {
           {tenant.hours_mode === 'SCHEDULE' && <a href="#horarios" onClick={(e) => { e.preventDefault(); setShowHours((v) => !v) }}><Clock size={14} /> Horários</a>}
         </div>
         {showHours && <HoursList hours={tenant.opening_hours} />}
+        </>}
         <div className="menu-chips">
           {tableFromQr && <span className="chip ok">Você está na mesa {tableFromQr}</span>}
-          {tenant.enabled_services.map((s) => <span className="chip" key={s}>{serviceLabels[s]}</span>)}
-          {Number(tenant.min_order_value) > 0 && <span className="chip">Pedido mín. {formatMoney(tenant.min_order_value)}</span>}
-          {tenant.enabled_services.includes('DELIVERY') && (tenant.delivery_zones.length > 0
+          {showInfo && tenant.enabled_services.map((s) => <span className="chip" key={s}>{serviceLabels[s]}</span>)}
+          {showInfo && Number(tenant.min_order_value) > 0 && <span className="chip">Pedido mín. {formatMoney(tenant.min_order_value)}</span>}
+          {showInfo && tenant.enabled_services.includes('DELIVERY') && (tenant.delivery_zones.length > 0
             ? <span className="chip">Entrega a partir de {formatMoney(Math.min(...tenant.delivery_zones.map((z) => Number(z.fee))))}</span>
             : Number(tenant.delivery_fee) > 0 && <span className="chip">Entrega {formatMoney(tenant.delivery_fee)}</span>)}
           {tenant.is_open && <span className="chip">⏱ Pronto em ~{tenant.prep_minutes} min{tenant.enabled_services.includes('DELIVERY') ? ` · entrega ~${tenant.delivery_minutes} min` : ''}</span>}

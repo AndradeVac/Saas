@@ -73,6 +73,7 @@ class OrderResponse(BaseModel):
 
     id: UUID
     order_number: int
+    public_token: UUID | None = None  # the customer's tracking link (?pedido=<token>)
     customer_id: UUID
     customer_name: str | None = None
     customer_phone: str | None = None

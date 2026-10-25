@@ -27,6 +27,7 @@ export type Order = {
   payment_method: PaymentMethod
   payment_status: PaymentStatus
   paid_at: string | null
+  public_token?: string
   scheduled_for?: string | null
   notes: string | null
   coupon_code: string | null
