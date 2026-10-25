@@ -77,3 +77,38 @@ def test_customers_users_and_audit_are_isolated(make_tenant):
     audit_actions = {entry["action"] for entry in second.get("/audit").json()["items"]}
     assert "PRODUCT_CREATED" not in audit_actions
     assert "ORDER_STATUS_CHANGED" not in audit_actions
+
+
+def test_tabs_and_public_links_are_isolated(make_tenant):
+    """A comanda or order link from one store is useless on another store's address."""
+    first, second = make_tenant(), make_tenant()
+    assert first.patch("/tenant/settings", {"tabs_enabled": True, "min_order_value": "0"}).status_code == 200
+    beer = first.add_product("Chope", "12.00")
+    order = first.public_order(beer["id"], quantity=1, table_label="7", table_code=first.table_code("7"))
+    assert order.status_code == 201, order.text
+    tab_token, order_token = order.json()["tab_token"], order.json()["public_token"]
+    tab_id = first.get("/tabs").json()[0]["id"]
+
+    assert second.get("/tabs").json() == []
+    assert second.get(f"/tabs/{tab_id}").status_code == 404
+    assert second.post(f"/tabs/{tab_id}/approve").status_code == 404
+    assert second.public_get(f"/public/tabs/{tab_token}").status_code == 404
+    assert second.public_get(f"/public/orders/{order_token}").status_code == 404
+    assert second.public_get(f"/public/tables/7/tab", params={"k": first.table_code("7")}).status_code in (404, 422)
+    assert first.public_get(f"/public/tabs/{tab_token}").status_code == 200  # still fine at home
+
+
+def test_coupons_reports_and_export_are_isolated(make_tenant):
+    first, second = make_tenant(), make_tenant()
+    coupon = first.post("/coupons", {"code": "SEGREDO10", "kind": "PERCENT", "value": "10"})
+    assert coupon.status_code == 201, coupon.text
+    product = first.add_product("Pastel", "50.00")
+    assert first.public_order(product["id"], quantity=2).status_code == 201
+
+    assert second.get("/coupons").json() == []
+    assert second.patch(f"/coupons/{coupon.json()['id']}", {"active": False}).status_code == 404
+    assert second.public_post("/public/coupons/check", {"code": "SEGREDO10", "subtotal": "50.00"}).status_code != 200
+    assert second.get("/analytics/dashboard", params={"period": "all"}).json()["order_count"] == 0
+    assert second.get("/analytics/cash").json()["orders"] == 0
+    exported = second.get("/tenant/export").json()
+    assert exported["customers"] == [] and exported["orders"] == []
