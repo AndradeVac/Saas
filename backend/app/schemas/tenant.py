@@ -97,6 +97,8 @@ class PublicTenant(BaseModel):
     address: str | None
     city: str | None = None
     instagram: str | None
+    legal_name: str | None = None
+    legal_document: str | None = None
     logo_url: str | None
     cover_url: str | None
     primary_color: str
@@ -149,6 +151,8 @@ class TenantSettingsUpdate(BaseModel):
     address: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, max_length=60)
     instagram: str | None = Field(default=None, max_length=60)
+    legal_name: str | None = Field(default=None, max_length=150)
+    legal_document: str | None = Field(default=None, max_length=20)
     logo_url: str | None = Field(default=None, max_length=300)
     cover_url: str | None = Field(default=None, max_length=300)
     primary_color: str | None = None
@@ -176,6 +180,18 @@ class TenantSettingsUpdate(BaseModel):
     google_review_url: str | None = Field(default=None, max_length=300)
     scheduling_enabled: bool | None = None
     notify_customers: bool | None = None
+
+    @field_validator("legal_document")
+    @classmethod
+    def _legal_document(cls, value: str | None) -> str | None:
+        if not value or not value.strip():
+            return None
+        digits = re.sub(r"\D", "", value)
+        if len(digits) == 14:
+            return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
+        if len(digits) == 11:
+            return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        raise ValueError("Informe o CNPJ (14 números) ou o CPF (11 números).")
 
     @field_validator("google_review_url")
     @classmethod

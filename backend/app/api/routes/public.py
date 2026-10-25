@@ -4,14 +4,14 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.services import loyalty, push
 from app.core.exceptions import BusinessRuleError, NotFoundError
-from app.core.rate_limit import public_lookup_rate_limit, public_order_rate_limit
+from app.core.rate_limit import coupon_check_rate_limit, public_lookup_rate_limit, public_order_rate_limit
 from app.core.tenancy import get_tenant
 from app.models.order import Order, OrderStatus
 from app.models.order_review import OrderReview
@@ -38,6 +38,7 @@ from app.schemas.public import (
 from app.core.plans import public_tenant
 from app.core.tables import normalize_table_label, valid_table_code
 from app.schemas.tab import PixCode, PixReport, PublicTab, ServiceFeeChoice, TabCloseRequest, WaiterCall
+from app.services.access_log import record_access
 from app.services.coupon import CouponService
 from app.services.tab import TabService
 from app.services.order import OrderService
@@ -121,7 +122,7 @@ def get_menu(response: Response, tenant: Tenant = Depends(get_tenant), db: Sessi
     return Response(content=body, media_type="application/json", headers=headers)
 
 
-@router.post("/coupons/check", response_model=CouponCheckResponse, dependencies=[Depends(public_lookup_rate_limit)])
+@router.post("/coupons/check", response_model=CouponCheckResponse, dependencies=[Depends(coupon_check_rate_limit)])
 def check_coupon(data: CouponCheckRequest, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db)):
     coupon, discount = CouponService(db, tenant.id).validate(data.code, data.subtotal)
     return CouponCheckResponse(code=coupon.code, discount=discount)
@@ -134,7 +135,7 @@ def check_coupon(data: CouponCheckRequest, tenant: Tenant = Depends(get_tenant),
     dependencies=[Depends(public_order_rate_limit)],
 )
 def create_public_order(
-    data: PublicOrderCreate, background: BackgroundTasks, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db),
+    data: PublicOrderCreate, request: Request, background: BackgroundTasks, tenant: Tenant = Depends(get_tenant), db: Session = Depends(get_db),
 ):
     customer = CustomerRepository(db, tenant.id).get_or_create_by_phone(data.customer_name, data.customer_phone)
     if data.marketing_opt_in and not customer.marketing_opt_in:
@@ -160,6 +161,7 @@ def create_public_order(
         ),
         public=True,
     )
+    record_access(db, request, "ORDER", tenant.id, reference=f"#{order.order_number}")
     where = f"Mesa {order.table_label}" if order.table_label else {"TAKEAWAY": "Retirada", "DELIVERY": "Entrega"}.get(order.service_type.value, "")
     background.add_task(push.notify_tenant, tenant.id, f"Novo pedido #{order.order_number}", f"{where} · {customer.name} · R$ {order.total:.2f}".replace(".", ","))
     return PublicOrderResponse(

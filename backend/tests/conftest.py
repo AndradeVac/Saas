@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 
 from app.core.database import SessionLocal
 from app.core.rate_limit import (
+    coupon_check_rate_limit,
     login_rate_limit,
     public_lookup_rate_limit,
     password_reset_rate_limit,
@@ -31,7 +32,7 @@ def no_menu_cache(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reset_rate_limits():
-    for limiter in (login_rate_limit, signup_rate_limit, slug_check_rate_limit, public_order_rate_limit, public_lookup_rate_limit, password_reset_rate_limit):
+    for limiter in (coupon_check_rate_limit, login_rate_limit, signup_rate_limit, slug_check_rate_limit, public_order_rate_limit, public_lookup_rate_limit, password_reset_rate_limit):
         limiter.reset()
     yield
 

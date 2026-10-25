@@ -33,7 +33,7 @@ const PRESETS = ['#c2410c', '#dc2626', '#d97706', '#65a30d', '#059669', '#0891b2
 
 const editable = (s: TenantSettings) => ({
   name: s.name, business_type: s.business_type, description: s.description, phone: s.phone, address: s.address, city: s.city,
-  instagram: s.instagram, pix_key: s.pix_key, logo_url: s.logo_url, cover_url: s.cover_url, primary_color: s.primary_color,
+  instagram: s.instagram, legal_name: s.legal_name, legal_document: s.legal_document, pix_key: s.pix_key, logo_url: s.logo_url, cover_url: s.cover_url, primary_color: s.primary_color,
   accepting_orders: s.accepting_orders, hours_mode: s.hours_mode, opening_hours: s.opening_hours,
   enabled_services: s.enabled_services, accepted_payments: s.accepted_payments,
   delivery_fee: s.delivery_fee, min_order_value: s.min_order_value, service_fee_percent: s.service_fee_percent,
@@ -69,13 +69,13 @@ function toggleIn<T>(list: T[], item: T, on: boolean) {
 
 /** Generates a R$ 1,00 QR Code for the typed key, so the owner can pay it and see the money arrive. */
 function PixTest({ pixKey }: { pixKey: string }) {
-  const [qr, setQr] = useState<{ img: string; code: string } | null>(null)
+  const [qr, setQr] = useState<{ img: string; code: string; kind: string } | null>(null)
   const [error, setError] = useState('')
   async function test() {
     setError('')
     try {
       const pix = await getPixPreview(pixKey)
-      setQr({ img: await QRCode.toDataURL(pix.code, { margin: 1, width: 260 }), code: pix.code })
+      setQr({ img: await QRCode.toDataURL(pix.code, { margin: 1, width: 260 }), code: pix.code, kind: pix.key_kind })
     } catch (err) {
       setError(apiErrorMessage(err, 'Chave PIX inválida.'))
     }
@@ -87,6 +87,7 @@ function PixTest({ pixKey }: { pixKey: string }) {
       {qr && (
         <Modal title="Teste da chave PIX" onClose={() => setQr(null)} size="sm">
           <p className="muted">Pague este QR de <strong>R$ 1,00</strong> pelo app do seu banco. Se o dinheiro cair na sua conta, está tudo certo: é assim que seus clientes vão pagar.</p>
+          <p>Entendemos sua chave como: <strong>{qr.kind}</strong>.{qr.kind === 'CPF' && <> Se ela for um celular, escreva com <strong>+55</strong> na frente.</>}</p>
           <img className="pix-qr" src={qr.img} alt="QR Code PIX de teste" />
           <div className="pix-box"><code className="pix-code">{qr.code}</code><button className="btn small" onClick={() => { void navigator.clipboard?.writeText(qr.code); toast.success('PIX copiado') }}><Copy size={14} /> Copiar</button></div>
         </Modal>
@@ -134,6 +135,7 @@ export function SettingsPage() {
       const updated = await updateTenantSettings({
         ...editable(form),
         phone: form.phone || null, address: form.address || null, city: form.city || null, instagram: form.instagram || null,
+        legal_name: form.legal_name || null, legal_document: form.legal_document || null,
         description: form.description || null, pix_key: form.pix_key || null,
       })
       setSaved(updated)
@@ -187,6 +189,10 @@ export function SettingsPage() {
           <div className="grid-2">
             <label className="field"><span>Endereço</span><input maxLength={200} placeholder="Rua, número – bairro" value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} /></label>
             <label className="field"><span>Cidade</span><input maxLength={60} placeholder="Ex.: São Paulo" value={form.city ?? ''} onChange={(e) => set('city', e.target.value)} /><small className="muted">Aparece no PIX que o cliente paga pela mesa.</small></label>
+          </div>
+          <div className="grid-2">
+            <label className="field"><span>Razão social</span><input maxLength={150} placeholder="Como está no CNPJ" value={form.legal_name ?? ''} onChange={(e) => set('legal_name', e.target.value)} /></label>
+            <label className="field"><span>CNPJ ou CPF</span><input inputMode="numeric" maxLength={20} placeholder="00.000.000/0001-00" value={form.legal_document ?? ''} onChange={(e) => set('legal_document', e.target.value)} /><small className="muted">Aparece no rodapé do cardápio: a lei de vendas pela internet (Decreto 7.962/2013) pede a identificação de quem vende.</small></label>
           </div>
         </div>
       )}

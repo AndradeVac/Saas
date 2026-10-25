@@ -1,5 +1,6 @@
 import QRCode from 'qrcode'
 import { Check, Copy, MessageCircle, Star } from 'lucide-react'
+import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Modal } from '../../components/ui/Modal'
@@ -154,7 +155,12 @@ export function TrackModal({ token, tenant, isNew, onClose }: { token: string; t
         })
         if (data.status !== 'FINISHED' && data.status !== 'CANCELLED') timer = window.setTimeout(load, POLL_MS)
       })
-      .catch(() => { if (active) setMissing(true) })
+      .catch((err) => {
+        if (!active) return
+        // "Not found" only when the server says so; a dropped signal just tries again.
+        if (isAxiosError(err) && err.response?.status === 404) setMissing(true)
+        else timer = window.setTimeout(load, POLL_MS * 2)
+      })
     void load()
     return () => { active = false; window.clearTimeout(timer) }
   }, [token])

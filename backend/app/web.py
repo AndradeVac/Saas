@@ -43,13 +43,15 @@ async def security_headers(request, call_next):
 
 @web.on_event("startup")
 async def start_background_jobs() -> None:
-    """Every hour: lifecycle e-mails (each goes out once, so several processes running this is fine)."""
+    """Every hour: lifecycle e-mails (each goes out once, so several processes running this is fine) and housekeeping."""
     import asyncio
 
     from fastapi.concurrency import run_in_threadpool
 
     from app.core.rate_limit import purge_old_counters
     from app.services import lifecycle
+    from app.services.access_log import purge_old_access_logs
+    from app.services.tab import expire_forgotten_tabs
 
     enabled = settings.background_jobs if settings.background_jobs is not None else settings.is_production
     if not enabled:
@@ -61,6 +63,8 @@ async def start_background_jobs() -> None:
             try:
                 await run_in_threadpool(lifecycle.run)
                 await run_in_threadpool(purge_old_counters)
+                await run_in_threadpool(expire_forgotten_tabs)
+                await run_in_threadpool(purge_old_access_logs)
             except Exception:  # never let the loop die
                 import logging
 

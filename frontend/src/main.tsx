@@ -4,6 +4,8 @@ import { Toaster } from 'sonner'
 import { AppRouter } from './app/router'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initMonitoring, reportError } from './lib/monitoring'
+// Self-hosted font: no visitor IP goes to Google (LGPD) and one less DNS lookup on the menu.
+import '@fontsource-variable/inter'
 import './styles/globals.css'
 
 initMonitoring()

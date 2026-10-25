@@ -64,6 +64,9 @@ class Tenant(Base):
     # City printed in PIX codes (and useful on the menu); free text, optional.
     city: Mapped[str | None] = mapped_column(String(60), nullable=True)
     instagram: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # Shown on the menu: Decreto 7.962/2013 asks online sellers for their legal name and CNPJ/CPF.
+    legal_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    legal_document: Mapped[str | None] = mapped_column(String(20), nullable=True)
     cover_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     pix_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # MANUAL: `accepting_orders` alone decides. SCHEDULE: also requires being inside `opening_hours`.

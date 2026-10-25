@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.core.tenancy import get_tenant
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.user import ForgotPasswordRequest, PasswordChange, ResetPasswordRequest, TokenResponse, UserResponse
+from app.services.access_log import record_access
 from app.services.password_reset import PasswordResetService
 from app.services.user import UserService
 
@@ -17,11 +18,13 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=TokenResponse, dependencies=[Depends(login_rate_limit)])
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     tenant: Tenant = Depends(get_tenant),
     db: Session = Depends(get_db),
 ):
     user = UserService(db, tenant.id).authenticate(form_data.username, form_data.password)
+    record_access(db, request, "LOGIN", tenant.id, user.id)
     return TokenResponse(access_token=create_access_token(user))
 
 

@@ -108,6 +108,12 @@ login_rate_limit = RateLimiter(max_requests=10, window_seconds=60, name="login")
 signup_rate_limit = RateLimiter(max_requests=5, window_seconds=600, per_tenant=False, name="signup")
 password_reset_rate_limit = RateLimiter(max_requests=5, window_seconds=900, name="password_reset")
 slug_check_rate_limit = RateLimiter(max_requests=30, window_seconds=60, per_tenant=False, name="slug_check", shared=False)
-public_order_rate_limit = RateLimiter(max_requests=20, window_seconds=60, name="public_order")
-public_lookup_rate_limit = RateLimiter(max_requests=60, window_seconds=60, name="public_lookup", shared=False)
+# A full restaurant shares one Wi-Fi (one IP): every phone polls its comanda/order, so the
+# limits below are per-restaurant budgets, not per-person ones. Load test 2026-10-25: at 60/min,
+# 5 phones on the same IP already got 429s on the comanda.
+public_order_rate_limit = RateLimiter(max_requests=90, window_seconds=60, name="public_order")
+# Reads guarded by unguessable tokens (UUID / table code); kept in memory to spare connections.
+public_lookup_rate_limit = RateLimiter(max_requests=900, window_seconds=60, name="public_lookup", shared=False)
+# Coupon codes are short and guessable: this one stays strict and shared.
+coupon_check_rate_limit = RateLimiter(max_requests=20, window_seconds=60, name="coupon_check")
 menu_import_rate_limit = RateLimiter(max_requests=6, window_seconds=3600, name="menu_import")  # each reading costs money

@@ -12,7 +12,7 @@ import { createCustomer, getCustomers, updateCustomer, type Customer } from '../
 import { usePlan } from '../plans/PlanProvider'
 
 const PAGE_SIZE = 25
-type Draft = { id?: string; name: string; phone: string; notes: string; active: boolean }
+type Draft = { id?: string; name: string; phone: string; notes: string; active: boolean; marketing?: boolean }
 
 /** The customer's loyalty card, with the button to give the reward. */
 function LoyaltyPanel({ customerId }: { customerId: string }) {
@@ -91,7 +91,8 @@ export function CustomersPage() {
     setFormError('')
     try {
       const payload = { name: draft.name.trim(), phone: draft.phone.trim() || null, notes: draft.notes.trim() || null }
-      if (draft.id) await updateCustomer(draft.id, { ...payload, active: draft.active })
+      // LGPD: consent is revoked here when the customer asks; granting it is only done by the customer, on the menu.
+      if (draft.id) await updateCustomer(draft.id, { ...payload, active: draft.active, ...(draft.marketing === false ? { marketing_opt_in: false } : {}) })
       else await createCustomer(payload)
       setDraft(null)
       toast.success('Cliente salvo')
@@ -140,7 +141,7 @@ export function CustomersPage() {
                       <td className="num">{c.orders_count}</td>
                       <td className="num">{formatMoney(c.total_spent)}</td>
                       <td>{formatDate(c.last_order_at)}</td>
-                      <td className="num"><button className="icon-btn" onClick={() => { setFormError(''); setDraft({ id: c.id, name: c.name, phone: c.phone ? maskPhone(c.phone) : '', notes: c.notes ?? '', active: c.active }) }} aria-label={`Editar ${c.name}`}><Pencil size={16} /></button></td>
+                      <td className="num"><button className="icon-btn" onClick={() => { setFormError(''); setDraft({ id: c.id, name: c.name, phone: c.phone ? maskPhone(c.phone) : '', notes: c.notes ?? '', active: c.active, marketing: c.marketing_opt_in || undefined }) }} aria-label={`Editar ${c.name}`}><Pencil size={16} /></button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,6 +165,7 @@ export function CustomersPage() {
             <label className="field"><span>Telefone com DDD</span><input inputMode="tel" placeholder="(11) 99999-9999" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: maskPhone(e.target.value) })} /></label>
             <label className="field"><span>Observações</span><textarea rows={3} maxLength={1000} placeholder="Preferências, alergias…" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></label>
             {draft.id && <label className="check"><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Cliente ativo</label>}
+            {draft.marketing !== undefined && <label className="check"><input type="checkbox" checked={draft.marketing} onChange={(e) => setDraft({ ...draft, marketing: e.target.checked })} /> Aceita receber promoções pelo WhatsApp (desmarque se o cliente pedir para parar)</label>}
           </form>
           {draft.id && <LoyaltyPanel customerId={draft.id} />}
           {draft.id && <ForgetCustomer customerId={draft.id} onDone={() => { setDraft(null); void load() }} />}

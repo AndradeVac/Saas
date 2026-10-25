@@ -35,7 +35,7 @@ _PLAIN_FIELDS = (
     "loyalty_enabled", "loyalty_goal", "scheduling_enabled", "notify_customers",
 )
 # Can be cleared by sending null explicitly.
-_NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "pix_key", "logo_url", "cover_url", "loyalty_reward", "google_review_url")
+_NULLABLE_FIELDS = ("description", "phone", "address", "city", "instagram", "legal_name", "legal_document", "pix_key", "logo_url", "cover_url", "loyalty_reward", "google_review_url")
 
 
 class TenantService:

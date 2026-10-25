@@ -11,7 +11,7 @@ primary_region = "gru"
 
 [deploy]
   # Runs once per deploy, before the new version takes traffic.
-  release_command = "alembic upgrade head"
+  release_command = "python -m app.migrate"
 
 [env]
   ENVIRONMENT = "production"

@@ -57,9 +57,9 @@ export function TermsPage() {
 
       <h2>3. Período de teste e planos</h2>
       <ul>
-        <li>Novas contas começam com um período de teste gratuito, com limites de produtos, equipe e pedidos descritos na página de preços.</li>
+        <li>Novas contas começam com um período de teste gratuito de 14 dias, com os recursos descritos na página de preços.</li>
         <li>Terminado o teste, o cardápio continua visível, mas deixa de receber pedidos até a contratação de um plano.</li>
-        <li>Os planos são mensais, com os preços e recursos publicados no site no momento da contratação. Reajustes serão avisados com pelo menos 30 dias de antecedência.</li>
+        <li>Os planos podem ser mensais ou anuais (o anual cobre 12 meses pelo preço de 10), com os preços e recursos publicados no site no momento da contratação. Reajustes serão avisados com pelo menos 30 dias de antecedência.</li>
         <li>O cliente pode cancelar a qualquer momento, sem multa; o acesso segue até o fim do período já pago. Não há reembolso proporcional de mensalidades já iniciadas, salvo previsão legal.</li>
         <li>A falta de pagamento pode levar à suspensão do recebimento de pedidos e, depois de 60 dias, ao encerramento da conta.</li>
       </ul>
@@ -113,7 +113,10 @@ export function PrivacyPage() {
         <li><strong>Cadastro do estabelecimento:</strong> nome do negócio, endereço, telefone/WhatsApp, Instagram, logo e fotos, chave PIX (se informada).</li>
         <li><strong>Usuários do painel:</strong> nome, e-mail, senha (guardada de forma criptografada, nunca em texto puro) e registro das ações feitas no painel (auditoria).</li>
         <li><strong>Consumidores:</strong> nome, telefone, mesa ou endereço de entrega, itens pedidos, observações e histórico de pedidos naquele estabelecimento.</li>
+        <li><strong>Consumidores, quando escolhem:</strong> autorização para receber promoções do estabelecimento pelo WhatsApp (com data), inscrição para avisos no celular sobre o pedido, avaliações e cartão fidelidade.</li>
+        <li><strong>Assinatura do estabelecimento:</strong> nome, CPF ou CNPJ e e-mail de cobrança, enviados ao processador de pagamentos.</li>
         <li><strong>Dados técnicos:</strong> endereço IP e informações do navegador, usados para segurança (por exemplo, limitar tentativas de login) e para manter o sistema funcionando.</li>
+        <li><strong>Registros de acesso:</strong> endereço IP, data e hora de cadastros, logins e pedidos, guardados por 6 meses por exigência do Marco Civil da Internet (Lei nº 12.965/2014, art. 15) e entregues apenas por ordem judicial.</li>
       </ul>
 
       <h2>3. Para que usamos e com qual base legal</h2>
@@ -121,7 +124,10 @@ export function PrivacyPage() {
         <li>Prestar o serviço contratado: cardápio, pedidos, comandas, painel e relatórios (execução de contrato).</li>
         <li>Enviar avisos do serviço, como recuperação de senha e mudanças nos termos (execução de contrato).</li>
         <li>Proteger a plataforma contra fraudes e abusos (legítimo interesse).</li>
-        <li>Cumprir obrigações legais e fiscais (obrigação legal).</li>
+        <li>Avisar o consumidor sobre o andamento do pedido, por notificação ou WhatsApp, quando ele pede (execução de contrato).</li>
+        <li>Promoções do estabelecimento pelo WhatsApp, só para quem marcou a autorização; pode ser revogada a qualquer momento pedindo ao estabelecimento (consentimento).</li>
+        <li>E-mails ao estabelecimento sobre a conta, como boas-vindas, fim do teste e resumo semanal (legítimo interesse; basta pedir para parar).</li>
+        <li>Guardar registros de acesso e cumprir obrigações legais e fiscais (obrigação legal).</li>
       </ul>
       <p>Não vendemos dados pessoais e não usamos os dados dos consumidores de um estabelecimento para fins próprios de marketing.</p>
 
@@ -132,17 +138,21 @@ export function PrivacyPage() {
         <li>Banco de dados: Supabase (servidores em São Paulo).</li>
         <li>Rede, proteção contra ataques e armazenamento de imagens: Cloudflare.</li>
         <li>Envio de e-mails do sistema: Resend.</li>
+        <li>Cobrança das assinaturas: Asaas (Brasil).</li>
+        <li>Avisos de pedido pelo WhatsApp, quando o estabelecimento ativa: Meta (WhatsApp Business Platform).</li>
+        <li>Notificações no celular: o serviço de notificações do navegador de quem as ativou (Google, Apple ou Mozilla), que só transporta o aviso.</li>
+        <li>Leitura automática de cardápio por foto, quando o estabelecimento usa: Anthropic, que recebe apenas a imagem do cardápio.</li>
       </ul>
       <p>Alguns desses fornecedores têm sede fora do Brasil; quando houver transferência internacional, ela ocorre com as garantias previstas na LGPD. Também podemos compartilhar dados por ordem judicial ou exigência legal.</p>
 
       <h2>5. Por quanto tempo guardamos</h2>
-      <p>Enquanto a conta do estabelecimento estiver ativa. Após o encerramento, os dados são apagados em até 90 dias, salvo os que a lei exigir guardar por mais tempo. O estabelecimento pode pedir a exclusão de dados de consumidores a qualquer momento pelos canais de contato abaixo.</p>
+      <p>Enquanto a conta do estabelecimento estiver ativa. Após o encerramento, os dados são apagados em até 90 dias, salvo os que a lei exigir guardar por mais tempo. Registros de acesso ficam 6 meses e cópias de segurança do banco, 30 dias; depois disso são apagados automaticamente. O estabelecimento pode pedir a exclusão de dados de consumidores a qualquer momento pelos canais de contato abaixo.</p>
 
       <h2>6. Segurança</h2>
       <p>Usamos conexão criptografada (HTTPS) em todo o site, senhas com hash forte, separação dos dados de cada estabelecimento no banco de dados, controle de acesso por perfis e registro de auditoria. Nenhum sistema é 100% invulnerável; em caso de incidente relevante, os afetados e a ANPD serão comunicados conforme a lei.</p>
 
       <h2>7. Armazenamento no navegador</h2>
-      <p>Não usamos cookies de rastreamento nem publicidade. O site guarda no seu próprio navegador apenas o necessário para funcionar: a sessão de login do painel, o carrinho, a comanda da mesa e preferências como tema claro/escuro.</p>
+      <p>Não usamos cookies de rastreamento nem publicidade, e não carregamos fontes, scripts ou rastreadores de terceiros. O site guarda no seu próprio navegador apenas o necessário para funcionar: a sessão de login do painel, o carrinho, a comanda da mesa e preferências como tema claro/escuro.</p>
 
       <h2>8. Seus direitos</h2>
       <p>Você pode pedir confirmação de tratamento, acesso, correção, anonimização ou exclusão dos seus dados, portabilidade, informação sobre compartilhamentos e revogação de consentimento, nos termos do art. 18 da LGPD. Consumidores de um estabelecimento podem fazer o pedido diretamente a ele ou a nós, que o encaminharemos. Respondemos em até 15 dias.</p>
